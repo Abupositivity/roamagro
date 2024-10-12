@@ -10,4 +10,4 @@ const MarketplaceItemSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now },
 });
 
-module.exports = mongoose.model('marketplaceItem', MarketplaceItemSchema);
+module.exports = mongoose.model('MarketplaceItem', MarketplaceItemSchema);
