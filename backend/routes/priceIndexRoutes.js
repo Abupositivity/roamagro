@@ -1,4 +1,4 @@
-const express = ('express');
+const express = require('express');
 const { createPriceIndex, getPriceIndexes } = require('../controllers/priceIndexController');
 const router = express.Router();
 
