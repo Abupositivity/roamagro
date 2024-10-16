@@ -1,4 +1,4 @@
-const MarketplaceItem = require('../models/MarketplaceItem ');
+const MarketplaceItem = require('../models/MarketplaceItem');
 
 // Create a new marketplace item
 exports.createMarketplaceItem = async (req, res) => {
