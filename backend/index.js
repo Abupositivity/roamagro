@@ -2,6 +2,9 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const connectDB = require('./config/db');
+const passport = require('passport');
+const session = require('express-session');
+require('./config/passportConfig');
 
 const authRoutes = require('./routes/authRoutes');
 const farmProjectRoutes = require('./routes/farmProjectRoutes');
@@ -15,6 +18,16 @@ connectDB();
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Configure session management
+app.use(session({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+  }));
+  
+  app.use(passport.initialize());
+  app.use(passport.session());
 
 // Register app routes
 app.use('/api/auth', authRoutes);
