@@ -5,6 +5,7 @@ const UserSchema = new mongoose.Schema({
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
+    googleId: { type: String, unique: true, sparse: true },
     language: { type: String, default: 'English' },
     createdAt: { type: Date, default: Date.now }
 });
