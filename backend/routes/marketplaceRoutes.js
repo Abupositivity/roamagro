@@ -1,7 +1,7 @@
 const express = require('express');
 const { createMarketplaceItem, getMarketplaceItems } = require('../controllers/marketplaceController');
 const authMiddleware = require('../middlewares/authMiddleware');
-const routes = express.Router();
+const router = express.Router();
 
 router.use(authMiddleware);
 
