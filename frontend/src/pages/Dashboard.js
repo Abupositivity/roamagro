@@ -1,5 +1,5 @@
 import React from 'react';
-import { Container, Grid, Typography } from '@material-ui/core';
+import { Container, Grid, Typography } from '@mui/material';
 import FarmProject from '../components/farmProjects/FarmProject';
 import Marketplace from '../components/marketplace/Marketplace';
 import PriceIndex from '../components/priceIndex/PriceIndex';

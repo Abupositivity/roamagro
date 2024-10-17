@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button } from '@material-ui/core';
+import { Button } from '@mui/material';
 
 const LanguageSwitcher = () => {
   const { i18n } = useTranslation();

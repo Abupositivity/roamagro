@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { login, googleLogin } from '../../redux/actions/authActions';
-import { Button, TextField, Typography, Container } from '@material-ui/core';
+import { Button, TextField, Typography, Container } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 
 const Login = () => {

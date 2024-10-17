@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { createMuiTheme, ThemeProvider } from '@material-ui/core/styles';
-import { Cssbaseline, Switch } from '@material-ui/core';
+import { createMuiTheme, ThemeProvider } from '@mui/material/styles';
+import { CssBaseline, Switch } from '@mui/material';
 
 const ThemeSwitcher = ({ children }) => {
     const [darkMode, setDarkMode] = useState(false);
@@ -18,7 +18,7 @@ const ThemeSwitcher = ({ children }) => {
 
     return (
         <ThemeProvider theme={theme}>
-            <Cssbaseline />
+            <CssBaseline />
             <Switch checked={darkMode} onChange={toggleDarkMode} />
             {children}
         </ThemeProvider>

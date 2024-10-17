@@ -1,5 +1,5 @@
 import React from 'react';
-import { Container, Typography, Button } from '@material-ui/core';
+import { Container, Typography, Button } from '@mui/material';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 

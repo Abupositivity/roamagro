@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchTopics, createTopic } from '../../redux/actions/communityActions';
-import { Container, TextField, Button, Typography, Paper, List, ListItem } from '@material-ui/core';
+import { Container, TextField, Button, Typography, Paper, List, ListItem } from '@mui/material';
 
 const Community = () => {
   const dispatch = useDispatch();

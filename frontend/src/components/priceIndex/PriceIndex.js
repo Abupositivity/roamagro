@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchPriceIndex, updatePriceIndex } from '../../redux/actions/priceIndexActions';
-import { Container, Grid, TextField, Button, Typography, Paper } from '@material-ui/core';
+import { Container, Grid, TextField, Button, Typography, Paper } from '@mui/material';
 
 const PriceIndex = () => {
   const dispatch = useDispatch();

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchFarmProjects, createFarmProject, updateFarmProject } from '../../redux/actions/farmProjectsActions';
-import { Container, Grid, TextField, Button, Typography, Paper } from '@material-ui/core';
+import { Container, Grid, TextField, Button, Typography, Paper } from '@mui/material';
 
 const FarmProject = () => {
   const dispatch = useDispatch();

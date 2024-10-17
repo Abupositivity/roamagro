@@ -1,5 +1,5 @@
-import { createMuiTheme } from '@material-ui/core/styles';
-import { black } from '@material-ui/core/colors';
+import { createMuiTheme } from '@mui/material/styles';
+import { common } from '@mui/material/colors';
 
 const theme = createMuiTheme({
     palette: {
@@ -7,7 +7,7 @@ const theme = createMuiTheme({
             main: '#00BF63',
         },
         secondary: {
-            main: black[500],
+            main: common.black,
         },
         type: 'light',
     },

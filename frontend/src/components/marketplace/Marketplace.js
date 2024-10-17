@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchListings, createListing } from '../../redux/actions/marketplaceActions';
-import { Container, Grid, TextField, Button, Typography, Paper, Select, MenuItem } from '@material-ui/core';
+import { Container, Grid, TextField, Button, Typography, Paper, Select, MenuItem } from '@mui/material';
 
 const Marketplace = () => {
   const dispatch = useDispatch();
