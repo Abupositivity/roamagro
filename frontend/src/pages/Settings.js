@@ -1,5 +1,5 @@
 import React from 'react';
-import { Container, Typography, Switch, FormControlLabel } from '@material-ui/core';
+import { Container, Typography, FormControlLabel } from '@material-ui/core';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import ThemeSwitcher from '../components/ThemeSwitcher';
 
