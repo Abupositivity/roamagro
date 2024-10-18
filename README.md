@@ -1,4 +1,4 @@
-RoamAgro
+# RoamAgro
 
 RoamAgro is a digital platform designed to streamline the management of agribusinesses and create a direct connection between agroproducers, particularly farmers, and consumers. The platform supports project management tools, a marketplace for selling and advertising agricultural produce and equipment, localized price indexes, and a community space for discussions around agricultural practices and market trends. The app also supports multilingual functionality, focusing on Hausa and English speakers.
 
@@ -61,7 +61,7 @@ To get started, clone the RoamAgro repository to your local machine:
 git clone https://github.com/AbuPositivity/roamagro.git
 cd roamagro
 
-## Environment Variables
+#Environment Variables
 
 You need to set up environment variables for both the backend and frontend. Create .env files in the respective directories.
 
