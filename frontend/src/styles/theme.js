@@ -1,16 +1,15 @@
-import { createMuiTheme } from '@mui/material/styles';
-import { common } from '@mui/material/colors';
-
-const theme = createMuiTheme({
-    palette: {
-        primary: {
-            main: '#00BF63',
-        },
-        secondary: {
-            main: common.black,
-        },
-        type: 'light',
+const theme = {
+    colors: {
+      primary: '#00BF63',  // RoamAgro primary green
+      secondary: '#333',    // Dark theme
+      light: '#f4f4f4',     // Light mode background
+      dark: '#000000',      // Dark mode background
     },
-});
-
-export default theme;
+    fontSizes: {
+      small: '12px',
+      medium: '16px',
+      large: '24px',
+    },
+  };
+  
+  export default theme;

@@ -1,12 +1,11 @@
-import { configureStore } from '@reduxjs/toolkit';
-import { thunk } from 'redux-thunk'; // Import as a named export
+// eslint-disable-next-line no-unused-vars
+import { configureStore, getDefaultMiddleware } from '@reduxjs/toolkit'; // Import getDefaultMiddleware
 import authReducer from './reducers/authReducer';
 import farmProjectsReducer from './reducers/farmProjectsReducer';
 import marketplaceReducer from './reducers/marketplaceReducer';
 import priceIndexReducer from './reducers/priceIndexReducer';
 import communityReducer from './reducers/communityReducer';
 
-// Combine reducers into a root reducer
 const rootReducer = {
   auth: authReducer,
   farmProjects: farmProjectsReducer,
@@ -15,10 +14,10 @@ const rootReducer = {
   community: communityReducer,
 };
 
-// Configure the store and apply thunk middleware
+// Configure the store
 const store = configureStore({
   reducer: rootReducer,
-  middleware: [thunk], // Add thunk middleware
+  middleware: (getDefaultMiddleware) => getDefaultMiddleware(),
 });
 
 export default store;
