@@ -1,18 +1,27 @@
 import React from 'react';
-import { Container, Typography, FormControlLabel } from '@mui/material';
-import LanguageSwitcher from '../components/LanguageSwitcher';
+import { Box, Typography } from '@mui/material';
 import ThemeSwitcher from '../components/ThemeSwitcher';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 
-const Settings = () => {
+const Settings = ({ darkMode, setDarkMode }) => {
   return (
-    <Container>
-      <Typography variant="h4">Settings</Typography>
-      <FormControlLabel
-        control={<ThemeSwitcher />}
-        label="Dark Mode"
-      />
-      <LanguageSwitcher />
-    </Container>
+    <Box sx={{ padding: '20px' }}>
+      <Typography variant="h4" gutterBottom>
+        Settings
+      </Typography>
+      <Box sx={{ marginBottom: '20px' }}>
+        <Typography variant="h6" gutterBottom>
+          Dark Mode
+        </Typography>
+        <ThemeSwitcher darkMode={darkMode} setDarkMode={setDarkMode} />
+      </Box>
+      <Box>
+        <Typography variant="h6" gutterBottom>
+          Language
+        </Typography>
+        <LanguageSwitcher />
+      </Box>
+    </Box>
   );
 };
 
