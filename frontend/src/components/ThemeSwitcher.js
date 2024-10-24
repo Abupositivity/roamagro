@@ -1,28 +1,17 @@
-import React, { useState } from 'react';
-import { createMuiTheme, ThemeProvider } from '@mui/material/styles';
-import { CssBaseline, Switch } from '@mui/material';
+import React from 'react';
+import { Switch, FormControlLabel } from '@mui/material';
 
-const ThemeSwitcher = ({ children }) => {
-    const [darkMode, setDarkMode] = useState(false);
+const ThemeSwitcher = ({ darkMode, setDarkMode }) => {
+  const handleToggle = () => {
+    setDarkMode(!darkMode);
+  };
 
-    const theme = createMuiTheme({
-        palettte: {
-            type: darkMode ? 'dark' : 'light',
-            primary: { main: '#00BF63' },
-        },
-    });
-
-    const toggleDarkMode = () => {
-        setDarkMode(!darkMode);
-    };
-
-    return (
-        <ThemeProvider theme={theme}>
-            <CssBaseline />
-            <Switch checked={darkMode} onChange={toggleDarkMode} />
-            {children}
-        </ThemeProvider>
-    );
+  return (
+    <FormControlLabel
+      control={<Switch checked={darkMode} onChange={handleToggle} />}
+      label={darkMode ? 'Dark Mode' : 'Light Mode'}
+    />
+  );
 };
 
 export default ThemeSwitcher;
