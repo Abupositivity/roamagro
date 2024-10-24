@@ -14,7 +14,6 @@ const Dashboard = () => {
 
   return (
     <Container maxWidth="lg">
-      {/* Space to Create a New Agri-Feed Post */}
       <Box mt={4}>
         <Typography variant="h6" gutterBottom>
           Create New Post
@@ -40,8 +39,7 @@ const Dashboard = () => {
         </Box>
       </Box>
 
-      {/* Agri-Feed Section with Scrolling */}
-      <Box mt={4} style={{ maxHeight: '400px', overflowY: 'auto' }}> {/* Set height and enable scrolling */}
+      <Box mt={4} style={{ maxHeight: '400px', overflowY: 'auto' }}>
         <Typography variant="h5" gutterBottom>
           Agri-Feed
         </Typography>
