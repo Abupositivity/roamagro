@@ -1,10 +1,10 @@
-// eslint-disable-next-line no-unused-vars
-import { configureStore, getDefaultMiddleware } from '@reduxjs/toolkit'; // Import getDefaultMiddleware
+import { configureStore } from '@reduxjs/toolkit';
 import authReducer from './reducers/authReducer';
 import farmProjectsReducer from './reducers/farmProjectsReducer';
 import marketplaceReducer from './reducers/marketplaceReducer';
 import priceIndexReducer from './reducers/priceIndexReducer';
 import communityReducer from './reducers/communityReducer';
+import logger from 'redux-logger';
 
 const rootReducer = {
   auth: authReducer,
@@ -14,10 +14,11 @@ const rootReducer = {
   community: communityReducer,
 };
 
-// Configure the store
 const store = configureStore({
   reducer: rootReducer,
-  middleware: (getDefaultMiddleware) => getDefaultMiddleware(),
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware().concat(logger),
+  devTools: process.env.NODE_ENV !== 'production',
 });
 
 export default store;
