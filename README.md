@@ -1,62 +1,55 @@
 # RoamAgro
 
-RoamAgro is a digital platform designed to streamline the management of agribusinesses and create a direct connection between agroproducers, particularly farmers, and consumers. The platform supports project management tools, a marketplace for selling and advertising agricultural produce and equipment, localized price indexes, and a community space for discussions around agricultural practices and market trends. The app also supports multilingual functionality, focusing on Hausa and English speakers.
+**RoamAgro** is a mobile-first web application designed to streamline the management of agribusinesses and create a digital marketplace that connects agroproducers, particularly farmers, directly with consumers. Built with a focus on accessibility, the platform offers functionalities like farm project management, a price index, a marketplace, and a community space for farmers to interact and stay informed.
 
 ## Table of Contents
-- [Overview](#overview)
+- [Features](#features)
 - [Project Architecture](#project-architecture)
-- [Installation](#installation)
-- [Environment Variables](#environment-variables)
-- [Running the Application](#running-the-application)
+- [Tech Stack](#tech-stack)
+- [Setup Instructions](#setup-instructions)
 - [Usage Guidelines](#usage-guidelines)
-- [Contributing](#contributing)
-- [License](#license)
+- [Folder Structure](#folder-structure)
 
-## Overview
+## Features
 
-RoamAgro is developed to assist farmers in managing their agribusinesses, provide consumers with access to agro-products, and offer localized price information to facilitate decision-making. Key features include:
+- **Farm Project Management**: Add and manage various farm projects with relevant data.
+- **Marketplace**: A digital marketplace for buying/selling agricultural products and equipment.
+- **Community Forum**: Connect and interact with other farmers for tips and shared experiences.
+- **Price Index**: Access real-time data on agricultural market trends and prices.
+- **Multilingual Support**: Available in English and Hausa for accessibility.
+- **Google Authentication**: Secure Google OAuth2 integration for easy sign-in.
+- **Theme Mode**: Dark and light theme support to suit user preference.
 
-- **Farm Project Management:** A tool to help farmers organize and manage their farm projects.
-- **Marketplace:** A digital marketplace for agricultural produce and equipment.
-- **Price Index:** Provides real-time, location-specific price information for various crops and goods.
-- **Community Forum:** A space for interaction, knowledge sharing, and collaboration.
-- **Multilingual Support:** Available in both Hausa and English.
+---
 
 ## Project Architecture
 
-RoamAgro uses a modern, scalable architecture with separate frontend and backend layers:
+RoamAgro follows a client-server architecture:
+1. **Frontend**: Built with React, it uses Redux for state management and Material-UI for styling, focusing on a responsive and mobile-friendly experience.
+2. **Backend**: Node.js with Express serves as the API layer, managing user authentication, CRUD operations for marketplace, farm projects, community posts, and the price index.
+3. **Database**: MongoDB stores data related to users, projects, community posts, and marketplace items.
+4. **Cache**: Redis provides caching for optimized data retrieval and user session handling.
 
-### **Frontend** 
-- **React.js**: The frontend is built using React for a dynamic, component-based UI.
-- **Redux**: Used to manage the application state across components.
-- **React Router**: Enables seamless navigation between different parts of the application.
-- **Material-UI (MUI)**: Provides pre-built, responsive UI components for quick and consistent design.
-- **i18n**: Provides internationalization support for multiple languages.
-- **Axios**: Used for making HTTP requests to the backend APIs.
+### Tech Stack
 
-### **Backend** 
-- **Node.js** and **Express.js**: Power the backend API server.
-- **MongoDB**: A NoSQL database for storing user data, farm projects, marketplace entries, and more.
-- **Redis**: Used for caching frequent requests to improve performance.
-- **Passport.js**: Provides authentication support with Google OAuth for a seamless login experience.
-- **JWT**: Secure authentication using JSON Web Tokens.
+- **Frontend**: React, Redux, Material-UI
+- **Backend**: Node.js, Express, MongoDB, Redis
+- **Authentication**: Google Identity Services, JWT
+- **Development**: ESLint for linting, Babel for modern JavaScript compatibility
 
-## Installation
+---
 
-Follow these steps to set up the RoamAgro project locally.
+## Setup Instructions
 
 ### Prerequisites
+- **Node.js** (v14 or later)
+- **MongoDB** (Local or hosted)
+- **Redis** (Optional, for caching)
+- **Google Developer Console**: Create OAuth credentials for Google Authentication
 
-- **Node.js** (v16 or higher)
-- **MongoDB** (local instance or MongoDB Atlas)
-- **Redis** (local or cloud instance)
-- **Git** (for version control)
-- **npm** or **yarn** (for package management)
+### Installation
 
-### Clone the Repository
-
-To get started, clone the RoamAgro repository to your local machine:
-
-```bash
-git clone https://github.com/AbuPositivity/roamagro.git
-cd roamagro
+1. **Clone the Repository**:
+   ```bash
+   git clone https://github.com/AbuPositivity/roamagro.git
+   cd roamagro
