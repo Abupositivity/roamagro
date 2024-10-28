@@ -31,8 +31,8 @@ app.use(session({
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
-    store: MongoStore.create({ mongoUrl: process.env.MONGO_URI }), // Storing sessions in MongoDB
-    cookie: { secure: process.env.NODE_ENV === 'production' } // Sets secure cookies only in production
+    store: MongoStore.create({ mongoUrl: process.env.MONGO_URI }),
+    cookie: { secure: process.env.NODE_ENV === 'production' }
 }));
 
 // Passport middleware for authentication
