@@ -4,8 +4,10 @@ import { useNavigate } from 'react-router-dom';
 import AccountCircle from '@mui/icons-material/AccountCircle';
 import LogoutIcon from '@mui/icons-material/Logout';
 import SettingsIcon from '@mui/icons-material/Settings';
+import { useTranslation } from 'react-i18next';
 
 const TopAppBar = () => {
+  const { t } = useTranslation();
   const [anchorEl, setAnchorEl] = useState(null);
   const navigate = useNavigate();
 
@@ -41,14 +43,14 @@ const TopAppBar = () => {
           open={Boolean(anchorEl)}
           onClose={handleMenuClose}
         >
-          <MenuItem onClick={handleMenuClose}>Profile</MenuItem>
+          <MenuItem onClick={handleMenuClose}>{t('Profile')}</MenuItem>
           <MenuItem onClick={handleNavigateToSettings}>
             <SettingsIcon fontSize="small" />
-            Settings
+            {t('Settings')}
           </MenuItem>
           <MenuItem onClick={handleLogout}>
             <LogoutIcon fontSize="small" />
-            Logout
+            {t('Logout')}
           </MenuItem>
         </Menu>
       </Toolbar>

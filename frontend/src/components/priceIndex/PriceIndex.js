@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchPriceIndex, updatePriceIndex } from '../../redux/actions/priceIndexActions';
+import { useTranslation } from 'react-i18next';
 import { Container, Grid, TextField, Button, Typography, Paper } from '@mui/material';
 
 const PriceIndex = () => {
+  const { t } = useTranslation();
   const dispatch = useDispatch();
   const { priceIndex } = useSelector((state) => state.priceIndex);
   const [newPrice, setNewPrice] = useState({ product: '', price: '', location: '' });
@@ -21,7 +23,7 @@ const PriceIndex = () => {
       dispatch(updatePriceIndex(newPrice));
       setNewPrice({ product: '', price: '', location: '' });
     } else {
-      alert("Please fill out all fields.");
+      alert(t("Please fill out all fields."));
     }
   };
 
@@ -29,14 +31,14 @@ const PriceIndex = () => {
 
   return (
     <Container>
-      <Typography variant="h4">Local Price Index</Typography>
+      <Typography variant="h4">{t("Local Price Index")}</Typography>
       <Paper style={{ padding: '16px', marginBottom: '16px' }}>
-        <Typography variant="h6">Update Price</Typography>
-        <TextField label="Product" name="product" value={newPrice.product} onChange={handleChange} fullWidth />
-        <TextField label="Price" name="price" value={newPrice.price} onChange={handleChange} fullWidth />
-        <TextField label="Location" name="location" value={newPrice.location} onChange={handleChange} fullWidth />
+        <Typography variant="h6">{t("Update Price")}</Typography>
+        <TextField label={t("Product")} name="product" value={newPrice.product} onChange={handleChange} fullWidth />
+        <TextField label={t("Price")} name="price" value={newPrice.price} onChange={handleChange} fullWidth />
+        <TextField label={t("Location")} name="location" value={newPrice.location} onChange={handleChange} fullWidth />
         <Button onClick={handleUpdate} color="primary" variant="contained" style={{ marginTop: '16px' }}>
-          Update Price
+          {t("Update Price")}
         </Button>
       </Paper>
       {priceIndexArray.length > 0 ? (
@@ -45,14 +47,14 @@ const PriceIndex = () => {
             <Grid item xs={12} md={4} key={entry._id}>
               <Paper style={{ padding: '16px' }}>
                 <Typography variant="h6">{entry.product}</Typography>
-                <Typography>Price: {entry.price}</Typography>
-                <Typography>Location: {entry.location}</Typography>
+                <Typography>{t("Price")}: {entry.price}</Typography>
+                <Typography>{t("Location")}: {entry.location}</Typography>
               </Paper>
             </Grid>
           ))}
         </Grid>
       ) : (
-        <Typography variant="body1">No price index data available.</Typography>
+        <Typography variant="body1">{t("No price index data available.")}</Typography>
       )}
     </Container>
   );

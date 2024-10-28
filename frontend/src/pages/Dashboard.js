@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
 import { IconButton, Typography, Container, Box, TextField } from '@mui/material';
 import AgriFeed from '../components/community/AgriFeed';
+import { useTranslation } from 'react-i18next';
 
 const Dashboard = () => {
+  const { t } = useTranslation();
   const [postContent, setPostContent] = useState('');
 
   const handleCreatePost = () => {
     if (postContent.trim()) {
-      console.log('New Agri-Feed post:', postContent);
+      console.log(t('New Agri-Feed post:'), postContent);
       setPostContent('');
     } else {
-      alert("Post content cannot be empty.");
+      alert(t("Post content cannot be empty."));
     }
   };
 
@@ -18,14 +20,14 @@ const Dashboard = () => {
     <Container maxWidth="lg">
       <Box mt={4}>
         <Typography variant="h6" gutterBottom>
-          Create New Post
+          {t('Create New Post')}
         </Typography>
         <TextField
           fullWidth
           multiline
           rows={3}
           variant="outlined"
-          placeholder="Share tips or insights on agribusiness..."
+          placeholder={t("Share tips or insights on agribusiness...")}
           value={postContent}
           onChange={(e) => setPostContent(e.target.value)}
         />
@@ -35,14 +37,14 @@ const Dashboard = () => {
             color="primary"
             onClick={handleCreatePost}
           >
-            Post
+            {t('Post')}
           </IconButton>
         </Box>
       </Box>
 
       <Box mt={4} style={{ maxHeight: '400px', overflowY: 'auto' }}>
         <Typography variant="h5" gutterBottom>
-          Agri-Feed
+          {t('Agri-Feed')}
         </Typography>
         <AgriFeed />
       </Box>

@@ -6,9 +6,11 @@ import StoreIcon from '@mui/icons-material/Store';
 import PriceChangeIcon from '@mui/icons-material/PriceChange';
 import PeopleIcon from '@mui/icons-material/People';
 import roamagroLogo from '../../assets/images/logo.svg';
+import { useTranslation } from 'react-i18next';
 
 const FixedBottomNavigation = () => {
   const theme = useTheme();
+  const { t } = useTranslation();
 
   return (
     <Box
@@ -26,7 +28,7 @@ const FixedBottomNavigation = () => {
       <Link to="/dashboard" style={{ textDecoration: 'none', textAlign: 'center' }}>
         <Box display="flex" flexDirection="column" alignItems="center">
           <img src={roamagroLogo} alt="Scroll to Top" width="30" height="30" />
-          <Typography variant="caption" color={theme.palette.text.primary}>Home</Typography>
+          <Typography variant="caption" color={theme.palette.text.primary}>{t('Home')}</Typography>
         </Box>
       </Link>
 
@@ -35,7 +37,7 @@ const FixedBottomNavigation = () => {
           <IconButton color="primary">
             <AgricultureIcon />
           </IconButton>
-          <Typography variant="caption" color={theme.palette.text.primary}>Farm Projects</Typography>
+          <Typography variant="caption" color={theme.palette.text.primary}>{t('Farm Projects')}</Typography>
         </Box>
       </Link>
 
@@ -44,7 +46,7 @@ const FixedBottomNavigation = () => {
           <IconButton color="primary">
             <StoreIcon />
           </IconButton>
-          <Typography variant="caption" color={theme.palette.text.primary}>Marketplace</Typography>
+          <Typography variant="caption" color={theme.palette.text.primary}>{t('Marketplace')}</Typography>
         </Box>
       </Link>
 
@@ -53,7 +55,7 @@ const FixedBottomNavigation = () => {
           <IconButton color="primary">
             <PriceChangeIcon />
           </IconButton>
-          <Typography variant="caption" color={theme.palette.text.primary}>Price Index</Typography>
+          <Typography variant="caption" color={theme.palette.text.primary}>{t('Price Index')}</Typography>
         </Box>
       </Link>
 
@@ -62,7 +64,7 @@ const FixedBottomNavigation = () => {
           <IconButton color="primary">
             <PeopleIcon />
           </IconButton>
-          <Typography variant="caption" color={theme.palette.text.primary}>Community</Typography>
+          <Typography variant="caption" color={theme.palette.text.primary}>{t('Community')}</Typography>
         </Box>
       </Link>
     </Box>

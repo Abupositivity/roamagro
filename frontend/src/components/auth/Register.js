@@ -17,43 +17,43 @@ const Register = () => {
   const handleRegister = (e) => {
     e.preventDefault();
     dispatch(register({ name, email, password }, navigate));
-    console.log("Registration successful");
+    console.log(t("Registration successful"));
     setSnackbarOpen(true);
   };
 
   return (
     <Container maxWidth="xs">
-      <Typography variant="h5">{t('Register')}</Typography>
+      <Typography variant="h5">{t('Register New User')}</Typography>
       <form onSubmit={handleRegister}>
         <TextField
           fullWidth
-          label="Name"
+          label={t("Name")}
           margin="normal"
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
         <TextField
           fullWidth
-          label="Email"
+          label={t("Email Address")}
           margin="normal"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
         <TextField
           fullWidth
-          label="Password"
+          label={t("Password")}
           type="password"
           margin="normal"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
         <Button type="submit" color="primary" variant="contained" fullWidth>
-          {t('Register')}
+          {t("Register New User")}
         </Button>
       </form>
       <Snackbar open={snackbarOpen} autoHideDuration={6000} onClose={() => setSnackbarOpen(false)}>
         <Alert onClose={() => setSnackbarOpen(false)} severity="success" sx={{ width: '100%' }}>
-          Registration successful!
+          {t("Registration successful!")}
         </Alert>
       </Snackbar>
     </Container>
