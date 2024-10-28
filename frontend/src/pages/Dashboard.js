@@ -6,9 +6,11 @@ const Dashboard = () => {
   const [postContent, setPostContent] = useState('');
 
   const handleCreatePost = () => {
-    if (postContent) {
+    if (postContent.trim()) {
       console.log('New Agri-Feed post:', postContent);
       setPostContent('');
+    } else {
+      alert("Post content cannot be empty.");
     }
   };
 
@@ -27,12 +29,11 @@ const Dashboard = () => {
           value={postContent}
           onChange={(e) => setPostContent(e.target.value)}
         />
-        <Box mt={-5}>
+        <Box display="flex" justifyContent="flex-end" mt={2}>
           <IconButton
             variant="contained"
             color="primary"
             onClick={handleCreatePost}
-            style={{ marginTop: '50px' }}
           >
             Post
           </IconButton>

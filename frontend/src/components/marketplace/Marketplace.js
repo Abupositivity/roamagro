@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchListings, createListing } from '../../redux/actions/marketplaceActions';
-import { Container, Grid, TextField, Button, Typography, Paper, Select, MenuItem } from '@mui/material';
+import { Container, Grid, TextField, Button, Typography, Paper, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
 
 const Marketplace = () => {
   const dispatch = useDispatch();
@@ -13,7 +13,6 @@ const Marketplace = () => {
     category: '',
     price: '',
     location: '',
-    contact: '',
   });
 
   useEffect(() => {
@@ -26,39 +25,45 @@ const Marketplace = () => {
 
   const handleCreate = () => {
     dispatch(createListing(newListing));
-    setNewListing({ title: '', description: '', category: '', price: '', location: '', contact: '' });
+    setNewListing({ title: '', description: '', category: '', price: '', location: '' });
   };
 
   return (
-    <Container>
-      <Typography variant="h4">Marketplace</Typography>
-      <Paper style={{ padding: '16px', marginBottom: '16px' }}>
-        <Typography variant="h6">Create New Listing</Typography>
+    <Container maxWidth="lg">
+      <Typography variant="h4" gutterBottom>
+        Marketplace
+      </Typography>
+      <Paper sx={{ padding: 3, marginBottom: 3 }}>
+        <Typography variant="h6" gutterBottom>
+          Create New Listing
+        </Typography>
         <form>
-          <TextField label="Title" name="title" value={newListing.title} onChange={handleChange} fullWidth />
-          <TextField label="Description" name="description" value={newListing.description} onChange={handleChange} fullWidth multiline rows={3} />
-          <Select label="Category" name="category" value={newListing.category} onChange={handleChange} fullWidth>
-            <MenuItem value="produce">Agro Produce</MenuItem>
-            <MenuItem value="equipment">Farm Equipment</MenuItem>
-            <MenuItem value="farmland">Lease Farmland</MenuItem>
-          </Select>
-          <TextField label="Price" name="price" value={newListing.price} onChange={handleChange} fullWidth />
-          <TextField label="Location" name="location" value={newListing.location} onChange={handleChange} fullWidth />
-          <TextField label="Contact Info" name="contact" value={newListing.contact} onChange={handleChange} fullWidth />
-          <Button onClick={handleCreate} color="primary" variant="contained">Create Listing</Button>
+          <TextField label="Title" name="title" value={newListing.title} onChange={handleChange} fullWidth margin="normal" />
+          <TextField label="Description" name="description" value={newListing.description} onChange={handleChange} fullWidth margin="normal" multiline rows={3} />
+          <FormControl fullWidth margin="normal">
+            <InputLabel>Category</InputLabel>
+            <Select label="Category" name="category" value={newListing.category} onChange={handleChange}>
+              <MenuItem value="produce">Agro Produce</MenuItem>
+              <MenuItem value="equipment">Farm Equipment</MenuItem>
+              <MenuItem value="farmland">Lease Farmland</MenuItem>
+            </Select>
+          </FormControl>
+          <TextField label="Price" name="price" value={newListing.price} onChange={handleChange} fullWidth margin="normal" />
+          <TextField label="Location" name="location" value={newListing.location} onChange={handleChange} fullWidth margin="normal" />
+          <Button onClick={handleCreate} color="primary" variant="contained" sx={{ mt: 2 }}>
+            Create Listing
+          </Button>
         </form>
       </Paper>
       <Grid container spacing={3}>
         {listings.map((listing) => (
           <Grid item xs={12} md={4} key={listing._id}>
-            <Paper style={{ padding: '16px' }}>
+            <Paper sx={{ padding: 3 }}>
               <Typography variant="h6">{listing.title}</Typography>
               <Typography>Category: {listing.category}</Typography>
               <Typography>Price: {listing.price}</Typography>
               <Typography>Location: {listing.location}</Typography>
-              <Typography>Contact: {listing.contact}</Typography>
               <Typography>{listing.description}</Typography>
-              {/* Edit and delete functionality can be added as per user requirements */}
             </Paper>
           </Grid>
         ))}

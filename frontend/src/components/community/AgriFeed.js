@@ -3,9 +3,12 @@ import { List, ListItem, ListItemText, Divider } from '@mui/material';
 
 const AgriFeed = () => {
   const tips = [
-    "Tip #1: Diversify your crops to reduce risks.",
-    "Tip #2: Invest in modern irrigation to improve productivity.",
-    "Tip #3: Utilize organic farming techniques to reduce costs."
+    "Diversify your crops to reduce risks.",
+    "Invest in modern irrigation to improve productivity.",
+    "Utilize appropriate amounts of fertilizer at optimal moments during a crop cycle.",
+    "Plant cover crops on your farm to enrich your soil with nutrients.",
+    "Keep Yourself Current and on top of Latest Farming Trends.",
+    "Utilize organic farming techniques to reduce costs."
   ];
 
   return (
