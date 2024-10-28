@@ -20,12 +20,11 @@ exports.createPriceIndex = async (req, res) => {
 
 // get all price entries for a product
 exports.getPriceIndexes = async (req, res) => {
-    const { product } = req.query;
-
     try {
-        const prices = await PriceIndex.find({ product });
+        const prices = await PriceIndex.find({});
         res.status(200).json(prices);
     } catch (error) {
+        console.error(error);
         res.status(500).json({ error: 'Server error' });
     }
 };
