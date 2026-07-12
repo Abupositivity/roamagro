@@ -1,25 +1,28 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 
 const LanguageSwitcher = () => {
   const { i18n } = useTranslation();
+  const [currentLanguage, setCurrentLanguage] = useState('en');
 
   useEffect(() => {
     const savedLanguage = localStorage.getItem('language') || 'en';
     i18n.changeLanguage(savedLanguage);
+    setCurrentLanguage(savedLanguage);
   }, [i18n]);
 
-  const changeLanguage = (lang) => {
-    i18n.changeLanguage(lang);
-    localStorage.setItem('language', lang); // Persist language
+  const toggleLanguage = () => {
+    const newLanguage = currentLanguage === 'en' ? 'ha' : 'en';
+    i18n.changeLanguage(newLanguage);
+    setCurrentLanguage(newLanguage);
+    localStorage.setItem('language', newLanguage);
   };
 
   return (
-    <div>
-      <Button onClick={() => changeLanguage('en')}>English</Button>
-      <Button onClick={() => changeLanguage('ha')}>Hausa</Button>
-    </div>
+    <Button variant="contained" onClick={toggleLanguage}>
+      {currentLanguage === 'en' ? 'Koma Hausa' : 'Switch to English'}
+    </Button>
   );
 };
 

@@ -3,7 +3,7 @@ import { Container, Typography, Button, Box } from '@mui/material';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import './Home.css';
-import logo from '../assets/images/logo.svg';
+import logo from '../assets/images/logo.gif';
 
 const Home = () => {
   const { t } = useTranslation();
