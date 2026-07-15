@@ -2,9 +2,10 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 const UserSchema = new mongoose.Schema({
-    name: { type: String, required: true },
-    email: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
+    name: { type: String, required: true, trim: true },
+    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    password: { type: String, required: function () {
+        return !this.googleId; }, },
     googleId: { type: String, unique: true, sparse: true },
     language: { type: String, default: 'English' },
     createdAt: { type: Date, default: Date.now }
@@ -12,10 +13,15 @@ const UserSchema = new mongoose.Schema({
 
 // Encrypt Password before saving User
 UserSchema.pre('save', async function (next) {
-    if (!this.isModified('password')) next();
+    if (!this.isModified('password') || !this.password)
+        return next();
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt),
     next();
 });
+
+UserSchema.methods.comparePassword = function(password){
+    return bcrypt.compare(password,this.password);
+}
 
 module.exports = mongoose.model('User', UserSchema);
