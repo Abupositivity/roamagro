@@ -1,16 +1,60 @@
 const mongoose = require('mongoose');
 
-const MarketplaceItemSchema = new mongoose.Schema({
-    title: { type: String, required: true },
-    description: { type: String },
-    category: { type: String, required: true },
-    price: { type: Number, required: true },
-    location: { type: String },
-    images: [String],
-    status: { type: String, default: "Available" },
-    views: { type: Number, default:0 },
-    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    createdAt: { type: Date, default: Date.now },
+const MarketplaceItemSchema = new mongoose.Schema(
+{
+    title: {
+        type: String,
+        required: true,
+        trim: true
+    },
+
+    description: {
+        type: String,
+        required: true
+    },
+
+    category: {
+        type: String,
+        required: true
+    },
+
+    price: {
+        type: Number,
+        required: true
+    },
+
+    quantity: {
+        type: Number,
+        default: 1
+    },
+
+    unit: {
+        type: String,
+        default: 'Bag'
+    },
+
+    location: {
+        type: String,
+        default: ''
+    },
+
+    images: [{
+        type: String
+    }],
+
+    available: {
+        type: Boolean,
+        default: true
+    },
+
+    user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    }
+
+},
+{
+    timestamps: true
 });
 
 module.exports = mongoose.model('MarketplaceItem', MarketplaceItemSchema);
