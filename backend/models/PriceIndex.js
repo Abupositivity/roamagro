@@ -1,11 +1,47 @@
 const mongoose = require('mongoose');
 
-const PriceIndexSchema = new mongoose.Schema({
-    product: { type: String, required: true },
-    price: { type: Number, required: true },
-    location: { type: String, required: true },
-    date: { type: Date, default: Date.now },
-    user: { type: mongoose.Schema.Types.ObjectId, ref: "User" }
+const PriceIndexSchema = new mongoose.Schema(
+{
+    product: {
+        type: String,
+        required: true,
+        trim: true,
+        index: true
+    },
+
+    category: {
+        type: String,
+        default: ''
+    },
+
+    price: {
+        type: Number,
+        required: true
+    },
+
+    unit: {
+        type: String,
+        default: 'Bag'
+    },
+
+    location: {
+        type: String,
+        required: true
+    },
+
+    market: {
+        type: String,
+        default: ''
+    },
+
+    submittedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    }
+
+},
+{
+    timestamps: true
 });
 
 module.exports = mongoose.model('PriceIndex', PriceIndexSchema);
