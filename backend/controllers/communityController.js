@@ -1,30 +1,76 @@
 const CommunityPost = require('../models/CommunityPost');
 
-// create a new community post
+// Create Community Post
 exports.createCommunityPost = async (req, res) => {
-    const { title, content, category } = req.body;
 
     try {
-        const newPost = new CommunityPost({
+
+        const {
             title,
             content,
             category,
-            user: req.userId,
+        } = req.body;
+
+        if (!title || !content || !category) {
+            return res.status(400).json({
+                success: false,
+                message: 'Title, content and category are required.',
+            });
+        }
+
+        const post = await CommunityPost.create({
+            title,
+            content,
+            category,
+            user: req.user._id,
         });
 
-        await newPost.save();
-        res.status(201).json(newPost);
+        console.log(`✅ Community post created: ${post.title}`);
+
+        res.status(201).json({
+            success: true,
+            message: 'Community post created successfully.',
+            post,
+        });
+
     } catch (error) {
-        res.status(500).json({ error: 'Server error' });
+
+        console.error('Community Create Error:', error);
+
+        res.status(500).json({
+            success: false,
+            message: 'Server error.',
+        });
+
     }
+
 };
 
-// get all community posts
+// Get Community Posts
 exports.getCommunityPosts = async (req, res) => {
+
     try {
-        const posts = await CommunityPost.find().populate('user', 'name');
-        res.status(200).json(posts);
+
+        const posts = await CommunityPost.find()
+            .populate('user', 'name')
+            .populate('comments.user', 'name')
+            .sort({ createdAt: -1 });
+
+        res.status(200).json({
+            success: true,
+            count: posts.length,
+            posts,
+        });
+
     } catch (error) {
-        res.status(500).json({ error: 'Server error' });
+
+        console.error('Community Fetch Error:', error);
+
+        res.status(500).json({
+            success: false,
+            message: 'Server error.',
+        });
+
     }
+
 };
