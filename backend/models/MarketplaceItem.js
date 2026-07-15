@@ -6,6 +6,9 @@ const MarketplaceItemSchema = new mongoose.Schema({
     category: { type: String, required: true },
     price: { type: Number, required: true },
     location: { type: String },
+    images: [String],
+    status: { type: String, default: "Available" },
+    views: { type: Number, default:0 },
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     createdAt: { type: Date, default: Date.now },
 });
