@@ -3,7 +3,8 @@ const mongoose = require('mongoose');
 const FarmProjectSchema = new mongoose.Schema({
     name: { type: String, required: true },
     description: { type: String, required: true },
-    activities: [{ title: String, completed: Boolean, dueDate: Date, createdAt:Date }],
+    activities: [{ title: String, dueDate: Date, completed:{ type: Boolean, default:false }}],
+    status:{ type: String, default: "Planning" },
     startDate: { type: Date },
     endDate: { type: Date },
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
