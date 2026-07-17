@@ -34,7 +34,7 @@ const PriceIndexSchema = new mongoose.Schema(
         default: ''
     },
 
-    submittedBy: {
+    user: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
     }

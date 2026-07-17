@@ -53,7 +53,7 @@ exports.getPriceIndexes = async (req, res) => {
 
         const prices = await PriceIndex.find()
             .populate('user', 'name')
-            .sort({ date: -1 });
+            .sort({ createdAt: -1 });
 
         res.status(200).json({
             success: true,
