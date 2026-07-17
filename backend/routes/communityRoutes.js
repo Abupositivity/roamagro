@@ -1,9 +1,15 @@
 const express = require('express');
-const { createCommunityPost, getCommunityPosts } = require('../controllers/communityController');
 const router = express.Router();
 
-// routes for community post
-router.post('/', createCommunityPost);
-router.get('/', getCommunityPosts);
+const ensureAuthenticated = require('../middleware/ensureAuthenticated');
+
+const {
+    createCommunityPost,
+    getCommunityPosts,
+} = require('../controllers/communityController');
+
+router.post('/', ensureAuthenticated, createCommunityPost);
+
+router.get('/', ensureAuthenticated, getCommunityPosts);
 
 module.exports = router;

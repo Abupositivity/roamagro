@@ -1,9 +1,15 @@
 const express = require('express');
-const { createFarmProject, getFarmProjects } = require('../controllers/farmProjectController');
 const router = express.Router();
 
-// Routes for Farm Project
-router.post('/', createFarmProject);
-router.get('/', getFarmProjects);
+const ensureAuthenticated = require('../middleware/ensureAuthenticated');
+
+const {
+    createFarmProject,
+    getFarmProjects,
+} = require('../controllers/farmProjectController');
+
+router.post('/', ensureAuthenticated, createFarmProject);
+
+router.get('/', ensureAuthenticated, getFarmProjects);
 
 module.exports = router;

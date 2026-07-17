@@ -1,9 +1,15 @@
 const express = require('express');
-const { createPriceIndex, getPriceIndexes } = require('../controllers/priceIndexController');
 const router = express.Router();
 
-// routes for price Index
-router.post('/', createPriceIndex);
-router.get('/', getPriceIndexes);
+const ensureAuthenticated = require('../middleware/ensureAuthenticated');
+
+const {
+    createPriceIndex,
+    getPriceIndexes,
+} = require('../controllers/priceIndexController');
+
+router.post('/', ensureAuthenticated, createPriceIndex);
+
+router.get('/', ensureAuthenticated, getPriceIndexes);
 
 module.exports = router;
