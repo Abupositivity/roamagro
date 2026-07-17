@@ -1,81 +1,284 @@
 const User = require('../models/User');
-const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
+
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-// Helper function to generate JWT
+/*
+|--------------------------------------------------------------------------
+| Generate JWT
+|--------------------------------------------------------------------------
+*/
+
 const generateToken = (userId) => {
-    return jwt.sign({ id: userId }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    return jwt.sign(
+        { id: userId },
+        process.env.JWT_SECRET,
+        {
+            expiresIn: '7d',
+        }
+    );
 };
+
+/*
+|--------------------------------------------------------------------------
+| Register User
+|--------------------------------------------------------------------------
+*/
 
 exports.registerUser = async (req, res) => {
-    const { name, email, password } = req.body;
-
-    // Check if all required fields are present
-    if (!name || !email || !password) {
-        return res.status(400).json({ error: 'Name, email, and password are required.' });
-    }
-
     try {
-        // Check if the email already exists
-        if (await User.findOne({ email })) {
-            return res.status(400).json({ error: 'User already exists' });
+
+        const { name, email, password } = req.body;
+
+        if (!name || !email || !password) {
+            return res.status(400).json({
+                success: false,
+                message: 'Name, email and password are required.'
+            });
         }
 
-        // Hash password and create a new user
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const user = new User({ name, email, password: hashedPassword });
-        await user.save();
-
-        // Generate JWT and send success response
-        const token = generateToken(user._id);
-        res.status(201).json({ message: 'User registered successfully', token, user: { id: user._id, email: user.email } });
-    } catch (error) {
-        console.error('Registration error:', error);
-        res.status(500).json({ error: 'Server error' });
-    }
-};
-
-exports.loginUser = async (req, res) => {
-    const { email, password } = req.body;
-
-    try {
-        const user = await User.findOne({ email });
-        if (!user || !await bcrypt.compare(password, user.password)) {
-            return res.status(400).json({ message: 'Invalid credentials' });
-        }
-
-        // Generate JWT and respond with user data
-        const token = generateToken(user._id);
-        res.json({ token, user: { id: user._id, email: user.email } });
-    } catch (error) {
-        console.error('Login error:', error);
-        res.status(500).json({ message: 'Server error' });
-    }
-};
-
-exports.googleAuth = async (req, res) => {
-    const { token } = req.body;
-
-    try {
-        const ticket = await client.verifyIdToken({
-            idToken: token,
-            audience: process.env.GOOGLE_CLIENT_ID,
+        const existingUser = await User.findOne({
+            email: email.toLowerCase()
         });
 
-        const { email, name } = ticket.getPayload();
-        let user = await User.findOne({ email });
+        if (existingUser) {
+            return res.status(409).json({
+                success: false,
+                message: 'Email already registered.'
+            });
+        }
+
+        const user = await User.create({
+            name,
+            email: email.toLowerCase(),
+            password
+        });
+
+        const token = generateToken(user._id);
+
+        res.status(201).json({
+            success: true,
+            message: 'Registration successful.',
+            token,
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                language: user.language,
+                role: user.role
+            }
+        });
+
+    } catch (error) {
+
+        console.error('REGISTER ERROR:', error);
+
+        res.status(500).json({
+            success: false,
+            message: 'Server error.'
+        });
+
+    }
+};
+
+/*
+|--------------------------------------------------------------------------
+| Login User
+|--------------------------------------------------------------------------
+*/
+
+exports.loginUser = async (req, res) => {
+
+    try {
+
+        const { email, password } = req.body;
+
+        if (!email || !password) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email and password are required.'
+            });
+        }
+
+        const user = await User.findOne({
+            email: email.toLowerCase()
+        });
 
         if (!user) {
-            user = new User({ name, email });
-            await user.save();
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid credentials.'
+            });
+        }
+
+        const passwordMatch = await user.matchPassword(password);
+
+        if (!passwordMatch) {
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid credentials.'
+            });
+        }
+
+        const token = generateToken(user._id);
+
+        res.json({
+
+            success: true,
+
+            message: 'Login successful.',
+
+            token,
+
+            user: {
+
+                id: user._id,
+
+                name: user.name,
+
+                email: user.email,
+
+                language: user.language,
+
+                role: user.role
+
+            }
+
+        });
+
+    }
+
+    catch (error) {
+
+        console.error(error);
+
+        res.status(500).json({
+
+            success: false,
+
+            message: 'Server error.'
+
+        });
+
+    }
+
+};
+
+/*
+|--------------------------------------------------------------------------
+| Google Login
+|--------------------------------------------------------------------------
+*/
+
+exports.googleAuth = async (req, res) => {
+
+    try {
+
+        const { token } = req.body;
+
+        if (!token) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message: 'Google token missing.'
+
+            });
+
+        }
+
+        const ticket = await client.verifyIdToken({
+
+            idToken: token,
+
+            audience: process.env.GOOGLE_CLIENT_ID
+
+        });
+
+        const payload = ticket.getPayload();
+
+        let user = await User.findOne({
+
+            email: payload.email
+
+        });
+
+        if (!user) {
+
+            user = await User.create({
+
+                googleId: payload.sub,
+
+                name: payload.name,
+
+                email: payload.email,
+
+                profilePhoto: payload.picture,
+
+                isVerified: true
+
+            });
+
         }
 
         const jwtToken = generateToken(user._id);
-        res.json({ token: jwtToken, user: { id: user._id, email: user.email } });
-    } catch (error) {
-        console.error('Google login error:', error);
-        res.status(400).json({ error: 'Google login failed' });
+
+        res.json({
+
+            success: true,
+
+            message: 'Google login successful.',
+
+            token: jwtToken,
+
+            user: {
+
+                id: user._id,
+
+                name: user.name,
+
+                email: user.email,
+
+                profilePhoto: user.profilePhoto
+
+            }
+
+        });
+
     }
+
+    catch (error) {
+
+        console.error(error);
+
+        res.status(400).json({
+
+            success: false,
+
+            message: 'Google authentication failed.'
+
+        });
+
+    }
+
+};
+
+/*
+|--------------------------------------------------------------------------
+| Current User
+|--------------------------------------------------------------------------
+*/
+
+exports.getCurrentUser = async (req, res) => {
+
+    res.json({
+
+        success: true,
+
+        user: req.user
+
+    });
+
 };
