@@ -17,7 +17,7 @@ const app = express();
 
 // Improved CORS configuration for broader method support
 app.use(cors({
-    origin: 'http://localhost:3000',
+    origin: process.env.FRONTEND_URL,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization']
@@ -25,6 +25,9 @@ app.use(cors({
 
 // Middleware for JSON parsing
 app.use(express.json());
+app.use(express.urlencoded({
+    extended: true
+}));
 
 // Configure session management with MongoDB store
 app.use(session({
