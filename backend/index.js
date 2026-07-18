@@ -50,11 +50,11 @@ const priceIndexRoutes = require('./routes/priceIndexRoutes');
 const communityRoutes = require('./routes/communityRoutes');
 
 // Register app routes for APIs
-app.use('/api/auth', authRoutes);
-app.use('/api/farm-projects', farmProjectRoutes);
-app.use('/api/marketplace', marketplaceRoutes);
-app.use('/api/price-index', priceIndexRoutes);
-app.use('/api/community', communityRoutes);
+app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/farm-projects', farmProjectRoutes);
+app.use('/api/v1/marketplace', marketplaceRoutes);
+app.use('/api/v1/price-index', priceIndexRoutes);
+app.use('/api/v1/community', communityRoutes);
 
 // Serve static files from the React app in production
 if (process.env.NODE_ENV === 'production') {
