@@ -5,103 +5,90 @@ const {
     registerUser,
     loginUser,
     googleAuth,
-    getCurrentUser
+    getCurrentUser,
 } = require('../controllers/authController');
 
 const ensureAuthenticated = require('../middleware/ensureAuthenticated');
+
+const validateRequest = require('../middleware/validateRequest');
+
+const {
+    registerValidator,
+    loginValidator,
+    googleValidator,
+} = require('../validators');
 
 const router = express.Router();
 
 /*
 |--------------------------------------------------------------------------
-| Public Routes
+| Public
 |--------------------------------------------------------------------------
 */
+router.post(
+    '/register',
+    registerValidator,
+    validateRequest,
+    registerUser
+);
 
-// Register
-router.post('/register', registerUser);
+router.post(
+    '/login',
+    loginValidator,
+    validateRequest,
+    loginUser
+);
 
-// Login
-router.post('/login', loginUser);
-
-// Google Login (Frontend sends Google credential token)
-router.post('/google', googleAuth);
+router.post(
+    '/google',
+    googleValidator,
+    validateRequest,
+    googleAuth
+);
 
 /*
 |--------------------------------------------------------------------------
 | Passport Google OAuth
 |--------------------------------------------------------------------------
 */
-
-// Redirect user to Google
 router.get(
     '/google',
     passport.authenticate('google', {
-        scope: ['profile', 'email']
+        scope: ['profile', 'email'],
     })
 );
 
-// Google callback
 router.get(
     '/google/callback',
     passport.authenticate('google', {
         session: false,
-        failureRedirect: `${process.env.FRONTEND_URL}/login`
+        failureRedirect: `${process.env.FRONTEND_URL}/login`,
     }),
     (req, res) => {
-
-        // JWT flow is handled by POST /google.
-        // This endpoint exists for Passport compatibility.
         res.redirect(`${process.env.FRONTEND_URL}/dashboard`);
-
     }
 );
 
 /*
 |--------------------------------------------------------------------------
-| Protected Routes
+| Protected
 |--------------------------------------------------------------------------
 */
-
-// Current logged-in user
-router.get('/me', ensureAuthenticated, getCurrentUser);
-
-/*
-|--------------------------------------------------------------------------
-| Logout
-|--------------------------------------------------------------------------
-*/
+router.get(
+    '/me',
+    ensureAuthenticated,
+    getCurrentUser
+);
 
 router.post('/logout', (req, res) => {
-
-    req.logout(function (err) {
-
-        if (err) {
-
-            return res.status(500).json({
-
-                success: false,
-
-                message: 'Logout failed.'
-
-            });
-
-        }
-
-        req.session.destroy(() => {
-
+    req.logout(() => {
+        req.session?.destroy(() => {
             res.json({
-
                 success: true,
-
-                message: 'Logged out successfully.'
-
+                message: 'Logged out successfully.',
             });
-
         });
-
     });
-
 });
 
 module.exports = router;

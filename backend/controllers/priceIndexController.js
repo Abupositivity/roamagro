@@ -1,69 +1,38 @@
 const PriceIndex = require('../models/PriceIndex');
 
+const asyncHandler = require('../middleware/asyncHandler');
+
 // Create Price Entry
-exports.createPriceIndex = async (req, res) => {
-    try {
+exports.createPriceIndex = asyncHandler(async (req, res) => {
 
-        const {
-            product,
-            price,
-            location,
-        } = req.body;
+    const entry = await PriceIndex.create({
+        ...req.body,
+        user: req.user._id,
+    });
 
-        if (!product || !price || !location) {
-            return res.status(400).json({
-                success: false,
-                message: 'Product, price and location are required.',
-            });
-        }
+    console.log(
+        `✅ Price Submitted: ${entry.product} (${entry.location})`
+    );
 
-        const entry = await PriceIndex.create({
-            product,
-            price,
-            location,
-            user: req.user._id,
-        });
+    res.status(201).json({
+        success: true,
+        message: 'Price submitted successfully.',
+        data: entry,
+    });
 
-        console.log(`✅ Price submitted: ${entry.product}`);
+});
 
-        return res.status(201).json({
-            success: true,
-            message: 'Price submitted successfully.',
-            data: entry,
-        });
+// Get Price Index
+exports.getPriceIndexes = asyncHandler(async (req, res) => {
 
-    } catch (error) {
+    const prices = await PriceIndex.find()
+        .populate('user', 'name')
+        .sort({ createdAt: -1 });
 
-        console.error('❌ Price Index Create Error:', error);
+    res.status(200).json({
+        success: true,
+        count: prices.length,
+        data: prices,
+    });
 
-        return res.status(500).json({
-            success: false,
-            message: 'Server error while submitting price.',
-        });
-    }
-};
-
-// Get Price Entries
-exports.getPriceIndexes = async (req, res) => {
-    try {
-
-        const prices = await PriceIndex.find()
-            .populate('submittedBy', 'name')
-            .sort({ createdAt: -1 });
-
-        return res.status(200).json({
-            success: true,
-            count: prices.length,
-            data: prices,
-        });
-
-    } catch (error) {
-
-        console.error('❌ Price Index Fetch Error:', error);
-
-        return res.status(500).json({
-            success: false,
-            message: 'Server error while fetching price index.',
-        });
-    }
-};
+});

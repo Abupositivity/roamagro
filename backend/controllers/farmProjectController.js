@@ -1,71 +1,35 @@
 const FarmProject = require('../models/FarmProject');
+const asyncHandler = require('../middleware/asyncHandler');
 
-// Create Farm Project
-exports.createFarmProject = async (req, res) => {
-    try {
+exports.createFarmProject = asyncHandler(async (req, res) => {
 
-        const {
-            name,
-            description,
-            startDate,
-            endDate,
-        } = req.body;
+    const project = await FarmProject.create({
+        ...req.body,
+        user: req.user._id,
+    });
 
-        if (!name || !description) {
-            return res.status(400).json({
-                success: false,
-                message: 'Project name and description are required.',
-            });
-        }
+    console.log(`✅ Farm Project: ${project.name}`);
 
-        const project = await FarmProject.create({
-            name,
-            description,
-            startDate,
-            endDate,
-            user: req.user._id,
-        });
+    res.status(201).json({
+        success: true,
+        message: 'Farm project created successfully.',
+        data: project,
+    });
 
-        console.log(`✅ Farm project created: ${project.name}`);
+});
 
-        return res.status(201).json({
-            success: true,
-            message: 'Farm project created successfully.',
-            data: project,
-        });
+exports.getFarmProjects = asyncHandler(async (req, res) => {
 
-    } catch (error) {
+    const projects = await FarmProject.find({
+        user: req.user._id,
+    }).sort({
+        createdAt: -1,
+    });
 
-        console.error('❌ Farm Project Create Error:', error);
+    res.json({
+        success: true,
+        count: projects.length,
+        data: projects,
+    });
 
-        return res.status(500).json({
-            success: false,
-            message: 'Server error while creating farm project.',
-        });
-    }
-};
-
-// Get Farm Projects
-exports.getFarmProjects = async (req, res) => {
-    try {
-
-        const projects = await FarmProject.find({
-            user: req.user._id,
-        }).sort({ createdAt: -1 });
-
-        return res.status(200).json({
-            success: true,
-            count: projects.length,
-            data: projects,
-        });
-
-    } catch (error) {
-
-        console.error('❌ Farm Project Fetch Error:', error);
-
-        return res.status(500).json({
-            success: false,
-            message: 'Server error while fetching farm projects.',
-        });
-    }
-};
+});

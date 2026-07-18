@@ -1,73 +1,35 @@
 const MarketplaceItem = require('../models/MarketplaceItem');
+const asyncHandler = require('../middleware/asyncHandler');
 
-// Create Marketplace Item
-exports.createMarketplaceItem = async (req, res) => {
-    try {
+// Create Marketplace Listing
+exports.createMarketplaceItem = asyncHandler(async (req, res) => {
 
-        const {
-            title,
-            description,
-            category,
-            price,
-            location,
-        } = req.body;
+    const item = await MarketplaceItem.create({
+        ...req.body,
+        user: req.user._id,
+    });
 
-        if (!title || !category || !price) {
-            return res.status(400).json({
-                success: false,
-                message: 'Title, category and price are required.',
-            });
-        }
+    console.log(`✅ Marketplace Listing Created: ${item.title}`);
 
-        const item = await MarketplaceItem.create({
-            title,
-            description,
-            category,
-            price,
-            location,
-            user: req.user._id,
-        });
+    res.status(201).json({
+        success: true,
+        message: 'Marketplace listing created successfully.',
+        data: item,
+    });
 
-        console.log(`✅ Marketplace item created: ${item.title}`);
+});
 
-        return res.status(201).json({
-            success: true,
-            message: 'Marketplace item created successfully.',
-            data: item,
-        });
+// Get Marketplace Listings
+exports.getMarketplaceItems = asyncHandler(async (req, res) => {
 
-    } catch (error) {
+    const items = await MarketplaceItem.find()
+        .populate('user', 'name profilePhoto')
+        .sort({ createdAt: -1 });
 
-        console.error('❌ Marketplace Create Error:', error);
+    res.status(200).json({
+        success: true,
+        count: items.length,
+        data: items,
+    });
 
-        return res.status(500).json({
-            success: false,
-            message: 'Server error while creating marketplace item.',
-        });
-    }
-};
-
-// Get Marketplace Items
-exports.getMarketplaceItems = async (req, res) => {
-    try {
-
-        const items = await MarketplaceItem.find()
-            .populate('user', 'name')
-            .sort({ createdAt: -1 });
-
-        return res.status(200).json({
-            success: true,
-            count: items.length,
-            data: items,
-        });
-
-    } catch (error) {
-
-        console.error('❌ Marketplace Fetch Error:', error);
-
-        return res.status(500).json({
-            success: false,
-            message: 'Server error while fetching marketplace items.',
-        });
-    }
-};
+});

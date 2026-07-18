@@ -1,62 +1,36 @@
 const CommunityPost = require('../models/CommunityPost');
+const asyncHandler = require('../middleware/asyncHandler');
 
 // Create Community Post
-exports.createCommunityPost = async (req, res) => {
-    try {
-        const { title, content, category } = req.body;
+exports.createCommunityPost = asyncHandler(async (req, res) => {
 
-        if (!title || !content || !category) {
-            return res.status(400).json({
-                success: false,
-                message: 'Title, content and category are required.',
-            });
-        }
+    const post = await CommunityPost.create({
+        ...req.body,
+        user: req.user._id,
+    });
 
-        const post = await CommunityPost.create({
-            title,
-            content,
-            category,
-            user: req.user._id,
-        });
+    console.log(`✅ Community Post Created: ${post.title}`);
 
-        console.log(`✅ Community post created: ${post.title}`);
+    res.status(201).json({
+        success: true,
+        message: 'Community post created successfully.',
+        data: post,
+    });
 
-        return res.status(201).json({
-            success: true,
-            message: 'Community post created successfully.',
-            data: post,
-        });
-
-    } catch (error) {
-        console.error('❌ Community Create Error:', error);
-
-        return res.status(500).json({
-            success: false,
-            message: 'Server error while creating community post.',
-        });
-    }
-};
+});
 
 // Get Community Posts
-exports.getCommunityPosts = async (req, res) => {
-    try {
-        const posts = await CommunityPost.find()
-            .populate('user', 'name')
-            .populate('comments.user', 'name')
-            .sort({ createdAt: -1 });
+exports.getCommunityPosts = asyncHandler(async (req, res) => {
 
-        return res.status(200).json({
-            success: true,
-            count: posts.length,
-            data: posts,
-        });
+    const posts = await CommunityPost.find()
+        .populate('user', 'name profilePhoto')
+        .populate('comments.user', 'name profilePhoto')
+        .sort({ createdAt: -1 });
 
-    } catch (error) {
-        console.error('❌ Community Fetch Error:', error);
+    res.status(200).json({
+        success: true,
+        count: posts.length,
+        data: posts,
+    });
 
-        return res.status(500).json({
-            success: false,
-            message: 'Server error while fetching community posts.',
-        });
-    }
-};
+});
