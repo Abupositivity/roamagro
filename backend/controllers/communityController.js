@@ -2,14 +2,8 @@ const CommunityPost = require('../models/CommunityPost');
 
 // Create Community Post
 exports.createCommunityPost = async (req, res) => {
-
     try {
-
-        const {
-            title,
-            content,
-            category,
-        } = req.body;
+        const { title, content, category } = req.body;
 
         if (!title || !content || !category) {
             return res.status(400).json({
@@ -27,50 +21,42 @@ exports.createCommunityPost = async (req, res) => {
 
         console.log(`✅ Community post created: ${post.title}`);
 
-        res.status(201).json({
+        return res.status(201).json({
             success: true,
             message: 'Community post created successfully.',
-            post,
+            data: post,
         });
 
     } catch (error) {
+        console.error('❌ Community Create Error:', error);
 
-        console.error('Community Create Error:', error);
-
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
-            message: 'Server error.',
+            message: 'Server error while creating community post.',
         });
-
     }
-
 };
 
 // Get Community Posts
 exports.getCommunityPosts = async (req, res) => {
-
     try {
-
         const posts = await CommunityPost.find()
             .populate('user', 'name')
             .populate('comments.user', 'name')
             .sort({ createdAt: -1 });
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             count: posts.length,
-            posts,
+            data: posts,
         });
 
     } catch (error) {
+        console.error('❌ Community Fetch Error:', error);
 
-        console.error('Community Fetch Error:', error);
-
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
-            message: 'Server error.',
+            message: 'Server error while fetching community posts.',
         });
-
     }
-
 };

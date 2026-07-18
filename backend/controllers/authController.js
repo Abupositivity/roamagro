@@ -34,51 +34,52 @@ exports.registerUser = async (req, res) => {
         if (!name || !email || !password) {
             return res.status(400).json({
                 success: false,
-                message: 'Name, email and password are required.'
+                message: 'Name, email and password are required.',
             });
         }
 
         const existingUser = await User.findOne({
-            email: email.toLowerCase()
+            email: email.toLowerCase(),
         });
 
         if (existingUser) {
             return res.status(409).json({
                 success: false,
-                message: 'Email already registered.'
+                message: 'Email already registered.',
             });
         }
 
         const user = await User.create({
             name,
             email: email.toLowerCase(),
-            password
+            password,
         });
 
-        const token = generateToken(user._id);
+        console.log(`✅ User registered: ${user.email}`);
 
-        res.status(201).json({
+        return res.status(201).json({
             success: true,
             message: 'Registration successful.',
-            token,
-            user: {
-                id: user._id,
-                name: user.name,
-                email: user.email,
-                language: user.language,
-                role: user.role
-            }
+            data: {
+                token: generateToken(user._id),
+                user: {
+                    id: user._id,
+                    name: user.name,
+                    email: user.email,
+                    language: user.language,
+                    role: user.role,
+                },
+            },
         });
 
     } catch (error) {
 
-        console.error('REGISTER ERROR:', error);
+        console.error('❌ Registration Error:', error);
 
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
-            message: 'Server error.'
+            message: 'Server error during registration.',
         });
-
     }
 };
 
@@ -89,7 +90,6 @@ exports.registerUser = async (req, res) => {
 */
 
 exports.loginUser = async (req, res) => {
-
     try {
 
         const { email, password } = req.body;
@@ -97,18 +97,18 @@ exports.loginUser = async (req, res) => {
         if (!email || !password) {
             return res.status(400).json({
                 success: false,
-                message: 'Email and password are required.'
+                message: 'Email and password are required.',
             });
         }
 
         const user = await User.findOne({
-            email: email.toLowerCase()
+            email: email.toLowerCase(),
         });
 
         if (!user) {
             return res.status(401).json({
                 success: false,
-                message: 'Invalid credentials.'
+                message: 'Invalid credentials.',
             });
         }
 
@@ -117,52 +117,36 @@ exports.loginUser = async (req, res) => {
         if (!passwordMatch) {
             return res.status(401).json({
                 success: false,
-                message: 'Invalid credentials.'
+                message: 'Invalid credentials.',
             });
         }
 
-        const token = generateToken(user._id);
+        console.log(`✅ User logged in: ${user.email}`);
 
-        res.json({
-
+        return res.status(200).json({
             success: true,
-
             message: 'Login successful.',
-
-            token,
-
-            user: {
-
-                id: user._id,
-
-                name: user.name,
-
-                email: user.email,
-
-                language: user.language,
-
-                role: user.role
-
-            }
-
+            data: {
+                token: generateToken(user._id),
+                user: {
+                    id: user._id,
+                    name: user.name,
+                    email: user.email,
+                    language: user.language,
+                    role: user.role,
+                },
+            },
         });
 
-    }
+    } catch (error) {
 
-    catch (error) {
+        console.error('❌ Login Error:', error);
 
-        console.error(error);
-
-        res.status(500).json({
-
+        return res.status(500).json({
             success: false,
-
-            message: 'Server error.'
-
+            message: 'Server error during login.',
         });
-
     }
-
 };
 
 /*
@@ -172,97 +156,67 @@ exports.loginUser = async (req, res) => {
 */
 
 exports.googleAuth = async (req, res) => {
-
     try {
 
         const { token } = req.body;
 
         if (!token) {
-
             return res.status(400).json({
-
                 success: false,
-
-                message: 'Google token missing.'
-
+                message: 'Google token missing.',
             });
-
         }
 
         const ticket = await client.verifyIdToken({
-
             idToken: token,
-
-            audience: process.env.GOOGLE_CLIENT_ID
-
+            audience: process.env.GOOGLE_CLIENT_ID,
         });
 
         const payload = ticket.getPayload();
 
         let user = await User.findOne({
-
-            email: payload.email
-
+            email: payload.email,
         });
 
         if (!user) {
-
             user = await User.create({
-
                 googleId: payload.sub,
-
                 name: payload.name,
-
                 email: payload.email,
-
                 profilePhoto: payload.picture,
-
-                isVerified: true
-
+                isVerified: true,
             });
 
+            console.log(`✅ Google user registered: ${user.email}`);
         }
 
-        const jwtToken = generateToken(user._id);
+        console.log(`✅ Google login: ${user.email}`);
 
-        res.json({
-
+        return res.status(200).json({
             success: true,
-
             message: 'Google login successful.',
-
-            token: jwtToken,
-
-            user: {
-
-                id: user._id,
-
-                name: user.name,
-
-                email: user.email,
-
-                profilePhoto: user.profilePhoto
-
-            }
-
+            data: {
+                token: generateToken(user._id),
+                user: {
+                    id: user._id,
+                    name: user.name,
+                    email: user.email,
+                    profilePhoto: user.profilePhoto,
+                    language: user.language,
+                    role: user.role,
+                },
+            },
         });
 
-    }
+    } catch (error) {
 
-    catch (error) {
+        console.error('❌ Google Authentication Error:', error);
 
-        console.error(error);
-
-        res.status(400).json({
-
+        return res.status(400).json({
             success: false,
-
-            message: 'Google authentication failed.'
-
+            message: 'Google authentication failed.',
         });
-
     }
-
 };
 
 /*
@@ -273,12 +227,10 @@ exports.googleAuth = async (req, res) => {
 
 exports.getCurrentUser = async (req, res) => {
 
-    res.json({
-
+    return res.status(200).json({
         success: true,
-
-        user: req.user
-
+        message: 'Current user fetched successfully.',
+        data: req.user,
     });
 
 };

@@ -2,7 +2,6 @@ const PriceIndex = require('../models/PriceIndex');
 
 // Create Price Entry
 exports.createPriceIndex = async (req, res) => {
-
     try {
 
         const {
@@ -25,51 +24,46 @@ exports.createPriceIndex = async (req, res) => {
             user: req.user._id,
         });
 
-        console.log(`✅ Price submitted: ${product}`);
+        console.log(`✅ Price submitted: ${entry.product}`);
 
-        res.status(201).json({
+        return res.status(201).json({
             success: true,
             message: 'Price submitted successfully.',
-            entry,
+            data: entry,
         });
 
     } catch (error) {
 
-        console.error('Price Index Error:', error);
+        console.error('❌ Price Index Create Error:', error);
 
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
-            message: 'Server error.',
+            message: 'Server error while submitting price.',
         });
-
     }
-
 };
 
 // Get Price Entries
 exports.getPriceIndexes = async (req, res) => {
-
     try {
 
         const prices = await PriceIndex.find()
-            .populate('user', 'name')
+            .populate('submittedBy', 'name')
             .sort({ createdAt: -1 });
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             count: prices.length,
-            prices,
+            data: prices,
         });
 
     } catch (error) {
 
-        console.error('Fetch Price Index Error:', error);
+        console.error('❌ Price Index Fetch Error:', error);
 
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
-            message: 'Server error.',
+            message: 'Server error while fetching price index.',
         });
-
     }
-
 };

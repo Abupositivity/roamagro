@@ -2,7 +2,6 @@ const MarketplaceItem = require('../models/MarketplaceItem');
 
 // Create Marketplace Item
 exports.createMarketplaceItem = async (req, res) => {
-
     try {
 
         const {
@@ -29,51 +28,46 @@ exports.createMarketplaceItem = async (req, res) => {
             user: req.user._id,
         });
 
-        console.log(`✅ Marketplace listing created: ${item.title}`);
+        console.log(`✅ Marketplace item created: ${item.title}`);
 
-        res.status(201).json({
+        return res.status(201).json({
             success: true,
             message: 'Marketplace item created successfully.',
-            item,
+            data: item,
         });
 
     } catch (error) {
 
-        console.error('Marketplace Create Error:', error);
+        console.error('❌ Marketplace Create Error:', error);
 
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
-            message: 'Server error.',
+            message: 'Server error while creating marketplace item.',
         });
-
     }
-
 };
 
 // Get Marketplace Items
 exports.getMarketplaceItems = async (req, res) => {
-
     try {
 
         const items = await MarketplaceItem.find()
             .populate('user', 'name')
             .sort({ createdAt: -1 });
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             count: items.length,
-            items,
+            data: items,
         });
 
     } catch (error) {
 
-        console.error('Marketplace Fetch Error:', error);
+        console.error('❌ Marketplace Fetch Error:', error);
 
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
-            message: 'Server error.',
+            message: 'Server error while fetching marketplace items.',
         });
-
     }
-
 };

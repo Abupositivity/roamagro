@@ -1,9 +1,15 @@
 const FarmProject = require('../models/FarmProject');
 
-// Create a new farm project
+// Create Farm Project
 exports.createFarmProject = async (req, res) => {
     try {
-        const { name, description, startDate, endDate } = req.body;
+
+        const {
+            name,
+            description,
+            startDate,
+            endDate,
+        } = req.body;
 
         if (!name || !description) {
             return res.status(400).json({
@@ -22,23 +28,24 @@ exports.createFarmProject = async (req, res) => {
 
         console.log(`✅ Farm project created: ${project.name}`);
 
-        res.status(201).json({
+        return res.status(201).json({
             success: true,
             message: 'Farm project created successfully.',
-            project,
+            data: project,
         });
 
     } catch (error) {
-        console.error('Create Farm Project Error:', error);
 
-        res.status(500).json({
+        console.error('❌ Farm Project Create Error:', error);
+
+        return res.status(500).json({
             success: false,
-            message: 'Server error while creating project.',
+            message: 'Server error while creating farm project.',
         });
     }
 };
 
-// Get all farm projects
+// Get Farm Projects
 exports.getFarmProjects = async (req, res) => {
     try {
 
@@ -46,20 +53,19 @@ exports.getFarmProjects = async (req, res) => {
             user: req.user._id,
         }).sort({ createdAt: -1 });
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             count: projects.length,
-            projects,
+            data: projects,
         });
 
     } catch (error) {
 
-        console.error('Fetch Farm Projects Error:', error);
+        console.error('❌ Farm Project Fetch Error:', error);
 
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
-            message: 'Server error while fetching projects.',
+            message: 'Server error while fetching farm projects.',
         });
-
     }
 };
