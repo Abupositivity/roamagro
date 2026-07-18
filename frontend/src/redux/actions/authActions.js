@@ -13,7 +13,7 @@ axios.defaults.baseURL = process.env.REACT_APP_API_BASE_URL || 'http://localhost
 
 export const register = (userData, navigate) => async (dispatch) => {
     try {
-        const res = await axios.post('/api/auth/register', userData);
+        const res = await axios.post('/api/v1/auth/register', userData);
         dispatch({ type: REGISTER_SUCCESS, payload: res.data });
 
         // Automatically log in the user after successful registration
@@ -29,7 +29,7 @@ export const register = (userData, navigate) => async (dispatch) => {
 
 export const login = (userData, navigate) => async (dispatch) => {
     try {
-        const res = await axios.post('/api/auth/login', userData);
+        const res = await axios.post('/api/v1/auth/login', userData);
 
         if (res.data) {
             dispatch({ type: LOGIN_SUCCESS, payload: res.data });
@@ -47,7 +47,7 @@ export const login = (userData, navigate) => async (dispatch) => {
 
 export const googleLogin = (token, navigate) => async (dispatch) => {
     try {
-        const res = await axios.post('/api/auth/google', { token });
+        const res = await axios.post('/api/v1/auth/google', { token });
 
         if (res.data) {
             dispatch({ type: GOOGLE_LOGIN_SUCCESS, payload: res.data });
