@@ -1,16 +1,11 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
-
 const asyncHandler = require('../middleware/asyncHandler');
 const AppError = require('../utils/AppError');
+const generateToken = require('../utils/generateToken');
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-
-const generateToken = (id) =>
-    jwt.sign({ id }, process.env.JWT_SECRET, {
-        expiresIn: '7d',
-    });
 
 exports.registerUser = asyncHandler(async (req, res) => {
 

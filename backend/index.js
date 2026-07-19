@@ -6,34 +6,86 @@ const path = require('path');
 const passport = require('passport');
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
+const helmet = require('helmet');
+const compression = require('compression');
+const morgan = require('morgan');
+
 const connectDB = require('./config/db');
+const notFound = require('./middleware/notFound');
 const errorHandler = require('./middleware/errorHandler');
 
 require('./config/passportConfig');
 
-// Connect Database
+/* ===================================================
+   Connect MongoDB
+=================================================== */
 connectDB();
 
 const app = express();
 
+/* ===================================================
+   Express Settings
+=================================================== */
+app.disable('x-powered-by');
+app.set('trust proxy', 1);
+app.set('json spaces', 2);
+
+/* ===================================================
+   Security
+=================================================== */
+app.use(
+    helmet({
+        crossOriginResourcePolicy: false,
+    })
+);
+app.use(compression());
+
+/* ===================================================
+   Logging
+=================================================== */
+if (process.env.NODE_ENV === 'development') {
+    app.use(morgan('dev'));
+} else {
+    app.use(morgan('combined'));
+}
+
 /* ===========================
    Global Middleware
 =========================== */
+const allowedOrigins = process.env.FRONTEND_URL
+    ? process.env.FRONTEND_URL.split(',').map(origin => origin.trim())
+    : ['http://localhost:3000'];
+
 app.use(cors({
-    origin: process.env.FRONTEND_URL,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    origin(origin, callback) {
+        // allow Postman/mobile apps/no-origin requests
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+         return callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization']
+    methods: [ 'GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS' ],
+    allowedHeaders: [ 'Content-Type', 'Authorization' ]
 }));
-app.use(express.json());
+
+/* ===================================================
+   Body Parsers
+=================================================== */
+app.use(express.json({
+    limit: '10mb'
+}));
 app.use(express.urlencoded({
-    extended: true
+    extended: true,
+    limit: '10mb'
 }));
 
 /* ===========================
    Session Configuration
 =========================== */
 app.use(session({
+    name: 'roamagro.sid',
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
@@ -55,6 +107,20 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 /* ===========================
+   Health Check Endpoint
+=========================== */
+app.get('/api/v1/health', (req, res) => {
+    res.status(200).json({
+        success: true,
+        message: 'RoamAgro API is running.',
+        version: process.env.API_VERSION || '1.0.0',
+        environment: process.env.NODE_ENV,
+        uptime: process.uptime(),
+        timestamp: new Date().toISOString(),
+    });
+});
+
+/* ===========================
    API Routes
 =========================== */
 const authRoutes = require('./routes/authRoutes');
@@ -69,23 +135,32 @@ app.use('/api/v1/marketplace', marketplaceRoutes);
 app.use('/api/v1/price-index', priceIndexRoutes);
 app.use('/api/v1/community', communityRoutes);
 
+/* ===================================================
+   Root Endpoint
+=================================================== */
+app.get('/', (req, res) => {
+    res.json({
+        success: true,
+        application: 'RoamAgro API',
+        version: process.env.API_VERSION || '1.0.0',
+        documentation: '/api/v1/health'
+    });
+});
+
 /* ===========================
    Production Frontend
 =========================== */
 if (process.env.NODE_ENV === 'production') {
     app.use(express.static(path.join(__dirname, '../client/build')));
-    app.get('*', (req, res) => {
+    app.get(/^\/(?!api).*/, (req, res) => {
         res.sendFile(path.join(__dirname, '../client/build', 'index.html'));
     });
 }
 /* ===========================
    404 Handler
 =========================== */
-app.use((req, res, next) => {
-    const error = new Error(`Route not found: ${req.originalUrl}`);
-    error.statusCode = 404;
-    next(error);
-});
+app.use(notFound);
+
 /* ===========================
    Global Error Handler
 =========================== */
@@ -96,5 +171,20 @@ app.use(errorHandler);
 =========================== */
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-    console.log(`🚀 RoamAgro API Server running on port ${PORT}`);
+    console.log(`
+============================================================
+🌱 RoamAgro Backend Started Successfully
+============================================================
+🚀 Port            : ${PORT}
+🌍 Environment     : ${process.env.NODE_ENV}
+📦 API Version     : ${process.env.API_VERSION || '1.0.0'}
+🔐 Authentication  : Enabled
+🛡️ Passport        : Active
+💾 MongoDB         : Connected
+============================================================
+Health Check:
+http://localhost:${PORT}/api/v1/health
+============================================================
+`);
+
 });
