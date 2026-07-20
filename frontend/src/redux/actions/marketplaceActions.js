@@ -1,33 +1,48 @@
 import api from '../../services/api';
 
-export const fetchListings = () => async (dispatch) => {
+import {
+FETCH_LISTINGS_REQUEST,
+FETCH_LISTINGS_SUCCESS,
+FETCH_LISTINGS_FAIL,
+CREATE_LISTING_REQUEST,
+CREATE_LISTING_SUCCESS,
+CREATE_LISTING_FAIL,
+}
+from './types';
 
-    try {
-        const { data } = await api.get('/marketplace');
+export const fetchListings = () => async (dispatch)=>{
+    dispatch({type:FETCH_LISTINGS_REQUEST});
+    try{
+        const res=await api.get('/marketplace');
         dispatch({
-            type: 'FETCH_LISTINGS_SUCCESS',
-            payload: data.items
+            type:FETCH_LISTINGS_SUCCESS,
+            payload:res.data.data,
         });
-    } catch (err) {
+    }
+    catch(error){
         dispatch({
-            type: 'FETCH_LISTINGS_FAIL',
-            payload: err.response?.data?.message
+            type:FETCH_LISTINGS_FAIL,
+            payload:error.response?.data?.message,
         });
     }
 };
 
-export const createListing = (listing) => async (dispatch) => {
-    try {
-        const { data } = await api.post('/marketplace', listing);
+export const createListing=(listing)=>async(dispatch)=>{
+    dispatch({
+        type:CREATE_LISTING_REQUEST,
+    });
+    try{
+        const res=await api.post('/marketplace',listing);
         dispatch({
-            type: 'CREATE_LISTING_SUCCESS',
-            payload: data.item
+            type:CREATE_LISTING_SUCCESS,
+            payload:res.data.data,
         });
-        console.log('✅ Listing created');
-    } catch (err) {
+        console.log("✅ Listing Created");
+    }
+    catch(error){
         dispatch({
-            type: 'CREATE_LISTING_FAIL',
-            payload: err.response?.data?.message
+            type:CREATE_LISTING_FAIL,
+            payload:error.response?.data?.message,
         });
     }
 };

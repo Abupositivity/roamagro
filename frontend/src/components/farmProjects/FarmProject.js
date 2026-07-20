@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchFarmProjects, createFarmProject, updateFarmProject } from '../../redux/actions/farmProjectsActions';
+import { fetchFarmProjects, createFarmProject } from '../../redux/actions/farmProjectsActions';
 import { Container, Grid, TextField, Button, Typography, Paper } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 
@@ -59,9 +59,9 @@ const FarmProject = () => {
               <Typography>{`${t('Start Date')}: ${new Date(project.startDate).toLocaleDateString()}`}</Typography>
               <Typography>{`${t('End Date')}: ${new Date(project.endDate).toLocaleDateString()}`}</Typography>
               <Typography>{`${t('Budget')}: $${project.budget}`}</Typography>
-              <Button onClick={() => dispatch(updateFarmProject(project._id, newProject))} color="secondary" sx={{ mt: 1 }}>
+              {/* <Button onClick={() => dispatch(updateFarmProject(project._id, newProject))} color="secondary" sx={{ mt: 1 }}>
                 {t('EDIT')}
-              </Button>
+              </Button> */}
             </Paper>
           </Grid>
         ))}

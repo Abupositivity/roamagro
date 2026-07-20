@@ -1,65 +1,49 @@
 import api from '../../services/api';
 
+import {
+    FETCH_PROJECTS_REQUEST,
+    FETCH_PROJECTS_SUCCESS,
+    FETCH_PROJECTS_FAIL,
+    CREATE_PROJECT_REQUEST,
+    CREATE_PROJECT_SUCCESS,
+    CREATE_PROJECT_FAIL,
+} from './types';
+
 export const fetchFarmProjects = () => async (dispatch) => {
+    dispatch({
+        type: FETCH_PROJECTS_REQUEST,
+    });
     try {
-        const { data } = await api.get('/farm-projects');
+        const res = await api.get('/farm-projects');
         dispatch({
-            type: 'FETCH_PROJECTS_SUCCESS',
-            payload: data.projects
+            type: FETCH_PROJECTS_SUCCESS,
+            payload: res.data.data,
         });
-    } catch (err) {
+    }
+    catch (error) {
         dispatch({
-            type: 'FETCH_PROJECTS_FAIL',
-            payload: err.response?.data?.message
+            type: FETCH_PROJECTS_FAIL,
+            payload: error.response?.data?.message,
         });
     }
 };
 
 export const createFarmProject = (project) => async (dispatch) => {
-
+    dispatch({
+        type: CREATE_PROJECT_REQUEST,
+    });
     try {
-        const { data } = await api.post('/farm-projects', project);
+        const res = await api.post('/farm-projects', project);
         dispatch({
-            type: 'CREATE_PROJECT_SUCCESS',
-            payload: data.project
+            type: CREATE_PROJECT_SUCCESS,
+            payload: res.data.data,
         });
-        console.log('✅ Farm Project created');
-
-    } catch (err) {
-        dispatch({
-            type: 'CREATE_PROJECT_FAIL',
-            payload: err.response?.data?.message
-        });
+        console.log("✅ Farm Project Created");
     }
-};
-
-export const updateFarmProject = (id, project) => async (dispatch) => {
-
-    try {
-        const { data } = await api.put(`/farm-projects/${id}`, project);
+    catch (error) {
         dispatch({
-            type: 'UPDATE_PROJECT_SUCCESS',
-            payload: data.project
-        });
-    } catch (err) {
-        dispatch({
-            type: 'UPDATE_PROJECT_FAIL',
-            payload: err.response?.data?.message
-        });
-    }
-};
-
-export const deleteFarmProject = (id) => async (dispatch) => {
-    try {
-        await api.delete(`/farm-projects/${id}`);
-        dispatch({
-            type: 'DELETE_PROJECT_SUCCESS',
-            payload: id
-        });
-    } catch (err) {
-        dispatch({
-            type: 'DELETE_PROJECT_FAIL',
-            payload: err.response?.data?.message
+            type: CREATE_PROJECT_FAIL,
+            payload: error.response?.data?.message,
         });
     }
 };

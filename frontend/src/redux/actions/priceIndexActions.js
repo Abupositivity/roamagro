@@ -1,32 +1,50 @@
 import api from '../../services/api';
 
-export const fetchPriceIndex = () => async (dispatch) => {
-    try {
-        const { data } = await api.get('/price-index');
+import {
+FETCH_PRICE_INDEX_REQUEST,
+FETCH_PRICE_INDEX_SUCCESS,
+FETCH_PRICE_INDEX_FAIL,
+UPDATE_PRICE_INDEX_REQUEST,
+UPDATE_PRICE_INDEX_SUCCESS,
+UPDATE_PRICE_INDEX_FAIL,
+}
+from './types';
+
+export const fetchPriceIndex=()=>async(dispatch)=>{
+    dispatch({
+        type:FETCH_PRICE_INDEX_REQUEST,
+    });
+    try{
+        const res=await api.get('/price-index');
         dispatch({
-            type: 'FETCH_PRICE_INDEX_SUCCESS',
-            payload: data.prices
+            type:FETCH_PRICE_INDEX_SUCCESS,
+            payload:res.data.data,
         });
-    } catch (err) {
+    }
+    catch(error){
         dispatch({
-            type: 'FETCH_PRICE_INDEX_FAIL',
-            payload: err.response?.data?.message
+            type:FETCH_PRICE_INDEX_FAIL,
+            payload:error.response?.data?.message,
         });
     }
 };
 
-export const updatePriceIndex = (price) => async (dispatch) => {
-    try {
-        const { data } = await api.post('/price-index', price);
+export const updatePriceIndex=(price)=>async(dispatch)=>{
+    dispatch({
+        type:UPDATE_PRICE_INDEX_REQUEST,
+    });
+    try{
+        const res=await api.post('/price-index',price);
         dispatch({
-            type: 'UPDATE_PRICE_INDEX_SUCCESS',
-            payload: data.entry
+            type:UPDATE_PRICE_INDEX_SUCCESS,
+            payload:res.data.data,
         });
-        console.log('✅ Price submitted');
-    } catch (err) {
+        console.log("✅ Price Submitted");
+    }
+    catch(error){
         dispatch({
-            type: 'UPDATE_PRICE_INDEX_FAIL',
-            payload: err.response?.data?.message
+            type:UPDATE_PRICE_INDEX_FAIL,
+            payload:error.response?.data?.message,
         });
     }
 };
