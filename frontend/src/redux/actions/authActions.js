@@ -1,4 +1,5 @@
-import axios from 'axios';
+import api from '../../services/api';
+
 import {
     LOGIN_SUCCESS,
     LOGIN_FAIL,
@@ -6,59 +7,73 @@ import {
     REGISTER_FAIL,
     GOOGLE_LOGIN_SUCCESS,
     GOOGLE_LOGIN_FAIL,
+    LOGOUT,
 } from './types';
-
-// Set Axios base URL globally
-axios.defaults.baseURL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
 
 export const register = (userData, navigate) => async (dispatch) => {
     try {
-        const res = await axios.post('/api/v1/auth/register', userData);
-        dispatch({ type: REGISTER_SUCCESS, payload: res.data });
-
-        // Automatically log in the user after successful registration
-        dispatch(login({ email: userData.email, password: userData.password }, navigate));
+        const { data } = await api.post('/auth/register', userData);
+        console.log('✅ Registration successful');
+        dispatch({
+            type: REGISTER_SUCCESS,
+            payload: data
+        });
+        dispatch(login({
+            email: userData.email,
+            password: userData.password
+        }, navigate));
     } catch (err) {
-        console.error('Registration failed:', err);
+        console.error(err.response?.data || err);
         dispatch({
             type: REGISTER_FAIL,
-            payload: err.response?.data?.error || 'Registration failed',
+            payload: err.response?.data?.message || 'Registration failed'
         });
     }
 };
 
-export const login = (userData, navigate) => async (dispatch) => {
+export const login = (credentials, navigate) => async (dispatch) => {
     try {
-        const res = await axios.post('/api/v1/auth/login', userData);
-
-        if (res.data) {
-            dispatch({ type: LOGIN_SUCCESS, payload: res.data });
-            localStorage.setItem('token', res.data.token); // Store JWT for session
-            navigate('/dashboard');
-        }
+        const { data } = await api.post('/auth/login', credentials);
+        localStorage.setItem('token', data.token);
+        dispatch({
+            type: LOGIN_SUCCESS,
+            payload: data
+        });
+        console.log('✅ Login successful');
+        navigate('/dashboard');
     } catch (err) {
-        console.error('Login failed:', err);
+        console.error(err.response?.data || err);
         dispatch({
             type: LOGIN_FAIL,
-            payload: err.response?.data?.message || 'Login failed',
+            payload: err.response?.data?.message || 'Login failed'
         });
     }
 };
 
 export const googleLogin = (token, navigate) => async (dispatch) => {
     try {
-        const res = await axios.post('/api/v1/auth/google', { token });
-
-        if (res.data) {
-            dispatch({ type: GOOGLE_LOGIN_SUCCESS, payload: res.data });
-            localStorage.setItem('token', res.data.token); // Store JWT for session
-            navigate('/dashboard');
-        }
+        const { data } = await api.post('/auth/google', {
+            token
+        });
+        localStorage.setItem('token', data.token);
+        dispatch({
+            type: GOOGLE_LOGIN_SUCCESS,
+            payload: data
+        });
+        console.log('✅ Google Login successful');
+        navigate('/dashboard');
     } catch (err) {
-        console.error('Google login failed:', err);
+        console.error(err.response?.data || err);
         dispatch({
             type: GOOGLE_LOGIN_FAIL,
-            payload: err.response?.data?.error || 'Google login failed',
+            payload: err.response?.data?.message || 'Google Login failed'
         });
     }
+};
+
+export const logout = () => (dispatch) => {
+    localStorage.removeItem('token');
+    dispatch({
+        type: LOGOUT
+    });
 };

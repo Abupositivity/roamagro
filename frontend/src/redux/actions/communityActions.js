@@ -1,28 +1,32 @@
-import axios from 'axios';
+import api from '../../services/api';
 
 export const fetchTopics = () => async (dispatch) => {
-  try {
-    const response = await axios.get('/api/v1/community'); // Updated endpoint
-    dispatch({ type: 'FETCH_TOPICS_SUCCESS', payload: response.data });
-  } catch (error) {
-    dispatch({ type: 'FETCH_TOPICS_FAIL', payload: error.response?.data || 'Failed to fetch topics' });
-  }
+    try {
+        const { data } = await api.get('/community');
+        dispatch({
+            type: 'FETCH_TOPICS_SUCCESS',
+            payload: data.posts
+        });
+    } catch (err) {
+        dispatch({
+            type: 'FETCH_TOPICS_FAIL',
+            payload: err.response?.data?.message
+        });
+    }
 };
 
-export const createTopic = (topicData) => async (dispatch) => {
-  try {
-    const response = await axios.post('/api/v1/community', topicData); // Updated endpoint
-    dispatch({ type: 'CREATE_TOPIC_SUCCESS', payload: response.data });
-  } catch (error) {
-    dispatch({ type: 'CREATE_TOPIC_FAIL', payload: error.response?.data || 'Failed to create topic' });
-  }
-};
-
-export const replyToTopic = (topicId, replyData) => async (dispatch) => {
-  try {
-    const response = await axios.post(`/api/v1/community/${topicId}/reply`, replyData); // Updated endpoint
-    dispatch({ type: 'REPLY_SUCCESS', payload: response.data });
-  } catch (error) {
-    dispatch({ type: 'REPLY_FAIL', payload: error.response?.data || 'Failed to post reply' });
-  }
+export const createTopic = (topic) => async (dispatch) => {
+    try {
+        const { data } = await api.post('/community', topic);
+        dispatch({
+            type: 'CREATE_TOPIC_SUCCESS',
+            payload: data.post
+        });
+        console.log('✅ Topic created');
+    } catch (err) {
+        dispatch({
+            type: 'CREATE_TOPIC_FAIL',
+            payload: err.response?.data?.message
+        });
+    }
 };

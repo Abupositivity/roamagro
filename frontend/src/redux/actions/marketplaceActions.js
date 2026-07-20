@@ -1,19 +1,33 @@
-import axios from 'axios';
+import api from '../../services/api';
 
 export const fetchListings = () => async (dispatch) => {
-  try {
-    const response = await axios.get('/api/v1/marketplace');
-    dispatch({ type: 'FETCH_LISTINGS_SUCCESS', payload: response.data });
-  } catch (error) {
-    dispatch({ type: 'FETCH_LISTINGS_FAIL', payload: error.response.data });
-  }
+
+    try {
+        const { data } = await api.get('/marketplace');
+        dispatch({
+            type: 'FETCH_LISTINGS_SUCCESS',
+            payload: data.items
+        });
+    } catch (err) {
+        dispatch({
+            type: 'FETCH_LISTINGS_FAIL',
+            payload: err.response?.data?.message
+        });
+    }
 };
 
-export const createListing = (listingData) => async (dispatch) => {
-  try {
-    const response = await axios.post('/api/v1/marketplace', listingData);
-    dispatch({ type: 'CREATE_LISTING_SUCCESS', payload: response.data });
-  } catch (error) {
-    dispatch({ type: 'CREATE_LISTING_FAIL', payload: error.response.data });
-  }
+export const createListing = (listing) => async (dispatch) => {
+    try {
+        const { data } = await api.post('/marketplace', listing);
+        dispatch({
+            type: 'CREATE_LISTING_SUCCESS',
+            payload: data.item
+        });
+        console.log('✅ Listing created');
+    } catch (err) {
+        dispatch({
+            type: 'CREATE_LISTING_FAIL',
+            payload: err.response?.data?.message
+        });
+    }
 };
