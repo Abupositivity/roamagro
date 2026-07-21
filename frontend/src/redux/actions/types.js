@@ -71,3 +71,16 @@ export const FETCH_PRICE_INDEX_FAIL = 'FETCH_PRICE_INDEX_FAIL';
 export const UPDATE_PRICE_INDEX_REQUEST = 'UPDATE_PRICE_INDEX_REQUEST';
 export const UPDATE_PRICE_INDEX_SUCCESS = 'UPDATE_PRICE_INDEX_SUCCESS';
 export const UPDATE_PRICE_INDEX_FAIL = 'UPDATE_PRICE_INDEX_FAIL';
+
+/*
+|--------------------------------------------------------------------------
+| Dashboard
+|--------------------------------------------------------------------------
+*/
+
+export const DASHBOARD_REQUEST = 'DASHBOARD_REQUEST';
+export const DASHBOARD_SUCCESS = 'DASHBOARD_SUCCESS';
+export const DASHBOARD_FAIL = 'DASHBOARD_FAIL';
+
+export const UPDATE_DASHBOARD_POST = 'UPDATE_DASHBOARD_POST';
+export const CLEAR_DASHBOARD_POST = 'CLEAR_DASHBOARD_POST';

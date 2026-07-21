@@ -1,209 +1,198 @@
 import React, { useState, useEffect } from 'react';
-import { Route, Routes, useLocation, Navigate } from 'react-router-dom';
+import {
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+} from 'react-router-dom';
+
 import { Provider, useSelector } from 'react-redux';
 
 import {
-  CssBaseline,
   ThemeProvider,
+  CssBaseline,
   createTheme,
   Box,
 } from '@mui/material';
 
 import store from './redux/store';
-
 import './styles/theme';
-
+// Pages
 import Home from './pages/Home';
 import Dashboard from './pages/Dashboard';
 import Settings from './pages/Settings';
-
+// Auth
 import Login from './components/auth/Login';
 import Register from './components/auth/Register';
-
+// Features
 import Marketplace from './components/marketplace/Marketplace';
 import PriceIndex from './components/priceIndex/PriceIndex';
 import Community from './components/community/Community';
 import FarmProject from './components/farmProjects/FarmProject';
-
+// Layout
+import PageLayout from './components/layout/PageLayout';
+// Shared Components
 import ThemeSwitcher from './components/ThemeSwitcher';
 import LanguageSwitcher from './components/LanguageSwitcher';
 
-import TopAppBar from './components/layout/TopAppBar';
-import FixedBottomNavigation from './components/layout/FixedBottomNavigation';
-
-const ProtectedRoute = ({ element: Element, ...rest }) => {
+const ProtectedRoute = ({ children }) => {
   const { isAuthenticated } = useSelector((state) => state.auth);
-
-  return isAuthenticated
-    ? <Element {...rest} />
-    : <Navigate to="/login" replace />;
+  return isAuthenticated ? children : <Navigate to="/login" replace />;
 };
 
-const App = () => {
-
+const AppContent = () => {
+  const location = useLocation();
   const [darkMode, setDarkMode] = useState(false);
 
-  const location = useLocation();
-
   useEffect(() => {
-
-    setDarkMode(localStorage.getItem('darkMode') === 'true');
-
+    const savedTheme = localStorage.getItem('darkMode');
+    setDarkMode(savedTheme === 'true');
   }, []);
-
   useEffect(() => {
-
     localStorage.setItem('darkMode', darkMode);
-
   }, [darkMode]);
 
   const theme = createTheme({
-
     palette: {
-
       mode: darkMode ? 'dark' : 'light',
-
       primary: {
-
         main: '#00BF63',
-
       },
-
       background: {
-
         default: darkMode ? '#121212' : '#F8F9FA',
-
       },
-
     },
-
     shape: {
-
       borderRadius: 12,
-
     },
-
+    typography: {
+      fontFamily: 'Roboto, sans-serif',
+    },
   });
 
-  const authPages = ['/', '/login', '/register'];
-
-  const appPages = [
-    '/dashboard',
-    '/community',
-    '/marketplace',
-    '/price-index',
-    '/farm-projects',
-    '/settings',
+  const authPages = [
+    '/',
+    '/login',
+    '/register',
   ];
 
   const showSwitchers = authPages.includes(location.pathname);
-
-  const showTopAppBar = appPages.includes(location.pathname);
-
-  const showBottomNav = appPages.includes(location.pathname);
-
   return (
-
-    <Provider store={store}>
-
-      <ThemeProvider theme={theme}>
-
-        <CssBaseline />
-
-        {showSwitchers && (
-
-          <Box
-            sx={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              px: 2,
-              py: 1,
-            }}
-          >
-            <ThemeSwitcher
-              darkMode={darkMode}
-              setDarkMode={setDarkMode}
-            />
-
-            <LanguageSwitcher />
-
-          </Box>
-
-        )}
-
-        {showTopAppBar && <TopAppBar />}
-
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      {showSwitchers && (
         <Box
-          component="main"
           sx={{
-            minHeight: '100vh',
-            pb: showBottomNav ? '80px' : 0,
-            overflowX: 'hidden',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            px: 2,
+            py: 1,
           }}
         >
-
-          <Routes>
-
-            <Route path="/" element={<Home />} />
-
-            <Route path="/login" element={<Login />} />
-
-            <Route path="/register" element={<Register />} />
-
-            <Route
-              path="/dashboard"
-              element={<ProtectedRoute element={Dashboard} />}
-            />
-
-            <Route
-              path="/settings"
-              element={
-                <ProtectedRoute
-                  element={Settings}
+          <ThemeSwitcher
+            darkMode={darkMode}
+            setDarkMode={setDarkMode}
+          />
+          <LanguageSwitcher />
+        </Box>
+      )}
+      <Routes>
+        {/* Public */}
+        <Route path="/" element={<Home />} />
+        <Route
+          path="/login"
+          element={<Login />}
+        />
+        <Route
+          path="/register"
+          element={<Register />}
+        />
+        {/* Protected */}
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <PageLayout>
+                <Dashboard />
+              </PageLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/farm-projects"
+          element={
+            <ProtectedRoute>
+              <PageLayout>
+                <FarmProject />
+              </PageLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/marketplace"
+          element={
+            <ProtectedRoute>
+              <PageLayout>
+                <Marketplace />
+              </PageLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/price-index"
+          element={
+            <ProtectedRoute>
+              <PageLayout>
+                <PriceIndex />
+              </PageLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/community"
+          element={
+            <ProtectedRoute>
+              <PageLayout>
+                <Community />
+              </PageLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <PageLayout>
+                <Settings
                   darkMode={darkMode}
                   setDarkMode={setDarkMode}
                 />
-              }
-            />
-
-            <Route
-              path="/marketplace"
-              element={<ProtectedRoute element={Marketplace} />}
-            />
-
-            <Route
-              path="/price-index"
-              element={<ProtectedRoute element={PriceIndex} />}
-            />
-
-            <Route
-              path="/community"
-              element={<ProtectedRoute element={Community} />}
-            />
-
-            <Route
-              path="/farm-projects"
-              element={<ProtectedRoute element={FarmProject} />}
-            />
-
-            <Route
-              path="/auth/google/callback"
-              element={<Navigate to="/dashboard" replace />}
-            />
-
-          </Routes>
-
-        </Box>
-
-        {showBottomNav && <FixedBottomNavigation />}
-
-      </ThemeProvider>
-
-    </Provider>
-
+              </PageLayout>
+            </ProtectedRoute>
+          }
+        />
+        {/* Google OAuth */}
+        <Route
+          path="/auth/google/callback"
+          element={<Navigate to="/dashboard" replace />}
+        />
+        {/* Fallback */}
+        <Route
+          path="*"
+          element={<Navigate to="/" replace />}
+        />
+      </Routes>
+    </ThemeProvider>
   );
+};
 
+const App = () => {
+  return (
+    <Provider store={store}>
+      <AppContent />
+    </Provider>
+  );
 };
 
 export default App;

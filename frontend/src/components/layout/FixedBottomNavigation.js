@@ -1,74 +1,84 @@
 import React from 'react';
-import { Box, IconButton, Typography, useTheme } from '@mui/material';
-import { Link } from 'react-router-dom';
+import {
+    BottomNavigation,
+    BottomNavigationAction,
+    Paper,
+} from '@mui/material';
+
+import DashboardIcon from '@mui/icons-material/Dashboard';
 import AgricultureIcon from '@mui/icons-material/Agriculture';
 import StoreIcon from '@mui/icons-material/Store';
 import PriceChangeIcon from '@mui/icons-material/PriceChange';
-import PeopleIcon from '@mui/icons-material/People';
-import roamagroLogo from '../../assets/images/logo.svg';
+import GroupsIcon from '@mui/icons-material/Groups';
+import {
+    useNavigate,
+    useLocation,
+} from 'react-router-dom';
+
 import { useTranslation } from 'react-i18next';
 
+const routes = [
+    '/dashboard',
+    '/farm-projects',
+    '/marketplace',
+    '/price-index',
+    '/community',
+];
+
 const FixedBottomNavigation = () => {
-  const theme = useTheme();
-  const { t } = useTranslation();
 
-  return (
-    <Box
-      position="fixed"
-      bottom="0"
-      left="0"
-      right="0"
-      display="flex"
-      justifyContent="space-around"
-      alignItems="center"
-      bgcolor={theme.palette.background.default}
-      boxShadow={3}
-      padding="10px 0"
-    >
-      <Link to="/dashboard" style={{ textDecoration: 'none', textAlign: 'center' }}>
-        <Box display="flex" flexDirection="column" alignItems="center">
-          <img src={roamagroLogo} alt="Scroll to Top" width="30" height="30" />
-          <Typography variant="caption" color={theme.palette.text.primary}>{t('Home')}</Typography>
-        </Box>
-      </Link>
+    const navigate = useNavigate();
+    const location = useLocation();
+    const { t } = useTranslation();
 
-      <Link to="/farm-projects" style={{ textDecoration: 'none', textAlign: 'center' }}>
-        <Box display="flex" flexDirection="column" alignItems="center">
-          <IconButton color="primary">
-            <AgricultureIcon />
-          </IconButton>
-          <Typography variant="caption" color={theme.palette.text.primary}>{t('Farm Projects')}</Typography>
-        </Box>
-      </Link>
-
-      <Link to="/marketplace" style={{ textDecoration: 'none', textAlign: 'center' }}>
-        <Box display="flex" flexDirection="column" alignItems="center">
-          <IconButton color="primary">
-            <StoreIcon />
-          </IconButton>
-          <Typography variant="caption" color={theme.palette.text.primary}>{t('Marketplace')}</Typography>
-        </Box>
-      </Link>
-
-      <Link to="/price-index" style={{ textDecoration: 'none', textAlign: 'center' }}>
-        <Box display="flex" flexDirection="column" alignItems="center">
-          <IconButton color="primary">
-            <PriceChangeIcon />
-          </IconButton>
-          <Typography variant="caption" color={theme.palette.text.primary}>{t('Price Index')}</Typography>
-        </Box>
-      </Link>
-
-      <Link to="/community" style={{ textDecoration: 'none', textAlign: 'center' }}>
-        <Box display="flex" flexDirection="column" alignItems="center">
-          <IconButton color="primary">
-            <PeopleIcon />
-          </IconButton>
-          <Typography variant="caption" color={theme.palette.text.primary}>{t('Community')}</Typography>
-        </Box>
-      </Link>
-    </Box>
-  );
+    return (
+        <Paper
+            elevation={6}
+            sx={{
+                position: 'fixed',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                zIndex: 1300,
+            }}
+        >
+            <BottomNavigation
+                value={location.pathname}
+                onChange={(e, value) => navigate(value)}
+                showLabels
+                sx={{
+                    height: 72,
+                    pb: 'env(safe-area-inset-bottom)',
+                }}
+            >
+                <BottomNavigationAction
+                    label={t('Home')}
+                    value={routes[0]}
+                    icon={<DashboardIcon />}
+                />
+                <BottomNavigationAction
+                    label={t('Farm Projects')}
+                    value={routes[1]}
+                    icon={<AgricultureIcon />}
+                />
+                <BottomNavigationAction
+                    label={t('Marketplace')}
+                    value={routes[2]}
+                    icon={<StoreIcon />}
+                />
+                <BottomNavigationAction
+                    label={t('Price Index')}
+                    value={routes[3]}
+                    icon={<PriceChangeIcon />}
+                />
+                <BottomNavigationAction
+                    label={t('Community')}
+                    value={routes[4]}
+                    icon={<GroupsIcon />}
+                />
+            </BottomNavigation>
+        </Paper>
+    );
 };
 
 export default FixedBottomNavigation;

@@ -1,55 +1,97 @@
-import React, { useState } from 'react';
-import { IconButton, Typography, Container, Box, TextField } from '@mui/material';
-import AgriFeed from '../components/community/AgriFeed';
-import { useTranslation } from 'react-i18next';
+import React, { useEffect } from "react";
+import { Box, Stack, Typography, CircularProgress, Alert } from "@mui/material";
+import { useTranslation } from "react-i18next";
+import { useDispatch, useSelector } from "react-redux";
+
+import PageLayout from "../components/layout/PageLayout";
+
+import DashboardHeader from "../components/dashboard/DashboardHeader";
+import SummaryCards from "../components/dashboard/SummaryCards";
+import QuickActions from "../components/dashboard/QuickActions";
+import RecentProjects from "../components/dashboard/RecentProjects";
+import MarketplacePreview from "../components/dashboard/MarketplacePreview";
+import PriceTicker from "../components/dashboard/PriceTicker";
+
+import AgriFeed from "../components/community/AgriFeed";
+
+import { fetchDashboard } from "../redux/actions/dashboardActions";
 
 const Dashboard = () => {
-  const { t } = useTranslation();
-  const [postContent, setPostContent] = useState('');
+    const { t } = useTranslation();
+    const dispatch = useDispatch();
 
-  const handleCreatePost = () => {
-    if (postContent.trim()) {
-      console.log(t('New Agri-Feed post:'), postContent);
-      setPostContent('');
-    } else {
-      alert(t("Post content cannot be empty."));
+    const {
+        loading,
+        error,
+    } = useSelector((state) => state.dashboard);
+
+    useEffect(() => {
+        dispatch(fetchDashboard());
+    }, [dispatch]);
+
+    if (loading) {
+        return (
+            <PageLayout>
+                <Box
+                    display="flex"
+                    justifyContent="center"
+                    alignItems="center"
+                    minHeight="60vh"
+                >
+                    <CircularProgress color="primary" />
+                </Box>
+            </PageLayout>
+        );
     }
-  };
 
-  return (
-    <Container maxWidth="lg">
-      <Box mt={4}>
-        <Typography variant="h6" gutterBottom>
-          {t('Create New Post')}
-        </Typography>
-        <TextField
-          fullWidth
-          multiline
-          rows={3}
-          variant="outlined"
-          placeholder={t("Share tips or insights on agribusiness...")}
-          value={postContent}
-          onChange={(e) => setPostContent(e.target.value)}
-        />
-        <Box display="flex" justifyContent="flex-end" mt={2}>
-          <IconButton
-            variant="contained"
-            color="primary"
-            onClick={handleCreatePost}
-          >
-            {t('Post')}
-          </IconButton>
-        </Box>
-      </Box>
+    if (error) {
+        return (
+            <PageLayout>
+                <Alert severity="error">
+                    {error}
+                </Alert>
+            </PageLayout>
+        );
+    }
 
-      <Box mt={4} style={{ maxHeight: '400px', overflowY: 'auto' }}>
-        <Typography variant="h5" gutterBottom>
-          {t('Agri-Feed')}
-        </Typography>
-        <AgriFeed />
-      </Box>
-    </Container>
-  );
+    return (
+        <PageLayout>
+            <Stack spacing={3}>
+
+                {/* Dashboard Header */}
+                <DashboardHeader />
+
+                {/* Summary Cards */}
+                <SummaryCards />
+
+                {/* Quick Actions */}
+                <QuickActions />
+
+                {/* Recent Farm Projects */}
+                <RecentProjects />
+
+                {/* Marketplace Preview */}
+                <MarketplacePreview />
+
+                {/* Latest Price Updates */}
+                <PriceTicker />
+
+                {/* Community Feed */}
+                <Box>
+                    <Typography
+                        variant="h6"
+                        fontWeight={700}
+                        gutterBottom
+                    >
+                        {t("Agri-Feed")}
+                    </Typography>
+
+                    <AgriFeed />
+                </Box>
+
+            </Stack>
+        </PageLayout>
+    );
 };
 
 export default Dashboard;
