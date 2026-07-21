@@ -48,10 +48,8 @@ const AgriFeed = () => {
             title: t('Provide clean drinking water daily for livestock.'),
         },
     ];
-
     return (
         <Box>
-
             <Typography
                 variant="h5"
                 fontWeight={700}
@@ -59,7 +57,6 @@ const AgriFeed = () => {
             >
                 {t('Agri-Feed')}
             </Typography>
-
             <Typography
                 variant="body2"
                 color="text.secondary"
@@ -67,7 +64,6 @@ const AgriFeed = () => {
             >
                 {t('Daily agricultural tips and best practices.')}
             </Typography>
-
             <Stack spacing={2}>
                 {tips.map((tip) => (
                     <Card
@@ -78,7 +74,6 @@ const AgriFeed = () => {
                         }}
                     >
                         <CardContent>
-
                             <Stack
                                 direction="row"
                                 spacing={2}
@@ -88,7 +83,6 @@ const AgriFeed = () => {
                                 <AgricultureIcon
                                     color="success"
                                 />
-
                                 <Chip
                                     icon={<LightbulbIcon />}
                                     label={tip.category}
@@ -96,18 +90,15 @@ const AgriFeed = () => {
                                     size="small"
                                 />
                             </Stack>
-
                             <Typography
                                 variant="body1"
                             >
                                 {tip.title}
                             </Typography>
-
                         </CardContent>
                     </Card>
                 ))}
             </Stack>
-
         </Box>
     );
 };

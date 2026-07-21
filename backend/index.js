@@ -128,12 +128,14 @@ const farmProjectRoutes = require('./routes/farmProjectRoutes');
 const marketplaceRoutes = require('./routes/marketplaceRoutes');
 const priceIndexRoutes = require('./routes/priceIndexRoutes');
 const communityRoutes = require('./routes/communityRoutes');
+const agriFeedRoutes = require('./routes/agriFeedRoutes');
 
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/farm-projects', farmProjectRoutes);
 app.use('/api/v1/marketplace', marketplaceRoutes);
 app.use('/api/v1/price-index', priceIndexRoutes);
 app.use('/api/v1/community', communityRoutes);
+app.use('/api/v1/feed', agriFeedRoutes);
 
 /* ===================================================
    Root Endpoint
