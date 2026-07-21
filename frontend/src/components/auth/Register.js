@@ -25,58 +25,40 @@ import { useNavigate, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 const Register = () => {
-
   const dispatch = useDispatch();
   const navigate = useNavigate();
-
   const { t } = useTranslation();
-
   const { loading, error, isAuthenticated } =
     useSelector((state) => state.auth);
-
   const [showPassword, setShowPassword] =
     useState(false);
-
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
   });
-
   const [snackbarOpen, setSnackbarOpen] =
     useState(false);
-
   useEffect(() => {
     if (isAuthenticated) {
       setSnackbarOpen(true);
-
       setTimeout(() => {
         navigate("/dashboard");
       }, 1000);
     }
   }, [isAuthenticated, navigate]);
-
   const handleChange = (e) => {
-
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
     });
-
   };
-
   const handleSubmit = (e) => {
-
     e.preventDefault();
-
     dispatch(register(formData));
-
   };
-
   return (
-
     <Container maxWidth="sm">
-
       <Box
         sx={{
           minHeight: "100vh",
@@ -84,18 +66,14 @@ const Register = () => {
           alignItems: "center",
         }}
       >
-
         <Card sx={{ width: "100%" }}>
-
           <CardContent>
-
             <Typography
               variant="h4"
               align="center"
             >
               {t("Register New User")}
             </Typography>
-
             <Typography
               variant="body2"
               align="center"
@@ -104,15 +82,12 @@ const Register = () => {
             >
               {t("Create your RoamAgro account")}
             </Typography>
-
             {error && (
               <Alert severity="error" sx={{ mb: 2 }}>
                 {error}
               </Alert>
             )}
-
             <form onSubmit={handleSubmit}>
-
               <TextField
                 fullWidth
                 margin="normal"
@@ -121,7 +96,6 @@ const Register = () => {
                 value={formData.name}
                 onChange={handleChange}
               />
-
               <TextField
                 fullWidth
                 margin="normal"
@@ -130,7 +104,6 @@ const Register = () => {
                 value={formData.email}
                 onChange={handleChange}
               />
-
               <TextField
                 fullWidth
                 margin="normal"
@@ -146,7 +119,6 @@ const Register = () => {
                 InputProps={{
                   endAdornment: (
                     <InputAdornment position="end">
-
                       <IconButton
                         onClick={() =>
                           setShowPassword(
@@ -158,12 +130,10 @@ const Register = () => {
                           ? <VisibilityOff />
                           : <Visibility />}
                       </IconButton>
-
                     </InputAdornment>
                   ),
                 }}
               />
-
               <Button
                 fullWidth
                 variant="contained"
@@ -180,9 +150,7 @@ const Register = () => {
                   )
                   : t("Register")}
               </Button>
-
             </form>
-
             <Typography
               align="center"
               mt={3}
@@ -192,13 +160,9 @@ const Register = () => {
                 {t("Login")}
               </Link>
             </Typography>
-
           </CardContent>
-
         </Card>
-
       </Box>
-
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={2000}
@@ -207,9 +171,7 @@ const Register = () => {
           {t("Registration successful")}
         </Alert>
       </Snackbar>
-
     </Container>
-
   );
 };
 
