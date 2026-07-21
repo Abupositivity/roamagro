@@ -1,62 +1,215 @@
-import React, { useState } from 'react';
-import { useDispatch } from 'react-redux';
-import { register } from '../../redux/actions/authActions';
-import { Button, TextField, Typography, Container, Snackbar, Alert } from '@mui/material';
-import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from "react";
+import {
+  Alert,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  CircularProgress,
+  Container,
+  IconButton,
+  InputAdornment,
+  Snackbar,
+  TextField,
+  Typography,
+} from "@mui/material";
+
+import {
+  Visibility,
+  VisibilityOff,
+} from "@mui/icons-material";
+
+import { useDispatch, useSelector } from "react-redux";
+import { register } from "../../redux/actions/authActions";
+import { useNavigate, Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 const Register = () => {
+
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { t } = useTranslation();
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
 
-  const handleRegister = (e) => {
+  const { t } = useTranslation();
+
+  const { loading, error, isAuthenticated } =
+    useSelector((state) => state.auth);
+
+  const [showPassword, setShowPassword] =
+    useState(false);
+
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    password: "",
+  });
+
+  const [snackbarOpen, setSnackbarOpen] =
+    useState(false);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      setSnackbarOpen(true);
+
+      setTimeout(() => {
+        navigate("/dashboard");
+      }, 1000);
+    }
+  }, [isAuthenticated, navigate]);
+
+  const handleChange = (e) => {
+
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
+
+  };
+
+  const handleSubmit = (e) => {
+
     e.preventDefault();
-    dispatch(register({ name, email, password }, navigate));
-    console.log(t("Registration successful"));
-    setSnackbarOpen(true);
+
+    dispatch(register(formData));
+
   };
 
   return (
-    <Container maxWidth="xs">
-      <Typography variant="h5">{t('Register New User')}</Typography>
-      <form onSubmit={handleRegister}>
-        <TextField
-          fullWidth
-          label={t("Name")}
-          margin="normal"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-        <TextField
-          fullWidth
-          label={t("Email Address")}
-          margin="normal"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-        <TextField
-          fullWidth
-          label={t("Password")}
-          type="password"
-          margin="normal"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-        <Button type="submit" color="primary" variant="contained" fullWidth>
-          {t("Register New User")}
-        </Button>
-      </form>
-      <Snackbar open={snackbarOpen} autoHideDuration={6000} onClose={() => setSnackbarOpen(false)}>
-        <Alert onClose={() => setSnackbarOpen(false)} severity="success" sx={{ width: '100%' }}>
-          {t("Registration successful!")}
+
+    <Container maxWidth="sm">
+
+      <Box
+        sx={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+        }}
+      >
+
+        <Card sx={{ width: "100%" }}>
+
+          <CardContent>
+
+            <Typography
+              variant="h4"
+              align="center"
+            >
+              {t("Register New User")}
+            </Typography>
+
+            <Typography
+              variant="body2"
+              align="center"
+              color="text.secondary"
+              mb={3}
+            >
+              {t("Create your RoamAgro account")}
+            </Typography>
+
+            {error && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {error}
+              </Alert>
+            )}
+
+            <form onSubmit={handleSubmit}>
+
+              <TextField
+                fullWidth
+                margin="normal"
+                name="name"
+                label={t("Name")}
+                value={formData.name}
+                onChange={handleChange}
+              />
+
+              <TextField
+                fullWidth
+                margin="normal"
+                name="email"
+                label={t("Email Address")}
+                value={formData.email}
+                onChange={handleChange}
+              />
+
+              <TextField
+                fullWidth
+                margin="normal"
+                name="password"
+                type={
+                  showPassword
+                    ? "text"
+                    : "password"
+                }
+                label={t("Password")}
+                value={formData.password}
+                onChange={handleChange}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+
+                      <IconButton
+                        onClick={() =>
+                          setShowPassword(
+                            !showPassword
+                          )
+                        }
+                      >
+                        {showPassword
+                          ? <VisibilityOff />
+                          : <Visibility />}
+                      </IconButton>
+
+                    </InputAdornment>
+                  ),
+                }}
+              />
+
+              <Button
+                fullWidth
+                variant="contained"
+                sx={{ mt: 3 }}
+                disabled={loading}
+                type="submit"
+              >
+                {loading
+                  ? (
+                    <CircularProgress
+                      size={24}
+                      color="inherit"
+                    />
+                  )
+                  : t("Register")}
+              </Button>
+
+            </form>
+
+            <Typography
+              align="center"
+              mt={3}
+            >
+              {t("Already have an account?")}{" "}
+              <Link to="/login">
+                {t("Login")}
+              </Link>
+            </Typography>
+
+          </CardContent>
+
+        </Card>
+
+      </Box>
+
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={2000}
+      >
+        <Alert severity="success">
+          {t("Registration successful")}
         </Alert>
       </Snackbar>
+
     </Container>
+
   );
 };
 

@@ -1,80 +1,216 @@
-import React, { useState } from 'react';
-import { useDispatch } from 'react-redux';
-import { login, googleLogin } from '../../redux/actions/authActions';
-import { GoogleLogin } from '@react-oauth/google';
-import { useNavigate } from 'react-router-dom';
-import { TextField, Button, Typography, Container, Box, Snackbar, Alert } from '@mui/material';
-import { useTranslation } from 'react-i18next';
+import React, { useEffect, useState } from "react";
+import {
+  Alert,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  CircularProgress,
+  Container,
+  IconButton,
+  InputAdornment,
+  Snackbar,
+  TextField,
+  Typography,
+} from "@mui/material";
 
-const Login = () => {
+import {
+  Visibility,
+  VisibilityOff,
+} from "@mui/icons-material";
+
+import { useDispatch, useSelector } from "react-redux";
+import { register } from "../../redux/actions/authActions";
+import { useNavigate, Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+
+const Register = () => {
+
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { t } = useTranslation();
-  const [credentials, setCredentials] = useState({ email: '', password: '' });
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState('');
 
-  const handleGoogleSuccess = (response) => {
-    const token = response.credential;
-    dispatch(googleLogin(token, navigate));
-    console.log(t("Google login successful"));
+  const { t } = useTranslation();
+
+  const { loading, error, isAuthenticated } =
+    useSelector((state) => state.auth);
+
+  const [showPassword, setShowPassword] =
+    useState(false);
+
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    password: "",
+  });
+
+  const [snackbarOpen, setSnackbarOpen] =
+    useState(false);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      setSnackbarOpen(true);
+
+      setTimeout(() => {
+        navigate("/dashboard");
+      }, 1000);
+    }
+  }, [isAuthenticated, navigate]);
+
+  const handleChange = (e) => {
+
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
+
   };
 
   const handleSubmit = (e) => {
-    e.preventDefault();
-    dispatch(login(credentials, navigate));
-    console.log(t("Login successful"));
-    setSnackbarMessage(t("Login successful"));
-    setSnackbarOpen(true);
-  };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setCredentials({ ...credentials, [name]: value });
+    e.preventDefault();
+
+    dispatch(register(formData));
+
   };
 
   return (
-    <Container component="main" maxWidth="xs">
-      <Box sx={{ mt: 8, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <Typography component="h1" variant="h5">{t('Login')}</Typography>
-        <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
-          <TextField
-            variant="outlined"
-            margin="normal"
-            required
-            fullWidth
-            id="email"
-            label={t("Email Address")}
-            name="email"
-            autoComplete="email"
-            autoFocus
-            onChange={handleChange}
-          />
-          <TextField
-            variant="outlined"
-            margin="normal"
-            required
-            fullWidth
-            name="password"
-            label={t("Password")}
-            type="password"
-            id="password"
-            autoComplete="current-password"
-            onChange={handleChange}
-          />
-          <Button type="submit" fullWidth variant="contained" color="primary" sx={{ mt: 3, mb: 2 }}>
-            {t("SIGN IN")}
-          </Button>
-        </Box>
-        <GoogleLogin onSuccess={handleGoogleSuccess} onError={() => console.error(t("Google login failed. Please try again."))} />
-        <Snackbar open={snackbarOpen} autoHideDuration={6000} onClose={() => setSnackbarOpen(false)}>
-          <Alert onClose={() => setSnackbarOpen(false)} severity="success" sx={{ width: '100%' }}>
-            {snackbarMessage}
-          </Alert>
-        </Snackbar>
+
+    <Container maxWidth="sm">
+
+      <Box
+        sx={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+        }}
+      >
+
+        <Card sx={{ width: "100%" }}>
+
+          <CardContent>
+
+            <Typography
+              variant="h4"
+              align="center"
+            >
+              {t("Register New User")}
+            </Typography>
+
+            <Typography
+              variant="body2"
+              align="center"
+              color="text.secondary"
+              mb={3}
+            >
+              {t("Create your RoamAgro account")}
+            </Typography>
+
+            {error && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {error}
+              </Alert>
+            )}
+
+            <form onSubmit={handleSubmit}>
+
+              <TextField
+                fullWidth
+                margin="normal"
+                name="name"
+                label={t("Name")}
+                value={formData.name}
+                onChange={handleChange}
+              />
+
+              <TextField
+                fullWidth
+                margin="normal"
+                name="email"
+                label={t("Email Address")}
+                value={formData.email}
+                onChange={handleChange}
+              />
+
+              <TextField
+                fullWidth
+                margin="normal"
+                name="password"
+                type={
+                  showPassword
+                    ? "text"
+                    : "password"
+                }
+                label={t("Password")}
+                value={formData.password}
+                onChange={handleChange}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+
+                      <IconButton
+                        onClick={() =>
+                          setShowPassword(
+                            !showPassword
+                          )
+                        }
+                      >
+                        {showPassword
+                          ? <VisibilityOff />
+                          : <Visibility />}
+                      </IconButton>
+
+                    </InputAdornment>
+                  ),
+                }}
+              />
+
+              <Button
+                fullWidth
+                variant="contained"
+                sx={{ mt: 3 }}
+                disabled={loading}
+                type="submit"
+              >
+                {loading
+                  ? (
+                    <CircularProgress
+                      size={24}
+                      color="inherit"
+                    />
+                  )
+                  : t("Register")}
+              </Button>
+
+            </form>
+
+            <Typography
+              align="center"
+              mt={3}
+            >
+              {t("Already have an account?")}{" "}
+              <Link to="/login">
+                {t("Login")}
+              </Link>
+            </Typography>
+
+          </CardContent>
+
+        </Card>
+
       </Box>
+
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={2000}
+      >
+        <Alert severity="success">
+          {t("Registration successful")}
+        </Alert>
+      </Snackbar>
+
     </Container>
+
   );
 };
 
-export default Login;
+export default Register;
