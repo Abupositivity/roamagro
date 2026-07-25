@@ -8,6 +8,7 @@ import {
     Menu,
     MenuItem,
     Badge,
+    Tooltip,
 } from '@mui/material';
 
 import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
@@ -18,18 +19,35 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
+import { useDispatch, useSelector } from 'react-redux';
+import { logout } from '../../redux/actions/authActions';
+
 const TopAppBar = () => {
+
     const { t } = useTranslation();
     const navigate = useNavigate();
+    const dispatch = useDispatch();
+
     const [anchorEl, setAnchorEl] = useState(null);
     const open = Boolean(anchorEl);
-    const handleOpen = (e) => setAnchorEl(e.currentTarget);
-    const handleClose = () => setAnchorEl(null);
 
-    const logout = () => {
-        localStorage.removeItem('token');
+    // Authentication
+    const { user } = useSelector((state) => state.auth);
+
+    // Placeholder until Notification module is built
+    const unreadCount =
+        useSelector((state) => state.notifications?.unreadCount) || 0;
+    const handleOpen = (event) => {
+        setAnchorEl(event.currentTarget);
+    };
+    const handleClose = () => {
+        setAnchorEl(null);
+    };
+    const handleLogout = () => {
+        dispatch(logout());
         navigate('/');
     };
+
     return (
         <AppBar
             position="fixed"
@@ -38,10 +56,11 @@ const TopAppBar = () => {
             sx={{
                 borderBottom: '1px solid',
                 borderColor: 'divider',
-                zIndex: 1300,
+                zIndex: (theme) => theme.zIndex.drawer + 1,
             }}
         >
             <Toolbar>
+
                 <Typography
                     variant="h6"
                     sx={{
@@ -52,31 +71,59 @@ const TopAppBar = () => {
                 >
                     RoamAgro
                 </Typography>
-                <IconButton color="inherit">
-                    <Badge
-                        color="error"
-                        variant="dot"
+
+                {/* Notifications */}
+                <Tooltip title={t('Notifications')}>
+                    <IconButton
+                        color="inherit"
+                        onClick={() => navigate('/notifications')}
                     >
-                        <NotificationsNoneIcon />
-                    </Badge>
-                </IconButton>
-                <IconButton onClick={handleOpen}>
-                    <Avatar
-                        sx={{
-                            width: 34,
-                            height: 34,
-                            bgcolor: 'primary.main',
-                        }}
-                    >
-                        <AccountCircleIcon />
-                    </Avatar>
-                </IconButton>
+                        <Badge
+                            badgeContent={unreadCount}
+                            color="error"
+                            invisible={unreadCount === 0}
+                        >
+                            <NotificationsNoneIcon />
+                        </Badge>
+                    </IconButton>
+                </Tooltip>
+
+                {/* User */}
+                <Tooltip title={t('Account')}>
+                    <IconButton onClick={handleOpen}>
+                        <Avatar
+                            sx={{
+                                width: 36,
+                                height: 36,
+                                bgcolor: 'primary.main',
+                            }}
+                        >
+                            {user?.name
+                                ? user.name.charAt(0).toUpperCase()
+                                : <AccountCircleIcon />}
+                        </Avatar>
+                    </IconButton>
+                </Tooltip>
                 <Menu
                     anchorEl={anchorEl}
                     open={open}
                     onClose={handleClose}
                 >
-                    <MenuItem onClick={handleClose}>
+                    <MenuItem
+                        disabled
+                        sx={{
+                            fontWeight: 600,
+                            opacity: 1,
+                        }}
+                    >
+                        {user?.name || t('Profile')}
+                    </MenuItem>
+                    <MenuItem
+                        onClick={() => {
+                            navigate('/profile');
+                            handleClose();
+                        }}
+                    >
                         {t('Profile')}
                     </MenuItem>
                     <MenuItem
@@ -86,15 +133,17 @@ const TopAppBar = () => {
                         }}
                     >
                         <SettingsIcon
-                            sx={{ mr: 1 }}
                             fontSize="small"
+                            sx={{ mr: 1 }}
                         />
                         {t('Settings')}
                     </MenuItem>
-                    <MenuItem onClick={logout}>
+                    <MenuItem
+                        onClick={handleLogout}
+                    >
                         <LogoutIcon
-                            sx={{ mr: 1 }}
                             fontSize="small"
+                            sx={{ mr: 1 }}
                         />
                         {t('Logout')}
                     </MenuItem>
@@ -103,4 +152,5 @@ const TopAppBar = () => {
         </AppBar>
     );
 };
+
 export default TopAppBar;

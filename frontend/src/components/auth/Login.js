@@ -13,38 +13,33 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-
 import {
   Visibility,
   VisibilityOff,
 } from "@mui/icons-material";
-
+import { GoogleLogin } from "@react-oauth/google";
 import { useDispatch, useSelector } from "react-redux";
-import { register } from "../../redux/actions/authActions";
+import { login, googleLogin } from "../../redux/actions/authActions";
 import { useNavigate, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
-const Register = () => {
-
+const Login = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-
   const { t } = useTranslation();
 
-  const { loading, error, isAuthenticated } =
-    useSelector((state) => state.auth);
+  const { loading, error, isAuthenticated } = useSelector(
+    (state) => state.auth
+  );
 
-  const [showPassword, setShowPassword] =
-    useState(false);
-
-  const [formData, setFormData] = useState({
-    name: "",
+  const [credentials, setCredentials] = useState({
     email: "",
     password: "",
   });
 
-  const [snackbarOpen, setSnackbarOpen] =
-    useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -52,31 +47,28 @@ const Register = () => {
 
       setTimeout(() => {
         navigate("/dashboard");
-      }, 1000);
+      }, 800);
     }
   }, [isAuthenticated, navigate]);
 
   const handleChange = (e) => {
-
-    setFormData({
-      ...formData,
+    setCredentials({
+      ...credentials,
       [e.target.name]: e.target.value,
     });
-
   };
 
   const handleSubmit = (e) => {
-
     e.preventDefault();
+    dispatch(login(credentials));
+  };
 
-    dispatch(register(formData));
-
+  const handleGoogleSuccess = (response) => {
+    dispatch(googleLogin(response.credential));
   };
 
   return (
-
     <Container maxWidth="sm">
-
       <Box
         sx={{
           minHeight: "100vh",
@@ -84,16 +76,15 @@ const Register = () => {
           alignItems: "center",
         }}
       >
-
         <Card sx={{ width: "100%" }}>
-
           <CardContent>
 
             <Typography
               variant="h4"
               align="center"
+              gutterBottom
             >
-              {t("Register New User")}
+              {t("Login")}
             </Typography>
 
             <Typography
@@ -102,7 +93,7 @@ const Register = () => {
               color="text.secondary"
               mb={3}
             >
-              {t("Create your RoamAgro account")}
+              {t("Welcome to RoamAgro")}
             </Typography>
 
             {error && (
@@ -116,18 +107,9 @@ const Register = () => {
               <TextField
                 fullWidth
                 margin="normal"
-                name="name"
-                label={t("Name")}
-                value={formData.name}
-                onChange={handleChange}
-              />
-
-              <TextField
-                fullWidth
-                margin="normal"
                 name="email"
                 label={t("Email Address")}
-                value={formData.email}
+                value={credentials.email}
                 onChange={handleChange}
               />
 
@@ -135,13 +117,9 @@ const Register = () => {
                 fullWidth
                 margin="normal"
                 name="password"
-                type={
-                  showPassword
-                    ? "text"
-                    : "password"
-                }
+                type={showPassword ? "text" : "password"}
                 label={t("Password")}
-                value={formData.password}
+                value={credentials.password}
                 onChange={handleChange}
                 InputProps={{
                   endAdornment: (
@@ -149,9 +127,7 @@ const Register = () => {
 
                       <IconButton
                         onClick={() =>
-                          setShowPassword(
-                            !showPassword
-                          )
+                          setShowPassword(!showPassword)
                         }
                       >
                         {showPassword
@@ -172,31 +148,35 @@ const Register = () => {
                 type="submit"
               >
                 {loading
-                  ? (
-                    <CircularProgress
-                      size={24}
-                      color="inherit"
-                    />
-                  )
-                  : t("Register")}
+                  ? <CircularProgress size={24} color="inherit" />
+                  : t("SIGN IN")}
               </Button>
 
             </form>
+
+            <Box
+              mt={3}
+              display="flex"
+              justifyContent="center"
+            >
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={() => {}}
+              />
+            </Box>
 
             <Typography
               align="center"
               mt={3}
             >
-              {t("Already have an account?")}{" "}
-              <Link to="/login">
-                {t("Login")}
+              {t("Don't have an account?")}{" "}
+              <Link to="/register">
+                {t("Register")}
               </Link>
             </Typography>
 
           </CardContent>
-
         </Card>
-
       </Box>
 
       <Snackbar
@@ -204,13 +184,12 @@ const Register = () => {
         autoHideDuration={2000}
       >
         <Alert severity="success">
-          {t("Registration successful")}
+          {t("Login successful")}
         </Alert>
       </Snackbar>
 
     </Container>
-
   );
 };
 
-export default Register;
+export default Login;

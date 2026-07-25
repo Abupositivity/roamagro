@@ -21,6 +21,8 @@ import './styles/theme';
 import Home from './pages/Home';
 import Dashboard from './pages/Dashboard';
 import Settings from './pages/Settings';
+import Notifications from './pages/Notifications';
+import Profile from './pages/Profile';
 // Auth
 import Login from './components/auth/Login';
 import Register from './components/auth/Register';
@@ -176,6 +178,14 @@ const AppContent = () => {
         <Route
           path="/auth/google/callback"
           element={<Navigate to="/dashboard" replace />}
+        />
+        <Route
+          path="/notifications"
+          element={<ProtectedRoute element={Notifications} />}
+        />
+        <Route
+          path="/profile"
+          element={<ProtectedRoute element={Profile} />}
         />
         {/* Fallback */}
         <Route
