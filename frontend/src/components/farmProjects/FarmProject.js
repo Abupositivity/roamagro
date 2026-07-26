@@ -1,296 +1,260 @@
-import React, { useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import {
-    fetchFarmProjects,
-    createFarmProject,
-} from '../../redux/actions/farmProjectsActions';
+import React,{useEffect,useState}from'react';
+import{useDispatch,useSelector}from'react-redux';
+import{useTranslation}from'react-i18next';
+import{
+Alert,
+Box,
+Button,
+CircularProgress,
+Container,
+Snackbar,
+Stack,
+Typography
+}from'@mui/material';
+import AddIcon from'@mui/icons-material/Add';
+import{
+fetchFarmProjects,
+createFarmProject,
+updateFarmProject,
+deleteFarmProject
+}from'../../redux/actions/farmProjectsActions';
+import ProjectList from'./ProjectList';
+import ProjectDialog from'./ProjectDialog';
+import DeleteProjectDialog from'./DeleteProjectDialog';
 
-import { useTranslation } from 'react-i18next';
+const FarmProject=()=>{
 
-import {
-    Alert,
-    Box,
-    Button,
-    Card,
-    CardContent,
-    CircularProgress,
-    Container,
-    Grid,
-    Paper,
-    Snackbar,
-    Stack,
-    TextField,
-    Typography,
-} from '@mui/material';
+const{t}=useTranslation();
+const dispatch=useDispatch();
 
-const FarmProject = () => {
-    const { t } = useTranslation();
-    const dispatch = useDispatch();
+const{
+projects,
+loading,
+error
+}=useSelector(state=>state.farmProjects);
 
-    const {
-        projects,
-        loading,
-        error,
-    } = useSelector((state) => state.farmProjects);
+const[dialogOpen,setDialogOpen]=useState(false);
+const[deleteDialogOpen,setDeleteDialogOpen]=useState(false);
+const[selectedProject,setSelectedProject]=useState(null);
+const[snackbar,setSnackbar]=useState({
+open:false,
+message:'',
+severity:'success'
+});
 
-    const [snackbarOpen, setSnackbarOpen] = useState(false);
+useEffect(()=>{
+dispatch(fetchFarmProjects());
+},[dispatch]);
 
-    const [project, setProject] = useState({
-        name: '',
-        description: '',
-        startDate: '',
-        endDate: '',
-        budget: '',
-    });
+const openCreateDialog=()=>{
+setSelectedProject(null);
+setDialogOpen(true);
+};
 
-    useEffect(() => {
-        dispatch(fetchFarmProjects());
-    }, [dispatch]);
+const openEditDialog=(project)=>{
+setSelectedProject(project);
+setDialogOpen(true);
+};
 
-    const handleChange = (e) => {
-        setProject({
-            ...project,
-            [e.target.name]: e.target.value,
-        });
-    };
+const closeDialog=()=>{
+if(loading)return;
+setDialogOpen(false);
+setSelectedProject(null);
+};
 
-    const handleSubmit = () => {
+const openDeleteDialog=(project)=>{
+setSelectedProject(project);
+setDeleteDialogOpen(true);
+};
 
-        if (
-            !project.name ||
-            !project.description ||
-            !project.startDate ||
-            !project.endDate
-        ) {
-            return;
-        }
+const closeDeleteDialog=()=>{
+if(loading)return;
+setDeleteDialogOpen(false);
+setSelectedProject(null);
+};
 
-        dispatch(createFarmProject(project));
+const closeSnackbar=()=>{
+setSnackbar(prev=>({
+...prev,
+open:false
+}));
+};
 
-        setProject({
-            name: '',
-            description: '',
-            startDate: '',
-            endDate: '',
-            budget: '',
-        });
+const handleSubmit=async(data)=>{
+let result;
+if(selectedProject){
+result=await dispatch(
+updateFarmProject(
+selectedProject._id,
+data
+)
+);
+}else{
+result=await dispatch(
+createFarmProject(data)
+);
+}
+setSnackbar({
+open:true,
+severity:result.success?'success':'error',
+message:result.success
+?selectedProject
+?t('Project updated successfully.')
+:t('Project created successfully.')
+:result.message
+});
+if(result.success){
+setDialogOpen(false);
+setSelectedProject(null);
+}
+};
 
-        setSnackbarOpen(true);
-    };
+const handleDelete=async()=>{
+if(!selectedProject)return;
+const result=await dispatch(
+deleteFarmProject(selectedProject._id)
+);
+setSnackbar({
+open:true,
+severity:result.success?'success':'error',
+message:result.success
+?t('Project deleted successfully.')
+:result.message
+});
+if(result.success){
+setDeleteDialogOpen(false);
+setSelectedProject(null);
+}
+};
 
-    return (
-        <Container
-            maxWidth="lg"
-            sx={{
-                py: 3,
-                pb: 12, // Prevent BottomNavigation overlap
-            }}
-        >
-            <Typography
-                variant="h4"
-                fontWeight="bold"
-                gutterBottom
-            >
-                {t('Farm Projects')}
-            </Typography>
+const handleView=(project)=>{
+openEditDialog(project);
+};
 
-            <Paper
-                elevation={3}
-                sx={{
-                    p: 3,
-                    mb: 4,
-                    borderRadius: 3,
-                }}
-            >
-                <Typography
-                    variant="h6"
-                    gutterBottom
-                >
-                    {t('Create New Project')}
-                </Typography>
+return(
 
-                <Stack spacing={2}>
+<Container
+maxWidth="xl"
+sx={{
+py:3,
+pb:12
+}}
+>
 
-                    <TextField
-                        label={t('Project Name')}
-                        name="name"
-                        value={project.name}
-                        onChange={handleChange}
-                        fullWidth
-                    />
+<Stack
+direction={{
+xs:'column',
+sm:'row'
+}}
+justifyContent="space-between"
+alignItems={{
+xs:'flex-start',
+sm:'center'
+}}
+spacing={2}
+mb={4}
+>
 
-                    <TextField
-                        label={t('Description')}
-                        name="description"
-                        value={project.description}
-                        onChange={handleChange}
-                        multiline
-                        rows={4}
-                        fullWidth
-                    />
+<Box>
 
-                    <Grid container spacing={2}>
+<Typography
+variant="h4"
+fontWeight={700}
+>
+{t('Farm Projects')}
+</Typography>
 
-                        <Grid item xs={12} md={6}>
-                            <TextField
-                                fullWidth
-                                type="date"
-                                name="startDate"
-                                label={t('Start Date')}
-                                value={project.startDate}
-                                onChange={handleChange}
-                                InputLabelProps={{
-                                    shrink: true,
-                                }}
-                            />
-                        </Grid>
+<Typography
+variant="body1"
+color="text.secondary"
+>
+{t('Manage all your farm projects in one place.')}
+</Typography>
 
-                        <Grid item xs={12} md={6}>
-                            <TextField
-                                fullWidth
-                                type="date"
-                                name="endDate"
-                                label={t('End Date')}
-                                value={project.endDate}
-                                onChange={handleChange}
-                                InputLabelProps={{
-                                    shrink: true,
-                                }}
-                            />
-                        </Grid>
+</Box>
 
-                    </Grid>
+<Button
+variant="contained"
+startIcon={<AddIcon/>}
+onClick={openCreateDialog}
+disabled={loading}
+>
+{t('New Project')}
+</Button>
 
-                    <TextField
-                        label={t('Budget')}
-                        name="budget"
-                        type="number"
-                        value={project.budget}
-                        onChange={handleChange}
-                        fullWidth
-                    />
+</Stack>
 
-                    <Button
-                        variant="contained"
-                        size="large"
-                        onClick={handleSubmit}
-                        disabled={loading}
-                    >
-                        {loading ? (
-                            <CircularProgress
-                                color="inherit"
-                                size={22}
-                            />
-                        ) : (
-                            t('CREATE PROJECT')
-                        )}
-                    </Button>
+{loading&&projects.length===0&&(
+<Box
+display="flex"
+justifyContent="center"
+py={8}
+>
+<CircularProgress/>
+</Box>
+)}
 
-                </Stack>
-            </Paper>
+{error&&(
+<Alert
+severity="error"
+sx={{mb:3}}
+>
+{error}
+</Alert>
+)}
 
-            {loading && projects.length === 0 ? (
-                <Box
-                    display="flex"
-                    justifyContent="center"
-                    mt={5}
-                >
-                    <CircularProgress />
-                </Box>
-            ) : error ? (
-                <Alert severity="error">
-                    {error}
-                </Alert>
-            ) : projects.length === 0 ? (
-                <Alert severity="info">
-                    {t('No farm projects yet.')}
-                </Alert>
-            ) : (
-                <Grid container spacing={3}>
+{!loading&&
+!error&&(
+<>
+<ProjectList
+projects={projects}
+onView={handleView}
+onEdit={openEditDialog}
+onDelete={openDeleteDialog}
+onCreate={openCreateDialog}
+/>
+</>
+)}
 
-                    {projects.map((item) => (
+<ProjectDialog
+open={dialogOpen}
+loading={loading}
+project={selectedProject}
+onClose={closeDialog}
+onSubmit={handleSubmit}
+/>
 
-                        <Grid
-                            item
-                            xs={12}
-                            md={6}
-                            key={item._id}
-                        >
+<DeleteProjectDialog
+open={deleteDialogOpen}
+loading={loading}
+project={selectedProject}
+onClose={closeDeleteDialog}
+onConfirm={handleDelete}
+/>
 
-                            <Card
-                                sx={{
-                                    borderRadius: 3,
-                                    height: '100%',
-                                }}
-                            >
+<Snackbar
+open={snackbar.open}
+autoHideDuration={3000}
+onClose={closeSnackbar}
+anchorOrigin={{
+vertical:'bottom',
+horizontal:'center'
+}}
+>
+<Alert
+onClose={closeSnackbar}
+severity={snackbar.severity}
+variant="filled"
+sx={{width:'100%'}}
+>
+{snackbar.message}
+</Alert>
+</Snackbar>
 
-                                <CardContent>
+</Container>
 
-                                    <Typography
-                                        variant="h6"
-                                        fontWeight="bold"
-                                    >
-                                        {item.name}
-                                    </Typography>
+);
 
-                                    <Typography
-                                        color="text.secondary"
-                                        sx={{ mb: 2 }}
-                                    >
-                                        {item.description}
-                                    </Typography>
-
-                                    <Typography variant="body2">
-                                        <strong>{t('Start Date')}:</strong>{' '}
-                                        {new Date(
-                                            item.startDate
-                                        ).toLocaleDateString()}
-                                    </Typography>
-
-                                    <Typography variant="body2">
-                                        <strong>{t('End Date')}:</strong>{' '}
-                                        {new Date(
-                                            item.endDate
-                                        ).toLocaleDateString()}
-                                    </Typography>
-
-                                    <Typography
-                                        sx={{ mt: 1 }}
-                                        fontWeight="bold"
-                                    >
-                                        {t('Budget')}:{' '}
-                                        ₦
-                                        {Number(
-                                            item.budget || 0
-                                        ).toLocaleString()}
-                                    </Typography>
-
-                                </CardContent>
-
-                            </Card>
-
-                        </Grid>
-
-                    ))}
-
-                </Grid>
-            )}
-
-            <Snackbar
-                open={snackbarOpen}
-                autoHideDuration={3000}
-                onClose={() => setSnackbarOpen(false)}
-            >
-                <Alert
-                    severity="success"
-                    onClose={() => setSnackbarOpen(false)}
-                >
-                    {t('Project created successfully!')}
-                </Alert>
-            </Snackbar>
-
-        </Container>
-    );
 };
 
 export default FarmProject;
