@@ -2,19 +2,36 @@ const express=require('express');
 const router=express.Router();
 const ensureAuthenticated=require('../middleware/ensureAuthenticated');
 const validateRequest=require('../middleware/validateRequest');
+
 const{
 createFarmProject,
 getFarmProjects,
 getFarmProject,
 updateFarmProject,
 deleteFarmProject,
-getFarmDashboardSummary
+getFarmDashboardSummary,
+getProjectActivities,
+createActivity,
+updateActivity,
+updateActivityStatus,
+deleteActivity
 }=require('../controllers/farmProjectController');
+
 const{
 createFarmProjectValidator,
 updateFarmProjectValidator,
-projectIdValidator
+projectIdValidator,
+activityIdValidator,
+createActivityValidator,
+updateActivityValidator,
+updateActivityStatusValidator
 }=require('../validators/farmProjectValidator');
+
+/*
+|--------------------------------------------------------------------------
+| Farm Projects
+|--------------------------------------------------------------------------
+*/
 
 router.post(
 '/',
@@ -60,5 +77,63 @@ projectIdValidator,
 validateRequest,
 deleteFarmProject
 );
+
+/*
+|--------------------------------------------------------------------------
+| Activities
+|--------------------------------------------------------------------------
+*/
+
+router.get(
+'/:id/activities',
+ensureAuthenticated,
+projectIdValidator,
+validateRequest,
+getProjectActivities
+);
+
+router.post(
+'/:id/activities',
+ensureAuthenticated,
+createActivityValidator,
+validateRequest,
+createActivity
+);
+
+router.put(
+'/:id/activities/:activityId',
+ensureAuthenticated,
+updateActivityValidator,
+validateRequest,
+updateActivity
+);
+
+router.patch(
+'/:id/activities/:activityId/status',
+ensureAuthenticated,
+updateActivityStatusValidator,
+validateRequest,
+updateActivityStatus
+);
+
+router.delete(
+'/:id/activities/:activityId',
+ensureAuthenticated,
+activityIdValidator,
+validateRequest,
+deleteActivity
+);
+
+/*
+|--------------------------------------------------------------------------
+| Commit 6.1.3+
+|--------------------------------------------------------------------------
+|
+| Tasks
+| Expenses
+| Harvests
+| Reminders
+|
+*/
 
 module.exports=router;

@@ -26,11 +26,11 @@ exports.createFarmProjectValidator = [
     body('farmType')
         .optional()
         .isIn([
-            'Crop',
+            'Crop Farming',
             'Livestock',
             'Poultry',
             'Fishery',
-            'Mixed',
+            'Mixed Farming',
             'Other',
         ])
         .withMessage('Invalid farm type.'),
@@ -41,10 +41,8 @@ exports.createFarmProjectValidator = [
     body('measurementUnit')
         .optional()
         .isIn([
-            'Hectares',
             'Acres',
-            'Plots',
-            'Square Meters',
+            'Hectares',
         ])
         .withMessage('Invalid measurement unit.'),
     body('location')
@@ -55,8 +53,8 @@ exports.createFarmProjectValidator = [
     body('season')
         .optional()
         .isIn([
-            'Dry',
-            'Wet',
+            'Dry Season',
+            'Rainy Season',
             'All Season',
         ])
         .withMessage('Invalid farming season.'),
@@ -73,8 +71,8 @@ exports.createFarmProjectValidator = [
         .isIn([
             'Planning',
             'Active',
+            'Paused',
             'Completed',
-            'Cancelled',
         ])
         .withMessage('Invalid status.'),
     body('progress')
@@ -132,8 +130,8 @@ exports.updateFarmProjectValidator = [
         .isIn([
             'Planning',
             'Active',
+            'Paused',
             'Completed',
-            'Cancelled',
         ])
 ];
 
@@ -145,4 +143,173 @@ exports.projectIdValidator = [
         .isMongoId()
         .withMessage('Invalid project ID.')
 
+];
+
+/**
+ * Validate Activity ID
+ */
+exports.activityIdValidator=[
+param('id')
+.isMongoId()
+.withMessage('Invalid project ID.'),
+param('activityId')
+.isMongoId()
+.withMessage('Invalid activity ID.')
+];
+
+/**
+ * Create Activity
+ */
+exports.createActivityValidator=[
+param('id')
+.isMongoId()
+.withMessage('Invalid project ID.'),
+
+body('title')
+.trim()
+.notEmpty()
+.withMessage('Activity title is required.')
+.isLength({max:150})
+.withMessage('Activity title cannot exceed 150 characters.'),
+
+body('description')
+.optional()
+.trim()
+.isLength({max:1000})
+.withMessage('Description is too long.'),
+
+body('category')
+.optional()
+.isIn([
+'Land Preparation',
+'Planting',
+'Irrigation',
+'Weeding',
+'Fertilizer',
+'Pesticide',
+'Harvest',
+'Feeding',
+'Vaccination',
+'Maintenance',
+'Other'
+])
+.withMessage('Invalid activity category.'),
+
+body('priority')
+.optional()
+.isIn([
+'Low',
+'Medium',
+'High'
+])
+.withMessage('Invalid priority.'),
+
+body('status')
+.optional()
+.isIn([
+'Pending',
+'In Progress',
+'Completed'
+])
+.withMessage('Invalid activity status.'),
+
+body('dueDate')
+.optional()
+.isISO8601()
+.withMessage('Invalid due date.'),
+
+body('notes')
+.optional()
+.trim()
+.isLength({max:1000})
+.withMessage('Notes cannot exceed 1000 characters.')
+];
+
+/**
+ * Update Activity
+ */
+exports.updateActivityValidator=[
+param('id')
+.isMongoId()
+.withMessage('Invalid project ID.'),
+
+param('activityId')
+.isMongoId()
+.withMessage('Invalid activity ID.'),
+
+body('title')
+.optional()
+.trim()
+.isLength({max:150})
+.withMessage('Activity title cannot exceed 150 characters.'),
+
+body('description')
+.optional()
+.trim()
+.isLength({max:1000})
+.withMessage('Description is too long.'),
+
+body('category')
+.optional()
+.isIn([
+'Land Preparation',
+'Planting',
+'Irrigation',
+'Weeding',
+'Fertilizer',
+'Pesticide',
+'Harvest',
+'Feeding',
+'Vaccination',
+'Maintenance',
+'Other'
+]),
+
+body('priority')
+.optional()
+.isIn([
+'Low',
+'Medium',
+'High'
+]),
+
+body('status')
+.optional()
+.isIn([
+'Pending',
+'In Progress',
+'Completed'
+]),
+
+body('dueDate')
+.optional()
+.isISO8601(),
+
+body('notes')
+.optional()
+.trim()
+.isLength({max:1000})
+];
+
+/**
+ * Update Activity Status
+ */
+exports.updateActivityStatusValidator=[
+param('id')
+.isMongoId()
+.withMessage('Invalid project ID.'),
+
+param('activityId')
+.isMongoId()
+.withMessage('Invalid activity ID.'),
+
+body('status')
+.notEmpty()
+.withMessage('Status is required.')
+.isIn([
+'Pending',
+'In Progress',
+'Completed'
+])
+.withMessage('Invalid activity status.')
 ];

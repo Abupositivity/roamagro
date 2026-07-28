@@ -225,3 +225,176 @@ exports.getFarmDashboardSummary = asyncHandler(async (req, res) => {
         },
     });
 });
+
+/*
+|--------------------------------------------------------------------------
+| Get Project Activities
+|--------------------------------------------------------------------------
+*/
+exports.getProjectActivities=asyncHandler(async(req,res)=>{
+const project=await FarmProject.findOne({
+_id:req.params.id,
+user:req.user._id
+});
+if(!project){
+return res.status(404).json({
+success:false,
+message:'Farm project not found.'
+});
+}
+res.status(200).json({
+success:true,
+count:project.activities.length,
+data:project.activities
+});
+});
+
+/*
+|--------------------------------------------------------------------------
+| Create Activity
+|--------------------------------------------------------------------------
+*/
+exports.createActivity=asyncHandler(async(req,res)=>{
+const project=await FarmProject.findOne({
+_id:req.params.id,
+user:req.user._id
+});
+if(!project){
+return res.status(404).json({
+success:false,
+message:'Farm project not found.'
+});
+}
+
+project.activities.push({
+title:req.body.title,
+description:req.body.description,
+category:req.body.category,
+priority:req.body.priority,
+status:req.body.status||'Pending',
+dueDate:req.body.dueDate,
+notes:req.body.notes
+});
+
+project.progress=calculateProgress(project);
+
+await project.save();
+
+res.status(201).json({
+success:true,
+message:'Activity created successfully.',
+data:project.activities[project.activities.length-1]
+});
+});
+
+/*
+|--------------------------------------------------------------------------
+| Update Activity
+|--------------------------------------------------------------------------
+*/
+exports.updateActivity=asyncHandler(async(req,res)=>{
+const project=await FarmProject.findOne({
+_id:req.params.id,
+user:req.user._id
+});
+if(!project){
+return res.status(404).json({
+success:false,
+message:'Farm project not found.'
+});
+}
+
+const activity=project.activities.id(req.params.activityId);
+if(!activity){
+return res.status(404).json({
+success:false,
+message:'Activity not found.'
+});
+}
+Object.assign(activity,req.body);
+if(activity.status==='Completed'){
+activity.completed=true;
+activity.completedAt=new Date();
+}else{
+activity.completed=false;
+activity.completedAt=null;
+}
+
+project.progress=calculateProgress(project);
+await project.save();
+res.status(200).json({
+success:true,
+message:'Activity updated successfully.',
+data:activity
+});
+});
+
+/*
+|--------------------------------------------------------------------------
+| Update Activity Status
+|--------------------------------------------------------------------------
+*/
+exports.updateActivityStatus=asyncHandler(async(req,res)=>{
+const project=await FarmProject.findOne({
+_id:req.params.id,
+user:req.user._id
+});
+if(!project){
+return res.status(404).json({
+success:false,
+message:'Farm project not found.'
+});
+}
+
+const activity=project.activities.id(req.params.activityId);
+if(!activity){
+return res.status(404).json({
+success:false,
+message:'Activity not found.'
+});
+}
+
+activity.status=req.body.status;
+activity.completed=req.body.status==='Completed';
+activity.completedAt=activity.completed?new Date():null;
+project.progress=calculateProgress(project);
+await project.save();
+res.status(200).json({
+success:true,
+message:'Activity status updated.',
+data:activity
+});
+});
+
+/*
+|--------------------------------------------------------------------------
+| Delete Activity
+|--------------------------------------------------------------------------
+*/
+exports.deleteActivity=asyncHandler(async(req,res)=>{
+const project=await FarmProject.findOne({
+_id:req.params.id,
+user:req.user._id
+});
+if(!project){
+return res.status(404).json({
+success:false,
+message:'Farm project not found.'
+});
+}
+
+const activity=project.activities.id(req.params.activityId);
+if(!activity){
+return res.status(404).json({
+success:false,
+message:'Activity not found.'
+});
+}
+activity.deleteOne();
+project.progress=calculateProgress(project);
+await project.save();
+res.status(200).json({
+success:true,
+message:'Activity deleted successfully.'
+});
+});

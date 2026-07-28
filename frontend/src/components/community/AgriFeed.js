@@ -51,13 +51,6 @@ const AgriFeed = () => {
     return (
         <Box>
             <Typography
-                variant="h5"
-                fontWeight={700}
-                gutterBottom
-            >
-                {t('Agri-Feed')}
-            </Typography>
-            <Typography
                 variant="body2"
                 color="text.secondary"
                 mb={3}

@@ -85,7 +85,7 @@ const DashboardHeader = () => {
                         {t("Welcome back")},
                         {" "}
                         <strong>
-                            {user?.name || "Farmer"}
+                            {user?.name || t("Farmer")}
                         </strong>
                     </Typography>
 
