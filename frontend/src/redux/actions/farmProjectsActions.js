@@ -28,7 +28,19 @@ UPDATE_ACTIVITY_STATUS_SUCCESS,
 UPDATE_ACTIVITY_STATUS_FAIL,
 DELETE_ACTIVITY_REQUEST,
 DELETE_ACTIVITY_SUCCESS,
-DELETE_ACTIVITY_FAIL
+DELETE_ACTIVITY_FAIL,
+CREATE_TASK_REQUEST,
+CREATE_TASK_SUCCESS,
+CREATE_TASK_FAIL,
+UPDATE_TASK_REQUEST,
+UPDATE_TASK_SUCCESS,
+UPDATE_TASK_FAIL,
+DELETE_TASK_REQUEST,
+DELETE_TASK_SUCCESS,
+DELETE_TASK_FAIL,
+TOGGLE_TASK_STATUS_REQUEST,
+TOGGLE_TASK_STATUS_SUCCESS,
+TOGGLE_TASK_STATUS_FAIL
 } from './types';
 
 const getError=(error)=>
@@ -247,6 +259,84 @@ catch(error){
 dispatch({
 type:DELETE_ACTIVITY_FAIL,
 payload:error.response?.data?.message||'Unable to delete activity.'
+});
+}
+};
+
+export const createTask=(projectId,data)=>async dispatch=>{
+dispatch({type:CREATE_TASK_REQUEST});
+try{
+const res=await api.post(
+`/farm-projects/${projectId}/tasks`,
+data
+);
+dispatch({
+type:CREATE_TASK_SUCCESS,
+payload:res.data.data
+});
+}catch(error){
+dispatch({
+type:CREATE_TASK_FAIL,
+payload:error.response?.data?.message||error.message
+});
+}
+};
+
+export const updateTask=(projectId,taskId,data)=>async dispatch=>{
+dispatch({type:UPDATE_TASK_REQUEST});
+try{
+const res=await api.put(
+`/farm-projects/${projectId}/tasks/${taskId}`,
+data
+);
+dispatch({
+type:UPDATE_TASK_SUCCESS,
+payload:res.data.data
+});
+}catch(error){
+dispatch({
+type:UPDATE_TASK_FAIL,
+payload:error.response?.data?.message||error.message
+});
+}
+};
+
+export const deleteTask=(projectId,taskId)=>async dispatch=>{
+dispatch({type:DELETE_TASK_REQUEST});
+try{
+await api.delete(
+`/farm-projects/${projectId}/tasks/${taskId}`
+);
+dispatch({
+type:DELETE_TASK_SUCCESS,
+payload:{
+projectId,
+taskId
+}
+});
+}catch(error){
+dispatch({
+type:DELETE_TASK_FAIL,
+payload:error.response?.data?.message||error.message
+});
+}
+};
+
+export const toggleTaskStatus=(projectId,taskId,status)=>async dispatch=>{
+dispatch({type:TOGGLE_TASK_STATUS_REQUEST});
+try{
+const res=await api.patch(
+`/farm-projects/${projectId}/tasks/${taskId}/status`,
+{status}
+);
+dispatch({
+type:TOGGLE_TASK_STATUS_SUCCESS,
+payload:res.data.data
+});
+}catch(error){
+dispatch({
+type:TOGGLE_TASK_STATUS_FAIL,
+payload:error.response?.data?.message||error.message
 });
 }
 };

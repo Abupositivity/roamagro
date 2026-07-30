@@ -20,6 +20,10 @@ import ActivityProgress from'./ActivityProgress';
 import ActivityList from'./ActivityList';
 import ActivityDialog from'./ActivityDialog';
 import DeleteActivityDialog from'./DeleteActivityDialog';
+import TaskProgress from'./TaskProgress';
+import TaskList from'./TaskList';
+import TaskDialog from'./TaskDialog';
+import DeleteTaskDialog from'./DeleteTaskDialog';
 
 const ProjectDialog=({
 open,
@@ -30,7 +34,11 @@ onSubmit,
 onCreateActivity,
 onUpdateActivity,
 onDeleteActivity,
-onToggleActivityStatus
+onToggleActivityStatus,
+onCreateTask,
+onUpdateTask,
+onDeleteTask,
+onToggleTaskStatus
 })=>{
 
 const{t}=useTranslation();
@@ -39,6 +47,9 @@ const[tab,setTab]=useState(0);
 const[activityDialogOpen,setActivityDialogOpen]=useState(false);
 const[selectedActivity,setSelectedActivity]=useState(null);
 const[deleteDialogOpen,setDeleteDialogOpen]=useState(false);
+const[taskDialogOpen,setTaskDialogOpen]=useState(false);
+const[selectedTask,setSelectedTask]=useState(null);
+const[deleteTaskDialogOpen,setDeleteTaskDialogOpen]=useState(false);
 
 const handleSubmit=data=>{
 onSubmit?.(data);
@@ -95,6 +106,59 @@ selectedActivity._id
 );
 }
 closeDeleteDialog();
+};
+
+const openCreateTask=()=>{
+setSelectedTask(null);
+setTaskDialogOpen(true);
+};
+
+const openEditTask=task=>{
+setSelectedTask(task);
+setTaskDialogOpen(true);
+};
+
+const closeTaskDialog=()=>{
+if(loading)return;
+setSelectedTask(null);
+setTaskDialogOpen(false);
+};
+
+const openDeleteTask=task=>{
+setSelectedTask(task);
+setDeleteTaskDialogOpen(true);
+};
+
+const closeDeleteTaskDialog=()=>{
+if(loading)return;
+setSelectedTask(null);
+setDeleteTaskDialogOpen(false);
+};
+
+const handleTaskSubmit=data=>{
+if(selectedTask){
+onUpdateTask?.(
+project._id,
+selectedTask._id,
+data
+);
+}else{
+onCreateTask?.(
+project._id,
+data
+);
+}
+closeTaskDialog();
+};
+
+const handleDeleteTask=()=>{
+if(selectedTask){
+onDeleteTask?.(
+project._id,
+selectedTask._id
+);
+}
+closeDeleteTaskDialog();
 };
 
 return(
@@ -214,6 +278,53 @@ activity.status==='Completed'
 }
 />
 
+<Divider sx={{my:4}}/>
+
+<TaskProgress
+tasks={project.tasks||[]}
+/>
+
+<Stack
+direction="row"
+justifyContent="space-between"
+alignItems="center"
+sx={{mb:2}}
+>
+
+<Typography
+variant="h6"
+fontWeight={700}
+>
+{t('Tasks')}
+</Typography>
+
+<Button
+variant="contained"
+startIcon={<AddIcon/>}
+onClick={openCreateTask}
+disabled={loading}
+>
+{t('Add Task')}
+</Button>
+
+</Stack>
+
+<TaskList
+tasks={project.tasks||[]}
+loading={loading}
+onEdit={openEditTask}
+onDelete={openDeleteTask}
+onToggleStatus={task=>
+onToggleTaskStatus?.(
+project._id,
+task._id,
+task.status==='Completed'
+?'Pending'
+:'Completed'
+)
+}
+/>
+
 </>
 
 )}
@@ -280,6 +391,22 @@ loading={loading}
 activity={selectedActivity}
 onClose={closeDeleteDialog}
 onConfirm={handleDelete}
+/>
+
+<TaskDialog
+open={taskDialogOpen}
+loading={loading}
+task={selectedTask}
+onClose={closeTaskDialog}
+onSubmit={handleTaskSubmit}
+/>
+
+<DeleteTaskDialog
+open={deleteTaskDialogOpen}
+loading={loading}
+task={selectedTask}
+onClose={closeDeleteTaskDialog}
+onConfirm={handleDeleteTask}
 />
 
 </>

@@ -26,6 +26,18 @@ UPDATE_ACTIVITY_STATUS_FAIL,
 DELETE_ACTIVITY_REQUEST,
 DELETE_ACTIVITY_SUCCESS,
 DELETE_ACTIVITY_FAIL,
+CREATE_TASK_REQUEST,
+CREATE_TASK_SUCCESS,
+CREATE_TASK_FAIL,
+UPDATE_TASK_REQUEST,
+UPDATE_TASK_SUCCESS,
+UPDATE_TASK_FAIL,
+DELETE_TASK_REQUEST,
+DELETE_TASK_SUCCESS,
+DELETE_TASK_FAIL,
+TOGGLE_TASK_STATUS_REQUEST,
+TOGGLE_TASK_STATUS_SUCCESS,
+TOGGLE_TASK_STATUS_FAIL
 }from'../actions/types';
 
 const initialState={
@@ -48,6 +60,10 @@ case CREATE_ACTIVITY_REQUEST:
 case UPDATE_ACTIVITY_REQUEST:
 case UPDATE_ACTIVITY_STATUS_REQUEST:
 case DELETE_ACTIVITY_REQUEST:
+case CREATE_TASK_REQUEST:
+case UPDATE_TASK_REQUEST:
+case DELETE_TASK_REQUEST:
+case TOGGLE_TASK_STATUS_REQUEST:
 
 return{
 ...state,
@@ -177,10 +193,42 @@ project._id!==action.payload
 )
 };
 
+case CREATE_TASK_SUCCESS:
+case UPDATE_TASK_SUCCESS:
+case TOGGLE_TASK_STATUS_SUCCESS:
+return{
+...state,
+loading:false,
+projects:state.projects.map(project=>
+project._id===action.payload._id
+?action.payload
+:project
+)
+};
+
+case DELETE_TASK_SUCCESS:
+return{
+...state,
+loading:false,
+projects:state.projects.map(project=>{
+if(project._id!==action.payload.projectId)return project;
+return{
+...project,
+tasks:project.tasks.filter(
+task=>task._id!==action.payload.taskId
+)
+};
+})
+};
+
 case FETCH_PROJECTS_FAIL:
 case CREATE_PROJECT_FAIL:
 case UPDATE_PROJECT_FAIL:
 case DELETE_PROJECT_FAIL:
+case CREATE_TASK_FAIL:
+case UPDATE_TASK_FAIL:
+case DELETE_TASK_FAIL:
+case TOGGLE_TASK_STATUS_FAIL:
 return{
 ...state,
 loading:false,

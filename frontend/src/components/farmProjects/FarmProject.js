@@ -20,7 +20,11 @@ deleteFarmProject,
 createActivity,
 updateActivity,
 deleteActivity,
-updateActivityStatus
+updateActivityStatus,
+createTask,
+updateTask,
+deleteTask,
+toggleTaskStatus,
 }from'../../redux/actions/farmProjectsActions';
 import ProjectList from'./ProjectList';
 import ProjectDialog from'./ProjectDialog';
@@ -135,6 +139,22 @@ const handleView=(project)=>{
 openEditDialog(project);
 };
 
+const handleCreateTask=(projectId,data)=>{
+dispatch(createTask(projectId,data));
+};
+
+const handleUpdateTask=(projectId,taskId,data)=>{
+dispatch(updateTask(projectId,taskId,data));
+};
+
+const handleDeleteTask=(projectId,taskId)=>{
+dispatch(deleteTask(projectId,taskId));
+};
+
+const handleToggleTaskStatus=(projectId,taskId,status)=>{
+dispatch(toggleTaskStatus(projectId,taskId,status));
+};
+
 return(
 
 <Container
@@ -238,6 +258,10 @@ dispatch(deleteActivity(projectId,activityId))
 onToggleActivityStatus={(projectId,activityId,status)=>
 dispatch(updateActivityStatus(projectId,activityId,status))
 }
+onCreateTask={handleCreateTask}
+onUpdateTask={handleUpdateTask}
+onDeleteTask={handleDeleteTask}
+onToggleTaskStatus={handleToggleTaskStatus}
 />
 
 <DeleteProjectDialog

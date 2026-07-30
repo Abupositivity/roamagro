@@ -45,6 +45,25 @@ deleteActivity(projectId,activityId){
 return api.delete(
 `/farm-projects/${projectId}/activities/${activityId}`
 );
+},
+
+createTask(projectId,data){
+return api.post(`/farm-projects/${projectId}/tasks`,data);
+},
+
+updateTask(projectId,taskId,data){
+return api.put(`/farm-projects/${projectId}/tasks/${taskId}`,data);
+},
+
+deleteTask(projectId,taskId){
+return api.delete(`/farm-projects/${projectId}/tasks/${taskId}`);
+},
+
+toggleTaskStatus(projectId,taskId,status){
+return api.patch(
+`/farm-projects/${projectId}/tasks/${taskId}/status`,
+{status}
+);
 }
 };
 
