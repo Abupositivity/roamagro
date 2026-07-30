@@ -379,5 +379,12 @@ FarmProjectSchema.virtual('completedActivities').get(function () {
 FarmProjectSchema.virtual('pendingActivities').get(function () {
     return this.activities.filter(a => !a.completed).length;
 });
+FarmProjectSchema.virtual('completedTasks').get(function(){
+return(this.tasks||[]).filter(task=>task.completed).length;
+});
+
+FarmProjectSchema.virtual('pendingTasks').get(function(){
+return(this.tasks||[]).filter(task=>!task.completed).length;
+});
 
 module.exports = mongoose.model('FarmProject', FarmProjectSchema);

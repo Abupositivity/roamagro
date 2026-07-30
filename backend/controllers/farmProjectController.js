@@ -12,7 +12,6 @@ const calculateFinancials = (project) => {
         (sum, harvest) => sum + (harvest.totalValue || 0),
         0
     );
-
     const expenses = (project.expenses || []).reduce(
         (sum, expense) => sum + (expense.amount || 0),
         0
@@ -23,16 +22,31 @@ const calculateFinancials = (project) => {
         profit: income - expenses,
     };
 };
-
-const calculateProgress = (project) => {
-    const totalActivities = project.activities?.length || 0;
-
-    if (!totalActivities) return 0;
-    const completedActivities = project.activities.filter(
-        activity => activity.status === 'Completed'
+const calculateProgress=project=>{
+    const activities=project.activities||[];
+    const tasks=project.tasks||[];
+    const totalItems=activities.length+tasks.length;
+    if(!totalItems)return 0;
+    const completedActivities=activities.filter(
+        activity=>activity.status==='Completed'
     ).length;
-    return Math.round((completedActivities / totalActivities) * 100);
+    const completedTasks=tasks.filter(
+        task=>task.status==='Completed'
+    ).length;
+    return Math.round(
+        ((completedActivities+completedTasks)/totalItems)*100
+    );
 };
+const findProject=async(req)=>
+    FarmProject.findOne({
+        _id:req.params.id,
+        user:req.user._id
+    });
+const notFound=(res,message)=>
+    res.status(404).json({
+        success:false,
+        message
+    });
 
 /*
 |--------------------------------------------------------------------------
@@ -175,6 +189,9 @@ exports.getFarmDashboardSummary = asyncHandler(async (req, res) => {
     let completed = 0;
     let upcomingActivities = 0;
     let overdueActivities = 0;
+    let pendingTasks=0;
+    let completedTasks=0;
+    let averageProgress=0;
 
     const today = new Date();
 
@@ -182,7 +199,6 @@ exports.getFarmDashboardSummary = asyncHandler(async (req, res) => {
         const financials = calculateFinancials(project);
         totalIncome += financials.income;
         totalExpenses += financials.expenses;
-
         switch (project.status) {
             case 'Planning':
                 planning++;
@@ -209,7 +225,20 @@ exports.getFarmDashboardSummary = asyncHandler(async (req, res) => {
                 }
             }
         });
-    });
+        (project.tasks||[]).forEach(task=>{
+            switch(task.status){
+                case'Pending':
+                pendingTasks++;
+                break;
+                case'Completed':
+                completedTasks++;
+                break;
+                default:
+                    break;
+                }
+            });
+            averageProgress+=calculateProgress(project);
+        });
     res.status(200).json({
         success: true,
         data: {
@@ -222,6 +251,9 @@ exports.getFarmDashboardSummary = asyncHandler(async (req, res) => {
             totalProfit: totalIncome - totalExpenses,
             upcomingActivities,
             overdueActivities,
+            pendingTasks,
+            completedTasks,
+            averageProgress: projects.length ? Math.round(averageProgress / projects.length) : 0
         },
     });
 });
@@ -396,5 +428,131 @@ await project.save();
 res.status(200).json({
 success:true,
 message:'Activity deleted successfully.'
+});
+});
+
+exports.getTasks=asyncHandler(async(req,res)=>{
+const project=await FarmProject.findOne({
+_id:req.params.id,
+user:req.user._id
+});
+if(!project){
+return res.status(404).json({
+success:false,
+message:'Farm project not found.'
+});
+}
+res.status(200).json({
+success:true,
+count:project.tasks.length,
+data:project.tasks
+});
+});
+
+exports.createTask=asyncHandler(async(req,res)=>{
+const project=await FarmProject.findOne({
+_id:req.params.id,
+user:req.user._id
+});
+if(!project){
+return res.status(404).json({
+success:false,
+message:'Farm project not found.'
+});
+}
+project.tasks.push(req.body);
+await project.save();
+res.status(201).json({
+success:true,
+message:'Task created successfully.',
+data:project.tasks[project.tasks.length-1]
+});
+});
+
+exports.updateTask=asyncHandler(async(req,res)=>{
+const project=await FarmProject.findOne({
+_id:req.params.id,
+user:req.user._id
+});
+if(!project){
+return res.status(404).json({
+success:false,
+message:'Farm project not found.'
+});
+}
+
+const task=project.tasks.id(req.params.taskId);
+if(!task){
+return res.status(404).json({
+success:false,
+message:'Task not found.'
+});
+}
+Object.assign(task,req.body);
+await project.save();
+res.status(200).json({
+success:true,
+message:'Task updated successfully.',
+data:task
+});
+});
+
+exports.updateTaskStatus=asyncHandler(async(req,res)=>{
+const project=await FarmProject.findOne({
+_id:req.params.id,
+user:req.user._id
+});
+if(!project){
+return res.status(404).json({
+success:false,
+message:'Farm project not found.'
+});
+}
+
+const task=project.tasks.id(req.params.taskId);
+if(!task){
+return res.status(404).json({
+success:false,
+message:'Task not found.'
+});
+}
+task.status=req.body.status;
+task.completed=req.body.status==='Completed';
+task.completedAt=
+task.completed
+?new Date()
+:null;
+await project.save();
+res.status(200).json({
+success:true,
+message:'Task status updated.',
+data:task
+});
+});
+
+exports.deleteTask=asyncHandler(async(req,res)=>{
+const project=await FarmProject.findOne({
+_id:req.params.id,
+user:req.user._id
+});
+if(!project){
+return res.status(404).json({
+success:false,
+message:'Farm project not found.'
+});
+}
+
+const task=project.tasks.id(req.params.taskId);
+if(!task){
+return res.status(404).json({
+success:false,
+message:'Task not found.'
+});
+}
+task.deleteOne();
+await project.save();
+res.status(200).json({
+success:true,
+message:'Task deleted successfully.'
 });
 });

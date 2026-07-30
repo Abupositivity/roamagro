@@ -10,28 +10,29 @@ getFarmProject,
 updateFarmProject,
 deleteFarmProject,
 getFarmDashboardSummary,
-getProjectActivities,
 createActivity,
 updateActivity,
-updateActivityStatus,
-deleteActivity
+deleteActivity,
+toggleActivityStatus,
+createTask,
+updateTask,
+deleteTask,
+toggleTaskStatus
 }=require('../controllers/farmProjectController');
 
 const{
 createFarmProjectValidator,
 updateFarmProjectValidator,
 projectIdValidator,
-activityIdValidator,
 createActivityValidator,
 updateActivityValidator,
-updateActivityStatusValidator
+activityIdValidator,
+updateActivityStatusValidator,
+createTaskValidator,
+updateTaskValidator,
+taskIdValidator,
+updateTaskStatusValidator
 }=require('../validators/farmProjectValidator');
-
-/*
-|--------------------------------------------------------------------------
-| Farm Projects
-|--------------------------------------------------------------------------
-*/
 
 router.post(
 '/',
@@ -78,20 +79,6 @@ validateRequest,
 deleteFarmProject
 );
 
-/*
-|--------------------------------------------------------------------------
-| Activities
-|--------------------------------------------------------------------------
-*/
-
-router.get(
-'/:id/activities',
-ensureAuthenticated,
-projectIdValidator,
-validateRequest,
-getProjectActivities
-);
-
 router.post(
 '/:id/activities',
 ensureAuthenticated,
@@ -113,7 +100,7 @@ router.patch(
 ensureAuthenticated,
 updateActivityStatusValidator,
 validateRequest,
-updateActivityStatus
+toggleActivityStatus
 );
 
 router.delete(
@@ -124,16 +111,36 @@ validateRequest,
 deleteActivity
 );
 
-/*
-|--------------------------------------------------------------------------
-| Commit 6.1.3+
-|--------------------------------------------------------------------------
-|
-| Tasks
-| Expenses
-| Harvests
-| Reminders
-|
-*/
+router.post(
+'/:id/tasks',
+ensureAuthenticated,
+createTaskValidator,
+validateRequest,
+createTask
+);
+
+router.put(
+'/:id/tasks/:taskId',
+ensureAuthenticated,
+updateTaskValidator,
+validateRequest,
+updateTask
+);
+
+router.patch(
+'/:id/tasks/:taskId/status',
+ensureAuthenticated,
+updateTaskStatusValidator,
+validateRequest,
+toggleTaskStatus
+);
+
+router.delete(
+'/:id/tasks/:taskId',
+ensureAuthenticated,
+taskIdValidator,
+validateRequest,
+deleteTask
+);
 
 module.exports=router;

@@ -313,3 +313,127 @@ body('status')
 ])
 .withMessage('Invalid activity status.')
 ];
+
+exports.createTaskValidator=[
+param('id')
+.isMongoId()
+.withMessage('Invalid project ID.'),
+body('title')
+.trim()
+.notEmpty()
+.withMessage('Task title is required.')
+.bail()
+.isLength({max:150})
+.withMessage('Task title cannot exceed 150 characters.'),
+body('description')
+.optional()
+.trim()
+.isLength({max:1000})
+.withMessage('Description cannot exceed 1000 characters.'),
+body('priority')
+.optional()
+.isIn([
+'Low',
+'Medium',
+'High'
+])
+.withMessage('Invalid priority.'),
+body('status')
+.optional()
+.isIn([
+'Pending',
+'In Progress',
+'Completed'
+])
+.withMessage('Invalid status.'),
+body('assignedTo')
+.optional()
+.trim()
+.isLength({max:100})
+.withMessage('Assigned user is too long.'),
+body('dueDate')
+.optional()
+.isISO8601()
+.withMessage('Invalid due date.'),
+body('notes')
+.optional()
+.trim()
+.isLength({max:2000})
+.withMessage('Notes cannot exceed 2000 characters.')
+];
+
+exports.updateTaskValidator=[
+param('id')
+.isMongoId()
+.withMessage('Invalid project ID.'),
+param('taskId')
+.isMongoId()
+.withMessage('Invalid task ID.'),
+body('title')
+.optional()
+.trim()
+.isLength({max:150})
+.withMessage('Task title cannot exceed 150 characters.'),
+body('description')
+.optional()
+.trim()
+.isLength({max:1000})
+.withMessage('Description cannot exceed 1000 characters.'),
+body('priority')
+.optional()
+.isIn([
+'Low',
+'Medium',
+'High'
+])
+.withMessage('Invalid priority.'),
+body('status')
+.optional()
+.isIn([
+'Pending',
+'In Progress',
+'Completed'
+])
+.withMessage('Invalid status.'),
+body('assignedTo')
+.optional()
+.trim()
+.isLength({max:100})
+.withMessage('Assigned user is too long.'),
+body('dueDate')
+.optional()
+.isISO8601()
+.withMessage('Invalid due date.'),
+body('notes')
+.optional()
+.trim()
+.isLength({max:2000})
+.withMessage('Notes cannot exceed 2000 characters.')
+];
+
+exports.updateTaskStatusValidator=[
+param('id')
+.isMongoId()
+.withMessage('Invalid project ID.'),
+param('taskId')
+.isMongoId()
+.withMessage('Invalid task ID.'),
+body('status')
+.notEmpty()
+.withMessage('Status is required.')
+.isIn([
+'Pending',
+'In Progress',
+'Completed'
+])
+.withMessage('Invalid task status.')
+];
+
+exports.taskIdValidator=[
+param('id')
+.isMongoId()
+.withMessage('Invalid project ID.'),
+param('taskId')
+.isMongoId()
+.withMessage('Invalid task ID.')
+];
