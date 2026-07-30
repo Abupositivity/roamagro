@@ -16,7 +16,11 @@ import{
 fetchFarmProjects,
 createFarmProject,
 updateFarmProject,
-deleteFarmProject
+deleteFarmProject,
+createActivity,
+updateActivity,
+deleteActivity,
+updateActivityStatus
 }from'../../redux/actions/farmProjectsActions';
 import ProjectList from'./ProjectList';
 import ProjectDialog from'./ProjectDialog';
@@ -222,6 +226,18 @@ loading={loading}
 project={selectedProject}
 onClose={closeDialog}
 onSubmit={handleSubmit}
+onCreateActivity={(projectId,data)=>
+dispatch(createActivity(projectId,data))
+}
+onUpdateActivity={(projectId,activityId,data)=>
+dispatch(updateActivity(projectId,activityId,data))
+}
+onDeleteActivity={(projectId,activityId)=>
+dispatch(deleteActivity(projectId,activityId))
+}
+onToggleActivityStatus={(projectId,activityId,status)=>
+dispatch(updateActivityStatus(projectId,activityId,status))
+}
 />
 
 <DeleteProjectDialog

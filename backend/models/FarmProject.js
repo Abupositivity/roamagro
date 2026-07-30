@@ -60,27 +60,32 @@ const ActivitySchema = new mongoose.Schema(
 /**
  * Task Schema
  */
-const TaskSchema = new mongoose.Schema(
-    {
-        title: {
-            type: String,
-            required: true,
-            trim: true,
-        },
-        completed: {
-            type: Boolean,
-            default: false,
-        },
-        priority: {
-            type: String,
-            enum: ['Low', 'Medium', 'High'],
-            default: 'Medium',
-        },
-        dueDate: Date,
+const TaskSchema=new mongoose.Schema(
+{
+    title:{
+        type:String, required:true, trim:true
     },
-    {
-        _id: true,
+    description:{ type:String, default:''
+    },
+    priority:{ type:String, enum:[ 'Low', 'Medium', 'High' ], default:'Medium'
+    },
+    status:{ type:String, enum:[ 'Pending', 'In Progress', 'Completed' ], default:'Pending'
+    },
+    completed:{ type:Boolean, default:false
+    },
+    assignedTo:{ type:String, default:''
+    },
+    dueDate:{ type:Date
+    },
+    completedAt:{ type:Date
+    },
+    notes:{ type:String, default:''
     }
+},
+{
+    timestamps:true,
+    _id:true
+}
 );
 
 /**
