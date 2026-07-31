@@ -37,6 +37,16 @@ const calculateProgress=project=>{
         ((completedActivities+completedTasks)/totalItems)*100
     );
 };
+const recalculateProject=(project)=>{
+    const financials=calculateFinancials(project);
+    project.financials=financials;
+    project.progress=calculateProgress(project);
+    return{
+        ...project.toObject(),
+        financials,
+        progress:project.progress
+    };
+};
 const findProject=async(req)=>
     FarmProject.findOne({
         _id:req.params.id,
@@ -431,6 +441,11 @@ message:'Activity deleted successfully.'
 });
 });
 
+/*
+|--------------------------------------------------------------------------
+| Get Project Tasks
+|--------------------------------------------------------------------------
+*/
 exports.getTasks=asyncHandler(async(req,res)=>{
 const project=await FarmProject.findOne({
 _id:req.params.id,
@@ -449,6 +464,11 @@ data:project.tasks
 });
 });
 
+/*
+|--------------------------------------------------------------------------
+| Create Task
+|--------------------------------------------------------------------------
+*/
 exports.createTask=asyncHandler(async(req,res)=>{
 const project=await FarmProject.findOne({
 _id:req.params.id,
@@ -469,6 +489,11 @@ data:project.tasks[project.tasks.length-1]
 });
 });
 
+/*
+|--------------------------------------------------------------------------
+| Update Task
+|--------------------------------------------------------------------------
+*/
 exports.updateTask=asyncHandler(async(req,res)=>{
 const project=await FarmProject.findOne({
 _id:req.params.id,
@@ -497,6 +522,11 @@ data:task
 });
 });
 
+/*
+|--------------------------------------------------------------------------
+| Update Task Status
+|--------------------------------------------------------------------------
+*/
 exports.updateTaskStatus=asyncHandler(async(req,res)=>{
 const project=await FarmProject.findOne({
 _id:req.params.id,
@@ -530,6 +560,11 @@ data:task
 });
 });
 
+/*
+|--------------------------------------------------------------------------
+| Delete Task
+|--------------------------------------------------------------------------
+*/
 exports.deleteTask=asyncHandler(async(req,res)=>{
 const project=await FarmProject.findOne({
 _id:req.params.id,
@@ -554,5 +589,99 @@ await project.save();
 res.status(200).json({
 success:true,
 message:'Task deleted successfully.'
+});
+});
+
+/*
+|--------------------------------------------------------------------------
+| Create Expense
+|--------------------------------------------------------------------------
+*/
+exports.createExpense=asyncHandler(async(req,res)=>{
+const project=await FarmProject.findOne({
+_id:req.params.id,
+user:req.user._id
+});
+if(!project){
+return res.status(404).json({
+success:false,
+message:'Farm project not found.'
+});
+}
+project.expenses.push({
+category:req.body.category,
+description:req.body.description,
+amount:req.body.amount,
+date:req.body.date||Date.now()
+});
+await project.save();
+res.status(201).json({
+success:true,
+message:'Expense added successfully.',
+data:recalculateProject(project)
+});
+});
+
+/*
+|--------------------------------------------------------------------------
+| Update Expense
+|--------------------------------------------------------------------------
+*/
+exports.updateExpense=asyncHandler(async(req,res)=>{
+const project=await FarmProject.findOne({
+_id:req.params.id,
+user:req.user._id
+});
+if(!project){
+return res.status(404).json({
+success:false,
+message:'Farm project not found.'
+});
+}
+const expense=project.expenses.id(req.params.expenseId);
+if(!expense){
+return res.status(404).json({
+success:false,
+message:'Expense not found.'
+});
+}
+Object.assign(expense,req.body);
+await project.save();
+res.status(200).json({
+success:true,
+message:'Expense updated successfully.',
+data:recalculateProject(project)
+});
+});
+
+/*
+|--------------------------------------------------------------------------
+| Delete Expense
+|--------------------------------------------------------------------------
+*/
+exports.deleteExpense=asyncHandler(async(req,res)=>{
+const project=await FarmProject.findOne({
+_id:req.params.id,
+user:req.user._id
+});
+if(!project){
+return res.status(404).json({
+success:false,
+message:'Farm project not found.'
+});
+}
+const expense=project.expenses.id(req.params.expenseId);
+if(!expense){
+return res.status(404).json({
+success:false,
+message:'Expense not found.'
+});
+}
+expense.deleteOne();
+await project.save();
+res.status(200).json({
+success:true,
+message:'Expense deleted successfully.',
+data:recalculateProject(project)
 });
 });

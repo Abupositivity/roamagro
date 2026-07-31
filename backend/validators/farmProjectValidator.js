@@ -142,7 +142,77 @@ exports.projectIdValidator = [
     param('id')
         .isMongoId()
         .withMessage('Invalid project ID.')
+];
 
+/**
+ * Validate Expense ID
+ */
+exports.createExpenseValidator=[
+param('id')
+.isMongoId()
+.withMessage('Invalid project ID.'),
+body('category')
+.trim()
+.notEmpty()
+.withMessage('Expense category is required.')
+.isLength({max:100})
+.withMessage('Category cannot exceed 100 characters.'),
+body('description')
+.optional()
+.trim()
+.isLength({max:500})
+.withMessage('Description cannot exceed 500 characters.'),
+body('amount')
+.notEmpty()
+.withMessage('Amount is required.')
+.isFloat({min:0})
+.withMessage('Amount must be a positive number.'),
+body('date')
+.optional()
+.isISO8601()
+.withMessage('Invalid expense date.')
+];
+
+/**
+ * Update Expense
+ */
+exports.updateExpenseValidator=[
+param('id')
+.isMongoId()
+.withMessage('Invalid project ID.'),
+param('expenseId')
+.isMongoId()
+.withMessage('Invalid expense ID.'),
+body('category')
+.optional()
+.trim()
+.isLength({max:100})
+.withMessage('Category cannot exceed 100 characters.'),
+body('description')
+.optional()
+.trim()
+.isLength({max:500})
+.withMessage('Description cannot exceed 500 characters.'),
+body('amount')
+.optional()
+.isFloat({min:0})
+.withMessage('Amount must be a positive number.'),
+body('date')
+.optional()
+.isISO8601()
+.withMessage('Invalid expense date.')
+];
+
+/**
+ * Validate Expense ID
+ */
+exports.expenseIdValidator=[
+param('id')
+.isMongoId()
+.withMessage('Invalid project ID.'),
+param('expenseId')
+.isMongoId()
+.withMessage('Invalid expense ID.')
 ];
 
 /**
@@ -314,6 +384,9 @@ body('status')
 .withMessage('Invalid activity status.')
 ];
 
+/**
+ * Create Task
+ */
 exports.createTaskValidator=[
 param('id')
 .isMongoId()
@@ -362,6 +435,9 @@ body('notes')
 .withMessage('Notes cannot exceed 2000 characters.')
 ];
 
+/**
+ * Update Task
+ */
 exports.updateTaskValidator=[
 param('id')
 .isMongoId()
@@ -411,6 +487,9 @@ body('notes')
 .withMessage('Notes cannot exceed 2000 characters.')
 ];
 
+/**
+ * update task status
+ */
 exports.updateTaskStatusValidator=[
 param('id')
 .isMongoId()
@@ -429,6 +508,9 @@ body('status')
 .withMessage('Invalid task status.')
 ];
 
+/**
+ * Validate task ID
+ */
 exports.taskIdValidator=[
 param('id')
 .isMongoId()

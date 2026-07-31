@@ -17,7 +17,10 @@ updateActivityStatus,
 createTask,
 updateTask,
 deleteTask,
-updateTaskStatus
+updateTaskStatus,
+createExpense,
+updateExpense,
+deleteExpense
 }=require('../controllers/farmProjectController');
 
 const{
@@ -31,7 +34,10 @@ updateActivityStatusValidator,
 createTaskValidator,
 updateTaskValidator,
 taskIdValidator,
-updateTaskStatusValidator
+updateTaskStatusValidator,
+createExpenseValidator,
+updateExpenseValidator,
+expenseIdValidator
 }=require('../validators/farmProjectValidator');
 
 router.post(
@@ -141,6 +147,30 @@ ensureAuthenticated,
 taskIdValidator,
 validateRequest,
 deleteTask
+);
+
+router.post(
+'/:id/expenses',
+ensureAuthenticated,
+createExpenseValidator,
+validateRequest,
+createExpense
+);
+
+router.put(
+'/:id/expenses/:expenseId',
+ensureAuthenticated,
+updateExpenseValidator,
+validateRequest,
+updateExpense
+);
+
+router.delete(
+'/:id/expenses/:expenseId',
+ensureAuthenticated,
+expenseIdValidator,
+validateRequest,
+deleteExpense
 );
 
 module.exports=router;
