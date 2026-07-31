@@ -13,11 +13,11 @@ getFarmDashboardSummary,
 createActivity,
 updateActivity,
 deleteActivity,
-toggleActivityStatus,
+updateActivityStatus,
 createTask,
 updateTask,
 deleteTask,
-toggleTaskStatus
+updateTaskStatus
 }=require('../controllers/farmProjectController');
 
 const{
@@ -100,7 +100,7 @@ router.patch(
 ensureAuthenticated,
 updateActivityStatusValidator,
 validateRequest,
-toggleActivityStatus
+updateActivityStatus
 );
 
 router.delete(
@@ -132,7 +132,7 @@ router.patch(
 ensureAuthenticated,
 updateTaskStatusValidator,
 validateRequest,
-toggleTaskStatus
+updateTaskStatus
 );
 
 router.delete(
