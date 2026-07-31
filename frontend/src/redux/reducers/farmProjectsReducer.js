@@ -45,8 +45,14 @@ projects:[],
 currentProject:null,
 loading:false,
 success:false,
-error:null
+error:null,
+lastAction:null
 };
+
+const updateProject=(projects,updated)=>
+projects.map(project=>
+project._id===updated._id?updated:project
+);
 
 const farmProjectsReducer=(state=initialState,action)=>{
 switch(action.type){
@@ -64,10 +70,52 @@ case CREATE_TASK_REQUEST:
 case UPDATE_TASK_REQUEST:
 case DELETE_TASK_REQUEST:
 case TOGGLE_TASK_STATUS_REQUEST:
-
 return{
 ...state,
 loading:true,
+error:null
+};
+
+case FETCH_PROJECTS_SUCCESS:
+return{
+...state,
+loading:false,
+success:true,
+lastAction:'FETCH_PROJECTS',
+projects:action.payload,
+error:null
+};
+
+case CREATE_PROJECT_SUCCESS:
+return{
+...state,
+loading:false,
+success:true,
+lastAction:'CREATE_PROJECT',
+projects:[action.payload,...state.projects],
+currentProject:action.payload,
+error:null
+};
+
+case UPDATE_PROJECT_SUCCESS:
+return{
+...state,
+loading:false,
+success:true,
+lastAction:'UPDATE_PROJECT',
+projects:updateProject(state.projects,action.payload),
+currentProject:action.payload,
+error:null
+};
+
+case DELETE_PROJECT_SUCCESS:
+return{
+...state,
+loading:false,
+success:true,
+lastAction:'DELETE_PROJECT',
+projects:state.projects.filter(project=>project._id!==action.payload),
+currentProject:null,
 error:null
 };
 
@@ -77,12 +125,12 @@ return{
 loading:false,
 projects:state.projects.map(project=>
 project._id===action.payload.projectId
-?{
-...project,
-activities:action.payload.activities
-}
+?{...project,activities:action.payload.activities}
 :project
-)
+),
+currentProject:state.currentProject&&state.currentProject._id===action.payload.projectId
+?{...state.currentProject,activities:action.payload.activities}
+:state.currentProject
 };
 
 case CREATE_ACTIVITY_SUCCESS:
@@ -91,15 +139,12 @@ return{
 loading:false,
 projects:state.projects.map(project=>
 project._id===action.payload.projectId
-?{
-...project,
-activities:[
-...(project.activities||[]),
-action.payload.activity
-]
-}
+?{...project,activities:[...(project.activities||[]),action.payload.activity]}
 :project
-)
+),
+currentProject:state.currentProject&&state.currentProject._id===action.payload.projectId
+?{...state.currentProject,activities:[...(state.currentProject.activities||[]),action.payload.activity]}
+:state.currentProject
 };
 
 case UPDATE_ACTIVITY_SUCCESS:
@@ -118,7 +163,17 @@ activity._id===action.payload.activity._id
 :activity
 )
 }
+),
+currentProject:state.currentProject&&state.currentProject._id===action.payload.projectId
+?{
+...state.currentProject,
+activities:(state.currentProject.activities||[]).map(activity=>
+activity._id===action.payload.activity._id
+?action.payload.activity
+:activity
 )
+}
+:state.currentProject
 };
 
 case DELETE_ACTIVITY_SUCCESS:
@@ -130,11 +185,59 @@ project._id!==action.payload.projectId
 ?project
 :{
 ...project,
-activities:(project.activities||[]).filter(
-activity=>activity._id!==action.payload.activityId
-)
+activities:(project.activities||[]).filter(activity=>activity._id!==action.payload.activityId)
 }
-)
+),
+currentProject:state.currentProject&&state.currentProject._id===action.payload.projectId
+?{
+...state.currentProject,
+activities:(state.currentProject.activities||[]).filter(activity=>activity._id!==action.payload.activityId)
+}
+:state.currentProject
+};
+
+case CREATE_TASK_SUCCESS:
+return{
+...state,
+loading:false,
+success:true,
+lastAction:'CREATE_TASK',
+projects:updateProject(state.projects,action.payload),
+currentProject:state.currentProject&&state.currentProject._id===action.payload._id?action.payload:state.currentProject,
+error:null
+};
+
+case UPDATE_TASK_SUCCESS:
+return{
+...state,
+loading:false,
+success:true,
+lastAction:'UPDATE_TASK',
+projects:updateProject(state.projects,action.payload),
+currentProject:state.currentProject&&state.currentProject._id===action.payload._id?action.payload:state.currentProject,
+error:null
+};
+
+case TOGGLE_TASK_STATUS_SUCCESS:
+return{
+...state,
+loading:false,
+success:true,
+lastAction:'TOGGLE_TASK_STATUS',
+projects:updateProject(state.projects,action.payload),
+currentProject:state.currentProject&&state.currentProject._id===action.payload._id?action.payload:state.currentProject,
+error:null
+};
+
+case DELETE_TASK_SUCCESS:
+return{
+...state,
+loading:false,
+success:true,
+lastAction:'DELETE_TASK',
+projects:updateProject(state.projects,action.payload),
+currentProject:state.currentProject&&state.currentProject._id===action.payload._id?action.payload:state.currentProject,
+error:null
 };
 
 case FETCH_ACTIVITIES_FAIL:
@@ -142,85 +245,6 @@ case CREATE_ACTIVITY_FAIL:
 case UPDATE_ACTIVITY_FAIL:
 case UPDATE_ACTIVITY_STATUS_FAIL:
 case DELETE_ACTIVITY_FAIL:
-return{
-...state,
-loading:false,
-error:action.payload
-};
-
-case FETCH_PROJECTS_SUCCESS:
-return{
-...state,
-loading:false,
-success:true,
-projects:action.payload,
-error:null
-};
-
-case CREATE_PROJECT_SUCCESS:
-return{
-...state,
-loading:false,
-success:true,
-error:null,
-projects:[action.payload,...state.projects],
-currentProject:action.payload
-};
-
-case UPDATE_PROJECT_SUCCESS:
-return{
-...state,
-loading:false,
-success:true,
-error:null,
-currentProject:action.payload,
-projects:state.projects.map(project=>
-project._id===action.payload._id
-?action.payload
-:project
-)
-};
-
-case DELETE_PROJECT_SUCCESS:
-return{
-...state,
-loading:false,
-success:true,
-error:null,
-currentProject:null,
-projects:state.projects.filter(project=>
-project._id!==action.payload
-)
-};
-
-case CREATE_TASK_SUCCESS:
-case UPDATE_TASK_SUCCESS:
-case TOGGLE_TASK_STATUS_SUCCESS:
-return{
-...state,
-loading:false,
-projects:state.projects.map(project=>
-project._id===action.payload._id
-?action.payload
-:project
-)
-};
-
-case DELETE_TASK_SUCCESS:
-return{
-...state,
-loading:false,
-projects:state.projects.map(project=>{
-if(project._id!==action.payload.projectId)return project;
-return{
-...project,
-tasks:project.tasks.filter(
-task=>task._id!==action.payload.taskId
-)
-};
-})
-};
-
 case FETCH_PROJECTS_FAIL:
 case CREATE_PROJECT_FAIL:
 case UPDATE_PROJECT_FAIL:

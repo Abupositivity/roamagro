@@ -213,7 +213,6 @@ scrollButtons="auto"
 <DialogContent dividers>
 
 {tab===0&&(
-
 <FarmProjectForm
 loading={loading}
 initialValues={project}
@@ -224,33 +223,26 @@ t('Create Project')
 }
 onSubmit={handleSubmit}
 />
-
 )}
 
 {tab===1&&project&&(
-
 <>
-
 <ActivityProgress
 activities={project.activities||[]}
 />
-
 <Divider sx={{my:3}}/>
-
 <Stack
 direction="row"
 justifyContent="space-between"
 alignItems="center"
 mb={2}
 >
-
 <Typography
 variant="h6"
 fontWeight={700}
 >
 {t('Activities')}
 </Typography>
-
 <Button
 variant="contained"
 startIcon={<AddIcon/>}
@@ -259,9 +251,7 @@ onClick={openCreateActivity}
 >
 {t('Add Activity')}
 </Button>
-
 </Stack>
-
 <ActivityList
 activities={project.activities||[]}
 loading={loading}
@@ -277,38 +267,36 @@ activity.status==='Completed'
 )
 }
 />
+</>
+)}
 
-<Divider sx={{my:4}}/>
-
+{tab===2&&project&&(
+<>
 <TaskProgress
 tasks={project.tasks||[]}
 />
-
+<Divider sx={{my:3}}/>
 <Stack
 direction="row"
 justifyContent="space-between"
 alignItems="center"
-sx={{mb:2}}
+mb={2}
 >
-
 <Typography
 variant="h6"
 fontWeight={700}
 >
 {t('Tasks')}
 </Typography>
-
 <Button
 variant="contained"
 startIcon={<AddIcon/>}
-onClick={openCreateTask}
 disabled={loading}
+onClick={openCreateTask}
 >
 {t('Add Task')}
 </Button>
-
 </Stack>
-
 <TaskList
 tasks={project.tasks||[]}
 loading={loading}
@@ -324,20 +312,7 @@ task.status==='Completed'
 )
 }
 />
-
 </>
-
-)}
-
-{tab===2&&(
-<Box py={6} textAlign="center">
-<Typography variant="h6">
-{t('Task Management')}
-</Typography>
-<Typography color="text.secondary">
-{t('Coming in Commit 6.2')}
-</Typography>
-</Box>
 )}
 
 {tab===3&&(
