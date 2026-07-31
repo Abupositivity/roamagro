@@ -40,7 +40,16 @@ DELETE_TASK_SUCCESS,
 DELETE_TASK_FAIL,
 TOGGLE_TASK_STATUS_REQUEST,
 TOGGLE_TASK_STATUS_SUCCESS,
-TOGGLE_TASK_STATUS_FAIL
+TOGGLE_TASK_STATUS_FAIL,
+CREATE_EXPENSE_REQUEST,
+CREATE_EXPENSE_SUCCESS,
+CREATE_EXPENSE_FAIL,
+UPDATE_EXPENSE_REQUEST,
+UPDATE_EXPENSE_SUCCESS,
+UPDATE_EXPENSE_FAIL,
+DELETE_EXPENSE_REQUEST,
+DELETE_EXPENSE_SUCCESS,
+DELETE_EXPENSE_FAIL
 } from './types';
 
 const getError=(error)=>
@@ -336,6 +345,65 @@ payload:res.data.data
 }catch(error){
 dispatch({
 type:TOGGLE_TASK_STATUS_FAIL,
+payload:error.response?.data?.message||error.message
+});
+}
+};
+
+export const createExpense=(projectId,data)=>async(dispatch)=>{
+dispatch({type:CREATE_EXPENSE_REQUEST});
+try{
+const res=await api.post(
+`/farm-projects/${projectId}/expenses`,
+data
+);
+dispatch({
+type:CREATE_EXPENSE_SUCCESS,
+payload:res.data.data
+});
+}
+catch(error){
+dispatch({
+type:CREATE_EXPENSE_FAIL,
+payload:error.response?.data?.message||error.message
+});
+}
+};
+
+export const updateExpense=(projectId,expenseId,data)=>async(dispatch)=>{
+dispatch({type:UPDATE_EXPENSE_REQUEST});
+try{
+const res=await api.put(
+`/farm-projects/${projectId}/expenses/${expenseId}`,
+data
+);
+dispatch({
+type:UPDATE_EXPENSE_SUCCESS,
+payload:res.data.data
+});
+}
+catch(error){
+dispatch({
+type:UPDATE_EXPENSE_FAIL,
+payload:error.response?.data?.message||error.message
+});
+}
+};
+
+export const deleteExpense=(projectId,expenseId)=>async(dispatch)=>{
+dispatch({type:DELETE_EXPENSE_REQUEST});
+try{
+const res=await api.delete(
+`/farm-projects/${projectId}/expenses/${expenseId}`
+);
+dispatch({
+type:DELETE_EXPENSE_SUCCESS,
+payload:res.data.data
+});
+}
+catch(error){
+dispatch({
+type:DELETE_EXPENSE_FAIL,
 payload:error.response?.data?.message||error.message
 });
 }

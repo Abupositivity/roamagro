@@ -24,6 +24,10 @@ import TaskProgress from'./TaskProgress';
 import TaskList from'./TaskList';
 import TaskDialog from'./TaskDialog';
 import DeleteTaskDialog from'./DeleteTaskDialog';
+import ExpenseSummary from './ExpenseSummary';
+import ExpenseList from './ExpenseList';
+import ExpenseDialog from './ExpenseDialog';
+import DeleteExpenseDialog from './DeleteExpenseDialog';
 
 const ProjectDialog=({
 open,
@@ -38,7 +42,10 @@ onToggleActivityStatus,
 onCreateTask,
 onUpdateTask,
 onDeleteTask,
-onToggleTaskStatus
+onToggleTaskStatus,
+onCreateExpense,
+onUpdateExpense,
+onDeleteExpense
 })=>{
 
 const{t}=useTranslation();
@@ -50,6 +57,9 @@ const[deleteDialogOpen,setDeleteDialogOpen]=useState(false);
 const[taskDialogOpen,setTaskDialogOpen]=useState(false);
 const[selectedTask,setSelectedTask]=useState(null);
 const[deleteTaskDialogOpen,setDeleteTaskDialogOpen]=useState(false);
+const[expenseDialogOpen,setExpenseDialogOpen]=useState(false);
+const[selectedExpense,setSelectedExpense]=useState(null);
+const[deleteExpenseDialogOpen,setDeleteExpenseDialogOpen]=useState(false);
 
 const handleSubmit=data=>{
 onSubmit?.(data);
@@ -159,6 +169,59 @@ selectedTask._id
 );
 }
 closeDeleteTaskDialog();
+};
+
+const openCreateExpense=()=>{
+setSelectedExpense(null);
+setExpenseDialogOpen(true);
+};
+
+const openEditExpense=expense=>{
+setSelectedExpense(expense);
+setExpenseDialogOpen(true);
+};
+
+const closeExpenseDialog=()=>{
+if(loading)return;
+setSelectedExpense(null);
+setExpenseDialogOpen(false);
+};
+
+const openDeleteExpense=expense=>{
+setSelectedExpense(expense);
+setDeleteExpenseDialogOpen(true);
+};
+
+const closeDeleteExpenseDialog=()=>{
+if(loading)return;
+setSelectedExpense(null);
+setDeleteExpenseDialogOpen(false);
+};
+
+const handleExpenseSubmit=data=>{
+if(selectedExpense){
+onUpdateExpense?.(
+project._id,
+selectedExpense._id,
+data
+);
+}else{
+onCreateExpense?.(
+project._id,
+data
+);
+}
+closeExpenseDialog();
+};
+
+const handleDeleteExpense=()=>{
+if(selectedExpense){
+onDeleteExpense?.(
+project._id,
+selectedExpense._id
+);
+}
+closeDeleteExpenseDialog();
 };
 
 return(
@@ -316,14 +379,39 @@ task.status==='Completed'
 )}
 
 {tab===3&&(
-<Box py={6} textAlign="center">
-<Typography variant="h6">
+<>
+<ExpenseSummary
+project={project}
+/>
+<Divider sx={{my:3}}/>
+<Stack
+direction="row"
+justifyContent="space-between"
+alignItems="center"
+mb={2}
+>
+<Typography
+variant="h6"
+fontWeight={700}
+>
 {t('Expenses')}
 </Typography>
-<Typography color="text.secondary">
-{t('Coming in Commit 6.3')}
-</Typography>
-</Box>
+<Button
+variant="contained"
+startIcon={<AddIcon/>}
+disabled={loading}
+onClick={openCreateExpense}
+>
+{t('Add Expense')}
+</Button>
+</Stack>
+<ExpenseList
+expenses={project?.expenses||[]}
+loading={loading}
+onEdit={openEditExpense}
+onDelete={openDeleteExpense}
+/>
+</>
 )}
 
 {tab===4&&(
@@ -382,6 +470,22 @@ loading={loading}
 task={selectedTask}
 onClose={closeDeleteTaskDialog}
 onConfirm={handleDeleteTask}
+/>
+
+<ExpenseDialog
+open={expenseDialogOpen}
+loading={loading}
+expense={selectedExpense}
+onClose={closeExpenseDialog}
+onSubmit={handleExpenseSubmit}
+/>
+
+<DeleteExpenseDialog
+open={deleteExpenseDialogOpen}
+loading={loading}
+expense={selectedExpense}
+onClose={closeDeleteExpenseDialog}
+onConfirm={handleDeleteExpense}
 />
 
 </>

@@ -37,7 +37,16 @@ DELETE_TASK_SUCCESS,
 DELETE_TASK_FAIL,
 TOGGLE_TASK_STATUS_REQUEST,
 TOGGLE_TASK_STATUS_SUCCESS,
-TOGGLE_TASK_STATUS_FAIL
+TOGGLE_TASK_STATUS_FAIL,
+CREATE_EXPENSE_REQUEST,
+CREATE_EXPENSE_SUCCESS,
+CREATE_EXPENSE_FAIL,
+UPDATE_EXPENSE_REQUEST,
+UPDATE_EXPENSE_SUCCESS,
+UPDATE_EXPENSE_FAIL,
+DELETE_EXPENSE_REQUEST,
+DELETE_EXPENSE_SUCCESS,
+DELETE_EXPENSE_FAIL
 }from'../actions/types';
 
 const initialState={
@@ -70,6 +79,9 @@ case CREATE_TASK_REQUEST:
 case UPDATE_TASK_REQUEST:
 case DELETE_TASK_REQUEST:
 case TOGGLE_TASK_STATUS_REQUEST:
+case CREATE_EXPENSE_REQUEST:
+case UPDATE_EXPENSE_REQUEST:
+case DELETE_EXPENSE_REQUEST:
 return{
 ...state,
 loading:true,
@@ -240,6 +252,32 @@ currentProject:state.currentProject&&state.currentProject._id===action.payload._
 error:null
 };
 
+case CREATE_EXPENSE_SUCCESS:
+case UPDATE_EXPENSE_SUCCESS:
+return{
+...state,
+loading:false,
+success:true,
+projects:state.projects.map(project=>
+project._id===action.payload._id
+?action.payload
+:project
+)
+};
+
+case DELETE_EXPENSE_SUCCESS:
+return{
+...state,
+loading:false,
+success:true,
+lastAction:'DELETE_EXPENSE',
+projects:state.projects.map(project=>
+project._id===action.payload._id
+?action.payload
+:project
+)
+};
+
 case FETCH_ACTIVITIES_FAIL:
 case CREATE_ACTIVITY_FAIL:
 case UPDATE_ACTIVITY_FAIL:
@@ -253,6 +291,9 @@ case CREATE_TASK_FAIL:
 case UPDATE_TASK_FAIL:
 case DELETE_TASK_FAIL:
 case TOGGLE_TASK_STATUS_FAIL:
+case CREATE_EXPENSE_FAIL:
+case UPDATE_EXPENSE_FAIL:
+case DELETE_EXPENSE_FAIL:
 return{
 ...state,
 loading:false,

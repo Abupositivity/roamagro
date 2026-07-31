@@ -24,7 +24,10 @@ updateActivityStatus,
 createTask,
 updateTask,
 deleteTask,
-toggleTaskStatus
+toggleTaskStatus,
+createExpense,
+updateExpense,
+deleteExpense
 }from'../../redux/actions/farmProjectsActions';
 import ProjectList from'./ProjectList';
 import ProjectDialog from'./ProjectDialog';
@@ -174,6 +177,18 @@ result.success
 );
 };
 
+const handleCreateExpense=(projectId,data)=>{
+dispatch(createExpense(projectId,data));
+};
+
+const handleUpdateExpense=(projectId,expenseId,data)=>{
+dispatch(updateExpense(projectId,expenseId,data));
+};
+
+const handleDeleteExpense=(projectId,expenseId)=>{
+dispatch(deleteExpense(projectId,expenseId));
+};
+
 return(
 <Container
 maxWidth="xl"
@@ -245,6 +260,9 @@ onCreateTask={handleCreateTask}
 onUpdateTask={handleUpdateTask}
 onDeleteTask={handleDeleteTask}
 onToggleTaskStatus={handleToggleTaskStatus}
+onCreateExpense={handleCreateExpense}
+onUpdateExpense={handleUpdateExpense}
+onDeleteExpense={handleDeleteExpense}
 />
 
 <DeleteProjectDialog

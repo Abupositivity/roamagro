@@ -35,16 +35,11 @@ return api.put(`/farm-projects/${projectId}/activities/${activityId}`,data);
 },
 
 updateActivityStatus(projectId,activityId,status){
-return api.patch(
-`/farm-projects/${projectId}/activities/${activityId}/status`,
-{status}
-);
+return api.patch(`/farm-projects/${projectId}/activities/${activityId}/status`,{status});
 },
 
 deleteActivity(projectId,activityId){
-return api.delete(
-`/farm-projects/${projectId}/activities/${activityId}`
-);
+return api.delete(`/farm-projects/${projectId}/activities/${activityId}`);
 },
 
 createTask(projectId,data){
@@ -60,11 +55,22 @@ return api.delete(`/farm-projects/${projectId}/tasks/${taskId}`);
 },
 
 toggleTaskStatus(projectId,taskId,status){
-return api.patch(
-`/farm-projects/${projectId}/tasks/${taskId}/status`,
-{status}
-);
-}
+return api.patch(`/farm-projects/${projectId}/tasks/${taskId}/status`,{status});
+},
+
+addExpense(projectId,data){
+return api.post(`/farm-projects/${projectId}/expenses`,data);
+},
+
+updateExpense(projectId,expenseId,data){
+return api.put(`/farm-projects/${projectId}/expenses/${expenseId}`,data);
+},
+
+deleteExpense(projectId,expenseId){
+return api.delete(`/farm-projects/${projectId}/expenses/${expenseId}`);
+},
+
 };
+
 
 export default farmProjectService;
