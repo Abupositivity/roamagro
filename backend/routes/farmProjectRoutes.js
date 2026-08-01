@@ -20,7 +20,10 @@ deleteTask,
 updateTaskStatus,
 createExpense,
 updateExpense,
-deleteExpense
+deleteExpense,
+createHarvest,
+updateHarvest,
+deleteHarvest
 }=require('../controllers/farmProjectController');
 
 const{
@@ -37,9 +40,17 @@ taskIdValidator,
 updateTaskStatusValidator,
 createExpenseValidator,
 updateExpenseValidator,
-expenseIdValidator
+expenseIdValidator,
+createHarvestValidator,
+updateHarvestValidator,
+harvestIdValidator
 }=require('../validators/farmProjectValidator');
 
+/*
+|--------------------------------------------------------------------------
+| Farm Project
+|--------------------------------------------------------------------------
+*/
 router.post(
 '/',
 ensureAuthenticated,
@@ -85,6 +96,11 @@ validateRequest,
 deleteFarmProject
 );
 
+/*
+|--------------------------------------------------------------------------
+| Activities
+|--------------------------------------------------------------------------
+*/
 router.post(
 '/:id/activities',
 ensureAuthenticated,
@@ -117,6 +133,11 @@ validateRequest,
 deleteActivity
 );
 
+/*
+|--------------------------------------------------------------------------
+| Tasks
+|--------------------------------------------------------------------------
+*/
 router.post(
 '/:id/tasks',
 ensureAuthenticated,
@@ -149,6 +170,11 @@ validateRequest,
 deleteTask
 );
 
+/*
+|--------------------------------------------------------------------------
+| Expenses
+|--------------------------------------------------------------------------
+*/
 router.post(
 '/:id/expenses',
 ensureAuthenticated,
@@ -171,6 +197,35 @@ ensureAuthenticated,
 expenseIdValidator,
 validateRequest,
 deleteExpense
+);
+
+/*
+|--------------------------------------------------------------------------
+| Harvests
+|--------------------------------------------------------------------------
+*/
+router.post(
+'/:id/harvests',
+ensureAuthenticated,
+createHarvestValidator,
+validateRequest,
+createHarvest
+);
+
+router.put(
+'/:id/harvests/:harvestId',
+ensureAuthenticated,
+updateHarvestValidator,
+validateRequest,
+updateHarvest
+);
+
+router.delete(
+'/:id/harvests/:harvestId',
+ensureAuthenticated,
+harvestIdValidator,
+validateRequest,
+deleteHarvest
 );
 
 module.exports=router;

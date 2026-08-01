@@ -685,3 +685,108 @@ message:'Expense deleted successfully.',
 data:recalculateProject(project)
 });
 });
+
+/*
+|--------------------------------------------------------------------------
+| Create Hervest
+|--------------------------------------------------------------------------
+*/
+exports.createHarvest=asyncHandler(async(req,res)=>{
+const project=await FarmProject.findOne({
+_id:req.params.id,
+user:req.user._id
+});
+if(!project){
+return res.status(404).json({
+success:false,
+message:'Farm project not found.'
+});
+}
+const harvest={
+...req.body,
+totalValue:
+(Number(req.body.quantity)||0)*
+(Number(req.body.pricePerUnit)||0)
+};
+project.harvests.push(harvest);
+project.financials=calculateFinancials(project);
+await project.save();
+res.status(201).json({
+success:true,
+message:'Harvest added successfully.',
+data:project
+});
+});
+
+/*
+|--------------------------------------------------------------------------
+| Update Hervest
+|--------------------------------------------------------------------------
+*/
+exports.updateHarvest=asyncHandler(async(req,res)=>{
+const project=await FarmProject.findOne({
+_id:req.params.id,
+user:req.user._id
+});
+
+if(!project){
+return res.status(404).json({
+success:false,
+message:'Farm project not found.'
+});
+}
+const harvest=project.harvests.id(req.params.harvestId);
+if(!harvest){
+return res.status(404).json({
+success:false,
+message:'Harvest not found.'
+});
+}
+Object.assign(
+harvest,
+req.body
+);
+harvest.totalValue=
+(Number(harvest.quantity)||0)*
+(Number(harvest.pricePerUnit)||0);
+project.financials=calculateFinancials(project);
+await project.save();
+res.status(200).json({
+success:true,
+message:'Harvest updated successfully.',
+data:project
+});
+});
+
+/*
+|--------------------------------------------------------------------------
+| Delete Hervest
+|--------------------------------------------------------------------------
+*/
+exports.deleteHarvest=asyncHandler(async(req,res)=>{
+const project=await FarmProject.findOne({
+_id:req.params.id,
+user:req.user._id
+});
+if(!project){
+return res.status(404).json({
+success:false,
+message:'Farm project not found.'
+});
+}
+const harvest=project.harvests.id(req.params.harvestId);
+if(!harvest){
+return res.status(404).json({
+success:false,
+message:'Harvest not found.'
+});
+}
+harvest.deleteOne();
+project.financials=calculateFinancials(project);
+await project.save();
+res.status(200).json({
+success:true,
+message:'Harvest deleted successfully.',
+data:project
+});
+});

@@ -519,3 +519,62 @@ param('taskId')
 .isMongoId()
 .withMessage('Invalid task ID.')
 ];
+
+/**
+ * Harvest Validators
+ */
+
+exports.createHarvestValidator=[
+body('crop')
+.trim()
+.notEmpty()
+.withMessage('Crop is required.'),
+body('quantity')
+.isFloat({min:0})
+.withMessage('Quantity must be a positive number.'),
+body('unit')
+.optional()
+.trim()
+.isLength({max:30})
+.withMessage('Unit is too long.'),
+body('pricePerUnit')
+.isFloat({min:0})
+.withMessage('Price per unit must be a positive number.'),
+body('harvestDate')
+.optional()
+.isISO8601()
+.withMessage('Invalid harvest date.')
+];
+
+exports.updateHarvestValidator=[
+param('id')
+.isMongoId()
+.withMessage('Invalid project ID.'),
+param('harvestId')
+.isMongoId()
+.withMessage('Invalid harvest ID.'),
+body('crop')
+.optional()
+.trim(),
+body('quantity')
+.optional()
+.isFloat({min:0}),
+body('unit')
+.optional()
+.trim(),
+body('pricePerUnit')
+.optional()
+.isFloat({min:0}),
+body('harvestDate')
+.optional()
+.isISO8601()
+];
+
+exports.harvestIdValidator=[
+param('id')
+.isMongoId()
+.withMessage('Invalid project ID.'),
+param('harvestId')
+.isMongoId()
+.withMessage('Invalid harvest ID.')
+];
