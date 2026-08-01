@@ -24,10 +24,13 @@ updateActivityStatus,
 createTask,
 updateTask,
 deleteTask,
-toggleTaskStatus,
+updateTaskStatus,
 createExpense,
 updateExpense,
-deleteExpense
+deleteExpense,
+createHarvest,
+updateHarvest,
+deleteHarvest
 }from'../../redux/actions/farmProjectsActions';
 import ProjectList from'./ProjectList';
 import ProjectDialog from'./ProjectDialog';
@@ -166,8 +169,8 @@ result.success
 );
 };
 
-const handleToggleTaskStatus=async(projectId,taskId,status)=>{
-const result=await dispatch(toggleTaskStatus(projectId,taskId,status));
+const handleUpdateTaskStatus=async(projectId,taskId,status)=>{
+const result=await dispatch(updateTaskStatus(projectId,taskId,status));
 if(!result)return;
 showSnackbar(
 result.success,
@@ -187,6 +190,18 @@ dispatch(updateExpense(projectId,expenseId,data));
 
 const handleDeleteExpense=(projectId,expenseId)=>{
 dispatch(deleteExpense(projectId,expenseId));
+};
+
+const handleCreateHarvest=(projectId,data)=>{
+dispatch(createHarvest(projectId,data));
+};
+
+const handleUpdateHarvest=(projectId,harvestId,data)=>{
+dispatch(updateHarvest(projectId,harvestId,data));
+};
+
+const handleDeleteHarvest=(projectId,harvestId)=>{
+dispatch(deleteHarvest(projectId,harvestId));
 };
 
 return(
@@ -259,10 +274,13 @@ onToggleActivityStatus={(projectId,activityId,status)=>dispatch(updateActivitySt
 onCreateTask={handleCreateTask}
 onUpdateTask={handleUpdateTask}
 onDeleteTask={handleDeleteTask}
-onToggleTaskStatus={handleToggleTaskStatus}
+onToggleTaskStatus={handleUpdateTaskStatus}
 onCreateExpense={handleCreateExpense}
 onUpdateExpense={handleUpdateExpense}
 onDeleteExpense={handleDeleteExpense}
+onCreateHarvest={handleCreateHarvest}
+onUpdateHarvest={handleUpdateHarvest}
+onDeleteHarvest={handleDeleteHarvest}
 />
 
 <DeleteProjectDialog

@@ -35,9 +35,9 @@ UPDATE_TASK_FAIL,
 DELETE_TASK_REQUEST,
 DELETE_TASK_SUCCESS,
 DELETE_TASK_FAIL,
-TOGGLE_TASK_STATUS_REQUEST,
-TOGGLE_TASK_STATUS_SUCCESS,
-TOGGLE_TASK_STATUS_FAIL,
+UPDATE_TASK_STATUS_REQUEST,
+UPDATE_TASK_STATUS_SUCCESS,
+UPDATE_TASK_STATUS_FAIL,
 CREATE_EXPENSE_REQUEST,
 CREATE_EXPENSE_SUCCESS,
 CREATE_EXPENSE_FAIL,
@@ -46,7 +46,16 @@ UPDATE_EXPENSE_SUCCESS,
 UPDATE_EXPENSE_FAIL,
 DELETE_EXPENSE_REQUEST,
 DELETE_EXPENSE_SUCCESS,
-DELETE_EXPENSE_FAIL
+DELETE_EXPENSE_FAIL,
+CREATE_HARVEST_REQUEST,
+CREATE_HARVEST_SUCCESS,
+CREATE_HARVEST_FAIL,
+UPDATE_HARVEST_REQUEST,
+UPDATE_HARVEST_SUCCESS,
+UPDATE_HARVEST_FAIL,
+DELETE_HARVEST_REQUEST,
+DELETE_HARVEST_SUCCESS,
+DELETE_HARVEST_FAIL
 }from'../actions/types';
 
 const initialState={
@@ -78,10 +87,13 @@ case DELETE_ACTIVITY_REQUEST:
 case CREATE_TASK_REQUEST:
 case UPDATE_TASK_REQUEST:
 case DELETE_TASK_REQUEST:
-case TOGGLE_TASK_STATUS_REQUEST:
+case UPDATE_TASK_STATUS_REQUEST:
 case CREATE_EXPENSE_REQUEST:
 case UPDATE_EXPENSE_REQUEST:
 case DELETE_EXPENSE_REQUEST:
+case CREATE_HARVEST_REQUEST:
+case UPDATE_HARVEST_REQUEST:
+case DELETE_HARVEST_REQUEST:
 return{
 ...state,
 loading:true,
@@ -230,12 +242,12 @@ currentProject:state.currentProject&&state.currentProject._id===action.payload._
 error:null
 };
 
-case TOGGLE_TASK_STATUS_SUCCESS:
+case UPDATE_TASK_STATUS_SUCCESS:
 return{
 ...state,
 loading:false,
 success:true,
-lastAction:'TOGGLE_TASK_STATUS',
+lastAction:'UPDATE_TASK_STATUS',
 projects:updateProject(state.projects,action.payload),
 currentProject:state.currentProject&&state.currentProject._id===action.payload._id?action.payload:state.currentProject,
 error:null
@@ -264,13 +276,26 @@ project._id===action.payload._id
 :project
 )
 };
-
 case DELETE_EXPENSE_SUCCESS:
 return{
 ...state,
 loading:false,
 success:true,
 lastAction:'DELETE_EXPENSE',
+projects:state.projects.map(project=>
+project._id===action.payload._id
+?action.payload
+:project
+)
+};
+
+case CREATE_HARVEST_SUCCESS:
+case UPDATE_HARVEST_SUCCESS:
+case DELETE_HARVEST_SUCCESS:
+return{
+...state,
+loading:false,
+success:true,
 projects:state.projects.map(project=>
 project._id===action.payload._id
 ?action.payload
@@ -290,10 +315,13 @@ case DELETE_PROJECT_FAIL:
 case CREATE_TASK_FAIL:
 case UPDATE_TASK_FAIL:
 case DELETE_TASK_FAIL:
-case TOGGLE_TASK_STATUS_FAIL:
+case UPDATE_TASK_STATUS_FAIL:
 case CREATE_EXPENSE_FAIL:
 case UPDATE_EXPENSE_FAIL:
 case DELETE_EXPENSE_FAIL:
+case CREATE_HARVEST_FAIL:
+case UPDATE_HARVEST_FAIL:
+case DELETE_HARVEST_FAIL:
 return{
 ...state,
 loading:false,

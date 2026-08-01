@@ -28,6 +28,10 @@ import ExpenseSummary from './ExpenseSummary';
 import ExpenseList from './ExpenseList';
 import ExpenseDialog from './ExpenseDialog';
 import DeleteExpenseDialog from './DeleteExpenseDialog';
+import HarvestSummary from './HarvestSummary';
+import HarvestList from './HarvestList';
+import HarvestDialog from './HarvestDialog';
+import DeleteHarvestDialog from './DeleteHarvestDialog';
 
 const ProjectDialog=({
 open,
@@ -45,7 +49,10 @@ onDeleteTask,
 onToggleTaskStatus,
 onCreateExpense,
 onUpdateExpense,
-onDeleteExpense
+onDeleteExpense,
+onCreateHarvest,
+onUpdateHarvest,
+onDeleteHarvest
 })=>{
 
 const{t}=useTranslation();
@@ -60,6 +67,9 @@ const[deleteTaskDialogOpen,setDeleteTaskDialogOpen]=useState(false);
 const[expenseDialogOpen,setExpenseDialogOpen]=useState(false);
 const[selectedExpense,setSelectedExpense]=useState(null);
 const[deleteExpenseDialogOpen,setDeleteExpenseDialogOpen]=useState(false);
+const[harvestDialogOpen,setHarvestDialogOpen]=useState(false);
+const[selectedHarvest,setSelectedHarvest]=useState(null);
+const[deleteHarvestDialogOpen,setDeleteHarvestDialogOpen]=useState(false);
 
 const handleSubmit=data=>{
 onSubmit?.(data);
@@ -94,26 +104,16 @@ setDeleteDialogOpen(false);
 
 const handleActivitySubmit=data=>{
 if(selectedActivity){
-onUpdateActivity?.(
-project._id,
-selectedActivity._id,
-data
-);
+onUpdateActivity?.( project._id, selectedActivity._id, data );
 }else{
-onCreateActivity?.(
-project._id,
-data
-);
+onCreateActivity?.( project._id, data );
 }
 closeActivityDialog();
 };
 
 const handleDelete=()=>{
 if(selectedActivity){
-onDeleteActivity?.(
-project._id,
-selectedActivity._id
-);
+onDeleteActivity?.( project._id, selectedActivity._id );
 }
 closeDeleteDialog();
 };
@@ -147,26 +147,16 @@ setDeleteTaskDialogOpen(false);
 
 const handleTaskSubmit=data=>{
 if(selectedTask){
-onUpdateTask?.(
-project._id,
-selectedTask._id,
-data
-);
+onUpdateTask?.( project._id, selectedTask._id, data );
 }else{
-onCreateTask?.(
-project._id,
-data
-);
+onCreateTask?.( project._id, data );
 }
 closeTaskDialog();
 };
 
 const handleDeleteTask=()=>{
 if(selectedTask){
-onDeleteTask?.(
-project._id,
-selectedTask._id
-);
+onDeleteTask?.( project._id, selectedTask._id );
 }
 closeDeleteTaskDialog();
 };
@@ -200,28 +190,60 @@ setDeleteExpenseDialogOpen(false);
 
 const handleExpenseSubmit=data=>{
 if(selectedExpense){
-onUpdateExpense?.(
-project._id,
-selectedExpense._id,
-data
-);
+onUpdateExpense?.( project._id, selectedExpense._id, data );
 }else{
-onCreateExpense?.(
-project._id,
-data
-);
+onCreateExpense?.( project._id, data );
 }
 closeExpenseDialog();
 };
 
 const handleDeleteExpense=()=>{
 if(selectedExpense){
-onDeleteExpense?.(
-project._id,
-selectedExpense._id
-);
+onDeleteExpense?.( project._id, selectedExpense._id );
 }
 closeDeleteExpenseDialog();
+};
+
+const openCreateHarvest=()=>{
+setSelectedHarvest(null);
+setHarvestDialogOpen(true);
+};
+
+const openEditHarvest=harvest=>{
+setSelectedHarvest(harvest);
+setHarvestDialogOpen(true);
+};
+
+const closeHarvestDialog=()=>{
+if(loading)return;
+setSelectedHarvest(null);
+setHarvestDialogOpen(false);
+};
+
+const openDeleteHarvest=harvest=>{
+setSelectedHarvest(harvest);
+setDeleteHarvestDialogOpen(true);
+};
+const closeDeleteHarvestDialog=()=>{
+if(loading)return;
+setSelectedHarvest(null);
+setDeleteHarvestDialogOpen(false);
+};
+
+const handleHarvestSubmit=data=>{
+if(selectedHarvest){
+onUpdateHarvest?.( project._id, selectedHarvest._id, data );
+}else{
+onCreateHarvest?.( project._id, data );
+}
+closeHarvestDialog();
+};
+
+const handleDeleteHarvest=()=>{
+if(selectedHarvest){
+onDeleteHarvest?.( project._id, selectedHarvest._id );
+}
+closeDeleteHarvestDialog();
 };
 
 return(
@@ -415,14 +437,39 @@ onDelete={openDeleteExpense}
 )}
 
 {tab===4&&(
-<Box py={6} textAlign="center">
-<Typography variant="h6">
+<>
+<HarvestSummary
+project={project}
+/>
+<Divider sx={{my:3}}/>
+<Stack
+direction="row"
+justifyContent="space-between"
+alignItems="center"
+mb={2}
+>
+<Typography
+variant="h6"
+fontWeight={700}
+>
 {t('Harvests')}
 </Typography>
-<Typography color="text.secondary">
-{t('Coming in Commit 6.4')}
-</Typography>
-</Box>
+<Button
+variant="contained"
+startIcon={<AddIcon/>}
+disabled={loading}
+onClick={openCreateHarvest}
+>
+{t('Add Harvest')}
+</Button>
+</Stack>
+<HarvestList
+harvests={project?.harvests||[]}
+loading={loading}
+onEdit={openEditHarvest}
+onDelete={openDeleteHarvest}
+/>
+</>
 )}
 
 {tab===5&&(
@@ -486,6 +533,22 @@ loading={loading}
 expense={selectedExpense}
 onClose={closeDeleteExpenseDialog}
 onConfirm={handleDeleteExpense}
+/>
+
+<HarvestDialog
+open={harvestDialogOpen}
+loading={loading}
+harvest={selectedHarvest}
+onClose={closeHarvestDialog}
+onSubmit={handleHarvestSubmit}
+/>
+
+<DeleteHarvestDialog
+open={deleteHarvestDialogOpen}
+loading={loading}
+harvest={selectedHarvest}
+onClose={closeDeleteHarvestDialog}
+onConfirm={handleDeleteHarvest}
 />
 
 </>

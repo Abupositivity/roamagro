@@ -38,9 +38,9 @@ UPDATE_TASK_FAIL,
 DELETE_TASK_REQUEST,
 DELETE_TASK_SUCCESS,
 DELETE_TASK_FAIL,
-TOGGLE_TASK_STATUS_REQUEST,
-TOGGLE_TASK_STATUS_SUCCESS,
-TOGGLE_TASK_STATUS_FAIL,
+UPDATE_TASK_STATUS_REQUEST,
+UPDATE_TASK_STATUS_SUCCESS,
+UPDATE_TASK_STATUS_FAIL,
 CREATE_EXPENSE_REQUEST,
 CREATE_EXPENSE_SUCCESS,
 CREATE_EXPENSE_FAIL,
@@ -49,7 +49,16 @@ UPDATE_EXPENSE_SUCCESS,
 UPDATE_EXPENSE_FAIL,
 DELETE_EXPENSE_REQUEST,
 DELETE_EXPENSE_SUCCESS,
-DELETE_EXPENSE_FAIL
+DELETE_EXPENSE_FAIL,
+CREATE_HARVEST_REQUEST,
+CREATE_HARVEST_SUCCESS,
+CREATE_HARVEST_FAIL,
+UPDATE_HARVEST_REQUEST,
+UPDATE_HARVEST_SUCCESS,
+UPDATE_HARVEST_FAIL,
+DELETE_HARVEST_REQUEST,
+DELETE_HARVEST_SUCCESS,
+DELETE_HARVEST_FAIL
 } from './types';
 
 const getError=(error)=>
@@ -331,20 +340,20 @@ payload:error.response?.data?.message||error.message
 }
 };
 
-export const toggleTaskStatus=(projectId,taskId,status)=>async dispatch=>{
-dispatch({type:TOGGLE_TASK_STATUS_REQUEST});
+export const updateTaskStatus=(projectId,taskId,status)=>async dispatch=>{
+dispatch({type:UPDATE_TASK_STATUS_REQUEST});
 try{
 const res=await api.patch(
 `/farm-projects/${projectId}/tasks/${taskId}/status`,
 {status}
 );
 dispatch({
-type:TOGGLE_TASK_STATUS_SUCCESS,
+type:UPDATE_TASK_STATUS_SUCCESS,
 payload:res.data.data
 });
 }catch(error){
 dispatch({
-type:TOGGLE_TASK_STATUS_FAIL,
+type:UPDATE_TASK_STATUS_FAIL,
 payload:error.response?.data?.message||error.message
 });
 }
@@ -405,6 +414,70 @@ catch(error){
 dispatch({
 type:DELETE_EXPENSE_FAIL,
 payload:error.response?.data?.message||error.message
+});
+}
+};
+
+export const createHarvest=(projectId,data)=>async(dispatch)=>{
+dispatch({
+type:CREATE_HARVEST_REQUEST
+});
+try{
+const res=await farmProjectService.createHarvest(
+projectId,
+data
+);
+dispatch({
+type:CREATE_HARVEST_SUCCESS,
+payload:res.data.data
+});
+}catch(error){
+dispatch({
+type:CREATE_HARVEST_FAIL,
+payload:error.response?.data?.message
+});
+}
+};
+
+export const updateHarvest=(projectId,harvestId,data)=>async(dispatch)=>{
+dispatch({
+type:UPDATE_HARVEST_REQUEST
+});
+try{
+const res=await farmProjectService.updateHarvest(
+projectId,
+harvestId,
+data
+);
+dispatch({
+type:UPDATE_HARVEST_SUCCESS,
+payload:res.data.data
+});
+}catch(error){
+dispatch({
+type:UPDATE_HARVEST_FAIL,
+payload:error.response?.data?.message
+});
+}
+};
+
+export const deleteHarvest=(projectId,harvestId)=>async(dispatch)=>{
+dispatch({
+type:DELETE_HARVEST_REQUEST
+});
+try{
+const res=await farmProjectService.deleteHarvest(
+projectId,
+harvestId
+);
+dispatch({
+type:DELETE_HARVEST_SUCCESS,
+payload:res.data.data
+});
+}catch(error){
+dispatch({
+type:DELETE_HARVEST_FAIL,
+payload:error.response?.data?.message
 });
 }
 };
