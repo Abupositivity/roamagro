@@ -5,7 +5,6 @@ DialogTitle,
 DialogContent,
 Tabs,
 Tab,
-Box,
 Divider,
 Button,
 IconButton,
@@ -32,6 +31,10 @@ import HarvestSummary from './HarvestSummary';
 import HarvestList from './HarvestList';
 import HarvestDialog from './HarvestDialog';
 import DeleteHarvestDialog from './DeleteHarvestDialog';
+import ReminderSummary from './ReminderSummary';
+import ReminderList from './ReminderList';
+import ReminderDialog from './ReminderDialog';
+import DeleteReminderDialog from './DeleteReminderDialog';
 
 const ProjectDialog=({
 open,
@@ -52,7 +55,11 @@ onUpdateExpense,
 onDeleteExpense,
 onCreateHarvest,
 onUpdateHarvest,
-onDeleteHarvest
+onDeleteHarvest,
+onCreateReminder,
+onUpdateReminder,
+onDeleteReminder,
+onToggleReminder
 })=>{
 
 const{t}=useTranslation();
@@ -70,6 +77,9 @@ const[deleteExpenseDialogOpen,setDeleteExpenseDialogOpen]=useState(false);
 const[harvestDialogOpen,setHarvestDialogOpen]=useState(false);
 const[selectedHarvest,setSelectedHarvest]=useState(null);
 const[deleteHarvestDialogOpen,setDeleteHarvestDialogOpen]=useState(false);
+const[reminderDialogOpen,setReminderDialogOpen]=useState(false);
+const[selectedReminder,setSelectedReminder]=useState(null);
+const[deleteReminderDialogOpen,setDeleteReminderDialogOpen]=useState(false);
 
 const handleSubmit=data=>{
 onSubmit?.(data);
@@ -244,6 +254,49 @@ if(selectedHarvest){
 onDeleteHarvest?.( project._id, selectedHarvest._id );
 }
 closeDeleteHarvestDialog();
+};
+
+const openCreateReminder=()=>{
+setSelectedReminder(null);
+setReminderDialogOpen(true);
+};
+
+const openEditReminder=reminder=>{
+setSelectedReminder(reminder);
+setReminderDialogOpen(true);
+};
+
+const closeReminderDialog=()=>{
+if(loading)return;
+setSelectedReminder(null);
+setReminderDialogOpen(false);
+};
+
+const openDeleteReminder=reminder=>{
+setSelectedReminder(reminder);
+setDeleteReminderDialogOpen(true);
+};
+
+const closeDeleteReminderDialog=()=>{
+if(loading)return;
+setSelectedReminder(null);
+setDeleteReminderDialogOpen(false);
+};
+
+const handleReminderSubmit=data=>{
+if(selectedReminder){
+onUpdateReminder?.( project._id, selectedReminder._id, data );
+}else{
+onCreateReminder?.( project._id, data );
+}
+closeReminderDialog();
+};
+
+const handleDeleteReminder=()=>{
+if(selectedReminder){
+onDeleteReminder?.( project._id, selectedReminder._id );
+}
+closeDeleteReminderDialog();
 };
 
 return(
@@ -473,18 +526,48 @@ onDelete={openDeleteHarvest}
 )}
 
 {tab===5&&(
-<Box py={6} textAlign="center">
-<Typography variant="h6">
+<>
+<ReminderSummary
+project={project}
+/>
+<Divider sx={{my:3}}/>
+<Stack
+direction="row"
+justifyContent="space-between"
+alignItems="center"
+mb={2}
+>
+<Typography
+variant="h6"
+fontWeight={700}
+>
 {t('Reminders')}
 </Typography>
-<Typography color="text.secondary">
-{t('Coming in Commit 6.5')}
-</Typography>
-</Box>
+<Button
+variant="contained"
+startIcon={<AddIcon/>}
+disabled={loading}
+onClick={openCreateReminder}
+>
+{t('Add Reminder')}
+</Button>
+</Stack>
+<ReminderList
+reminders={project?.reminders||[]}
+loading={loading}
+onEdit={openEditReminder}
+onDelete={openDeleteReminder}
+onToggle={reminder=>
+onToggleReminder?.(
+project._id,
+reminder._id
+)
+}
+/>
+</>
 )}
 
 </DialogContent>
-
 </Dialog>
 
 <ActivityDialog
@@ -494,7 +577,6 @@ activity={selectedActivity}
 onClose={closeActivityDialog}
 onSubmit={handleActivitySubmit}
 />
-
 <DeleteActivityDialog
 open={deleteDialogOpen}
 loading={loading}
@@ -510,7 +592,6 @@ task={selectedTask}
 onClose={closeTaskDialog}
 onSubmit={handleTaskSubmit}
 />
-
 <DeleteTaskDialog
 open={deleteTaskDialogOpen}
 loading={loading}
@@ -526,7 +607,6 @@ expense={selectedExpense}
 onClose={closeExpenseDialog}
 onSubmit={handleExpenseSubmit}
 />
-
 <DeleteExpenseDialog
 open={deleteExpenseDialogOpen}
 loading={loading}
@@ -542,13 +622,27 @@ harvest={selectedHarvest}
 onClose={closeHarvestDialog}
 onSubmit={handleHarvestSubmit}
 />
-
 <DeleteHarvestDialog
 open={deleteHarvestDialogOpen}
 loading={loading}
 harvest={selectedHarvest}
 onClose={closeDeleteHarvestDialog}
 onConfirm={handleDeleteHarvest}
+/>
+
+<ReminderDialog
+open={reminderDialogOpen}
+loading={loading}
+reminder={selectedReminder}
+onClose={closeReminderDialog}
+onSubmit={handleReminderSubmit}
+/>
+<DeleteReminderDialog
+open={deleteReminderDialogOpen}
+loading={loading}
+reminder={selectedReminder}
+onClose={closeDeleteReminderDialog}
+onConfirm={handleDeleteReminder}
 />
 
 </>

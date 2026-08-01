@@ -30,7 +30,11 @@ updateExpense,
 deleteExpense,
 createHarvest,
 updateHarvest,
-deleteHarvest
+deleteHarvest,
+createReminder,
+updateReminder,
+deleteReminder,
+toggleReminder
 }from'../../redux/actions/farmProjectsActions';
 import ProjectList from'./ProjectList';
 import ProjectDialog from'./ProjectDialog';
@@ -203,6 +207,21 @@ dispatch(updateHarvest(projectId,harvestId,data));
 const handleDeleteHarvest=(projectId,harvestId)=>{
 dispatch(deleteHarvest(projectId,harvestId));
 };
+const handleCreateReminder=(projectId,data)=>{
+dispatch(createReminder(projectId,data));
+};
+
+const handleUpdateReminder=(projectId,reminderId,data)=>{
+dispatch(updateReminder(projectId,reminderId,data));
+};
+
+const handleDeleteReminder=(projectId,reminderId)=>{
+dispatch(deleteReminder(projectId,reminderId));
+};
+
+const handleToggleReminder=(projectId,reminderId)=>{
+dispatch(toggleReminder(projectId,reminderId));
+};
 
 return(
 <Container
@@ -281,6 +300,10 @@ onDeleteExpense={handleDeleteExpense}
 onCreateHarvest={handleCreateHarvest}
 onUpdateHarvest={handleUpdateHarvest}
 onDeleteHarvest={handleDeleteHarvest}
+onCreateReminder={handleCreateReminder}
+onUpdateReminder={handleUpdateReminder}
+onDeleteReminder={handleDeleteReminder}
+onToggleReminder={handleToggleReminder}
 />
 
 <DeleteProjectDialog

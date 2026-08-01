@@ -58,7 +58,19 @@ UPDATE_HARVEST_SUCCESS,
 UPDATE_HARVEST_FAIL,
 DELETE_HARVEST_REQUEST,
 DELETE_HARVEST_SUCCESS,
-DELETE_HARVEST_FAIL
+DELETE_HARVEST_FAIL,
+CREATE_REMINDER_REQUEST,
+CREATE_REMINDER_SUCCESS,
+CREATE_REMINDER_FAIL,
+UPDATE_REMINDER_REQUEST,
+UPDATE_REMINDER_SUCCESS,
+UPDATE_REMINDER_FAIL,
+DELETE_REMINDER_REQUEST,
+DELETE_REMINDER_SUCCESS,
+DELETE_REMINDER_FAIL,
+TOGGLE_REMINDER_REQUEST,
+TOGGLE_REMINDER_SUCCESS,
+TOGGLE_REMINDER_FAIL
 } from './types';
 
 const getError=(error)=>
@@ -477,6 +489,91 @@ payload:res.data.data
 }catch(error){
 dispatch({
 type:DELETE_HARVEST_FAIL,
+payload:error.response?.data?.message
+});
+}
+};
+
+export const createReminder=(projectId,data)=>async(dispatch)=>{
+dispatch({
+type:CREATE_REMINDER_REQUEST
+});
+try{
+const res=await farmProjectService.createReminder(
+projectId,
+data
+);
+dispatch({
+type:CREATE_REMINDER_SUCCESS,
+payload:res.data.data
+});
+}catch(error){
+dispatch({
+type:CREATE_REMINDER_FAIL,
+payload:error.response?.data?.message
+});
+}
+};
+
+export const updateReminder=(projectId,reminderId,data)=>async(dispatch)=>{
+dispatch({
+type:UPDATE_REMINDER_REQUEST
+});
+try{
+const res=await farmProjectService.updateReminder(
+projectId,
+reminderId,
+data
+);
+dispatch({
+type:UPDATE_REMINDER_SUCCESS,
+payload:res.data.data
+});
+}catch(error){
+dispatch({
+type:UPDATE_REMINDER_FAIL,
+payload:error.response?.data?.message
+});
+}
+};
+
+export const toggleReminder=(projectId,reminderId)=>async(dispatch)=>{
+dispatch({
+type:TOGGLE_REMINDER_REQUEST
+});
+try{
+const res=await farmProjectService.toggleReminder(
+projectId,
+reminderId
+);
+dispatch({
+type:TOGGLE_REMINDER_SUCCESS,
+payload:res.data.data
+});
+}catch(error){
+dispatch({
+type:TOGGLE_REMINDER_FAIL,
+payload:error.response?.data?.message
+});
+}
+};
+
+export const deleteReminder=(projectId,reminderId)=>async(dispatch)=>{
+dispatch({
+type:DELETE_REMINDER_REQUEST
+});
+try{
+const res=await farmProjectService.deleteReminder(
+projectId,
+reminderId
+);
+dispatch({
+type:DELETE_REMINDER_SUCCESS,
+payload:res.data.data
+});
+}catch(error){
+dispatch({
+type:DELETE_REMINDER_FAIL,
 payload:error.response?.data?.message
 });
 }

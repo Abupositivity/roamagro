@@ -67,6 +67,22 @@ deleteHarvest(projectId,harvestId){
 return api.delete(`/farm-projects/${projectId}/harvests/${harvestId}`);
 },
 
+createReminder(projectId,data){
+return api.post(`/farm-projects/${projectId}/reminders`,data);
+},
+
+updateReminder(projectId,reminderId,data){
+return api.put(`/farm-projects/${projectId}/reminders/${reminderId}`,data);
+},
+
+toggleReminder(projectId,reminderId){
+return api.patch(`/farm-projects/${projectId}/reminders/${reminderId}/toggle`);
+},
+
+deleteReminder(projectId,reminderId){
+return api.delete(`/farm-projects/${projectId}/reminders/${reminderId}`);
+},
+
 };
 
 export default farmProjectService;
