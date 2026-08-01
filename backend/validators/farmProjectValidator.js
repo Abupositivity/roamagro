@@ -523,7 +523,6 @@ param('taskId')
 /**
  * Harvest Validators
  */
-
 exports.createHarvestValidator=[
 body('crop')
 .trim()
@@ -577,4 +576,58 @@ param('id')
 param('harvestId')
 .isMongoId()
 .withMessage('Invalid harvest ID.')
+];
+
+/**
+ * Reminder Validators
+ */
+exports.createReminderValidator=[
+body('title')
+.trim()
+.notEmpty()
+.withMessage('Reminder title is required.')
+.bail()
+.isLength({max:150})
+.withMessage('Reminder title cannot exceed 150 characters.'),
+body('reminderDate')
+.notEmpty()
+.withMessage('Reminder date is required.')
+.bail()
+.isISO8601()
+.withMessage('Invalid reminder date.'),
+body('completed')
+.optional()
+.isBoolean()
+.withMessage('Completed must be true or false.')
+];
+
+exports.updateReminderValidator=[
+param('id')
+.isMongoId()
+.withMessage('Invalid project ID.'),
+param('reminderId')
+.isMongoId()
+.withMessage('Invalid reminder ID.'),
+body('title')
+.optional()
+.trim()
+.isLength({max:150})
+.withMessage('Reminder title cannot exceed 150 characters.'),
+body('reminderDate')
+.optional()
+.isISO8601()
+.withMessage('Invalid reminder date.'),
+body('completed')
+.optional()
+.isBoolean()
+.withMessage('Completed must be true or false.')
+];
+
+exports.reminderIdValidator=[
+param('id')
+.isMongoId()
+.withMessage('Invalid project ID.'),
+param('reminderId')
+.isMongoId()
+.withMessage('Invalid reminder ID.')
 ];

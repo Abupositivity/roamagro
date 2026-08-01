@@ -23,7 +23,11 @@ updateExpense,
 deleteExpense,
 createHarvest,
 updateHarvest,
-deleteHarvest
+deleteHarvest,
+createReminder,
+updateReminder,
+deleteReminder,
+toggleReminderCompletion
 }=require('../controllers/farmProjectController');
 
 const{
@@ -43,7 +47,10 @@ updateExpenseValidator,
 expenseIdValidator,
 createHarvestValidator,
 updateHarvestValidator,
-harvestIdValidator
+harvestIdValidator,
+createReminderValidator,
+updateReminderValidator,
+reminderIdValidator
 }=require('../validators/farmProjectValidator');
 
 /*
@@ -226,6 +233,44 @@ ensureAuthenticated,
 harvestIdValidator,
 validateRequest,
 deleteHarvest
+);
+
+/*
+|--------------------------------------------------------------------------
+| Reminders
+|--------------------------------------------------------------------------
+*/
+
+router.post(
+'/:id/reminders',
+ensureAuthenticated,
+createReminderValidator,
+validateRequest,
+createReminder
+);
+
+router.put(
+'/:id/reminders/:reminderId',
+ensureAuthenticated,
+updateReminderValidator,
+validateRequest,
+updateReminder
+);
+
+router.patch(
+'/:id/reminders/:reminderId/toggle',
+ensureAuthenticated,
+reminderIdValidator,
+validateRequest,
+toggleReminderCompletion
+);
+
+router.delete(
+'/:id/reminders/:reminderId',
+ensureAuthenticated,
+reminderIdValidator,
+validateRequest,
+deleteReminder
 );
 
 module.exports=router;

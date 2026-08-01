@@ -790,3 +790,133 @@ message:'Harvest deleted successfully.',
 data:project
 });
 });
+
+/*
+|--------------------------------------------------------------------------
+| Create Reminder
+|--------------------------------------------------------------------------
+*/
+exports.createReminder=asyncHandler(async(req,res)=>{
+const project=await FarmProject.findOne({
+_id:req.params.id,
+user:req.user._id
+});
+if(!project){
+return res.status(404).json({
+success:false,
+message:'Farm project not found.'
+});
+}
+project.reminders.push(req.body);
+await project.save();
+res.status(201).json({
+success:true,
+message:'Reminder created successfully.',
+data:project
+});
+});
+
+/*
+|--------------------------------------------------------------------------
+| Update Reminder
+|--------------------------------------------------------------------------
+*/
+exports.updateReminder=asyncHandler(async(req,res)=>{
+const project=await FarmProject.findOne({
+_id:req.params.id,
+user:req.user._id
+});
+if(!project){
+return res.status(404).json({
+success:false,
+message:'Farm project not found.'
+});
+}
+const reminder=project.reminders.id(
+req.params.reminderId
+);
+if(!reminder){
+return res.status(404).json({
+success:false,
+message:'Reminder not found.'
+});
+}
+Object.assign(
+reminder,
+req.body
+);
+await project.save();
+res.status(200).json({
+success:true,
+message:'Reminder updated successfully.',
+data:project
+});
+});
+
+/*
+|--------------------------------------------------------------------------
+| Delete Reminder
+|--------------------------------------------------------------------------
+*/
+exports.deleteReminder=asyncHandler(async(req,res)=>{
+const project=await FarmProject.findOne({
+_id:req.params.id,
+user:req.user._id
+});
+if(!project){
+return res.status(404).json({
+success:false,
+message:'Farm project not found.'
+});
+}
+const reminder=project.reminders.id(
+req.params.reminderId
+);
+if(!reminder){
+return res.status(404).json({
+success:false,
+message:'Reminder not found.'
+});
+}
+reminder.deleteOne();
+await project.save();
+res.status(200).json({
+success:true,
+message:'Reminder deleted successfully.',
+data:project
+});
+});
+
+/*
+|--------------------------------------------------------------------------
+| Toggle Reminder
+|--------------------------------------------------------------------------
+*/
+exports.toggleReminderCompletion=asyncHandler(async(req,res)=>{
+const project=await FarmProject.findOne({
+_id:req.params.id,
+user:req.user._id
+});
+if(!project){
+return res.status(404).json({
+success:false,
+message:'Farm project not found.'
+});
+}
+const reminder=project.reminders.id(
+req.params.reminderId
+);
+if(!reminder){
+return res.status(404).json({
+success:false,
+message:'Reminder not found.'
+});
+}
+reminder.completed=!reminder.completed;
+await project.save();
+res.status(200).json({
+success:true,
+message:'Reminder updated successfully.',
+data:project
+});
+});
