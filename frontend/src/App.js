@@ -31,6 +31,7 @@ import Marketplace from './components/marketplace/Marketplace';
 import PriceIndex from './components/priceIndex/PriceIndex';
 import Community from './components/community/Community';
 import FarmProject from './components/farmProjects/FarmProject';
+import FinancialDashboard from './components/financial/FinancialDashboard';
 // Layout
 import PageLayout from './components/layout/PageLayout';
 // Shared Components
@@ -127,6 +128,16 @@ const AppContent = () => {
             <ProtectedRoute>
               <PageLayout>
                 <FarmProject />
+              </PageLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/financial"
+          element={
+            <ProtectedRoute>
+              <PageLayout>
+                <FinancialDashboard />
               </PageLayout>
             </ProtectedRoute>
           }

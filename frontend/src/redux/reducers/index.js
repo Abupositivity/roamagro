@@ -6,6 +6,7 @@ import farmProjectsReducer from './farmProjectsReducer';
 import marketplaceReducer from './marketplaceReducer';
 import communityReducer from './communityReducer';
 import priceIndexReducer from './priceIndexReducer';
+import financialReducer from './financialReducer';
 
 const rootReducer = combineReducers({
     auth: authReducer,
@@ -14,6 +15,7 @@ const rootReducer = combineReducers({
     marketplace: marketplaceReducer,
     community: communityReducer,
     priceIndex: priceIndexReducer,
+    financial:financialReducer
 });
 
 export default rootReducer;

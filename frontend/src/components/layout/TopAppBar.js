@@ -15,6 +15,7 @@ import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import SettingsIcon from '@mui/icons-material/Settings';
 import LogoutIcon from '@mui/icons-material/Logout';
+import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -125,6 +126,18 @@ const TopAppBar = () => {
                         }}
                     >
                         {t('Profile')}
+                    </MenuItem>
+                    <MenuItem
+                        onClick={() => {
+                            navigate('/financial');
+                            handleClose();
+                        }}
+                    >
+                        <AccountBalanceWalletIcon
+                            fontSize="small"
+                            sx={{ mr: 1 }}
+                        />
+                        {t('Financial Tracking')}
                     </MenuItem>
                     <MenuItem
                         onClick={() => {
