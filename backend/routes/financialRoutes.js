@@ -5,7 +5,8 @@ const ensureAuthenticated=require('../middleware/ensureAuthenticated');
 const{
 getFinancialDashboard,
 getExpenseBreakdown,
-getProjectProfitability
+getProjectProfitability,
+getMonthlyCashFlow
 }=require('../controllers/financialController');
 
 /*
