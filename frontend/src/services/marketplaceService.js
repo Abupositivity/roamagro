@@ -1,12 +1,20 @@
 import api from './api';
 
-const marketplaceService = {
-
-    getListings() {
+const marketplaceService={
+    getListings(){
         return api.get('/marketplace');
     },
-    createListing(data) {
-        return api.post('/marketplace', data);
+    getListing(id){
+        return api.get(`/marketplace/${id}`);
+    },
+    createListing(data){
+        return api.post('/marketplace',data);
+    },
+    updateListing(id,data){
+        return api.put(`/marketplace/${id}`,data);
+    },
+    deleteListing(id){
+        return api.delete(`/marketplace/${id}`);
     }
 };
 

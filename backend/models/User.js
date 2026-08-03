@@ -49,6 +49,11 @@ const UserSchema = new mongoose.Schema(
         default: ''
     },
 
+    location: {
+        type:String,
+        default: ''
+    },
+
     lga: {
         type: String,
         default: ''

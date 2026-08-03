@@ -28,7 +28,7 @@ exports.createMarketplaceItem = asyncHandler(async (req, res) => {
 exports.getMarketplaceItems = asyncHandler(async (req, res) => {
 
     const items = await MarketplaceItem.find()
-        .populate('user', 'name profilePhoto')
+        .populate('user', 'name phone location profilePhoto')
         .sort({ createdAt: -1 });
 
     res.status(200).json({
@@ -46,7 +46,7 @@ exports.getMarketplaceItems = asyncHandler(async (req, res) => {
 exports.getMarketplaceItem=asyncHandler(async(req,res)=>{
 const item=await MarketplaceItem
 .findById(req.params.id)
-.populate('user','name profilePhoto');
+.populate('user','name phone location profilePhoto');
 if(!item){
 return res.status(404).json({
 success:false,

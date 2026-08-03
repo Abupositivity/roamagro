@@ -1,388 +1,295 @@
-import React, { useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import {
-    fetchListings,
-    createListing,
-} from '../../redux/actions/marketplaceActions';
-
-import { useTranslation } from 'react-i18next';
-
-import {
-    Alert,
-    Box,
-    Button,
-    Card,
-    CardContent,
-    CircularProgress,
-    Container,
-    FormControl,
-    Grid,
-    InputLabel,
-    MenuItem,
-    Paper,
-    Select,
-    Snackbar,
-    Stack,
-    TextField,
-    Typography,
-} from '@mui/material';
-
-const Marketplace = () => {
-
-    const { t } = useTranslation();
-    const dispatch = useDispatch();
-
-    const {
-        listings,
-        loading,
-        success,
-        error,
-    } = useSelector((state) => state.marketplace);
-
-    const [snackbarOpen, setSnackbarOpen] = useState(false);
-
-    const [formData, setFormData] = useState({
-        title: '',
-        description: '',
-        category: '',
-        price: '',
-        quantity: '',
-        unit: 'Bag',
-        location: '',
-    });
-
-    useEffect(() => {
-        dispatch(fetchListings());
-    }, [dispatch]);
-
-    useEffect(() => {
-        if (success) {
-            setSnackbarOpen(true);
-        }
-    }, [success]);
-
-    const handleChange = (e) => {
-        setFormData((prev) => ({
-            ...prev,
-            [e.target.name]: e.target.value,
-        }));
-    };
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-
-        if (
-            !formData.title ||
-            !formData.description ||
-            !formData.category ||
-            !formData.price
-        ) {
-            return;
-        }
-
-        dispatch(createListing(formData));
-
-        setFormData({
-            title: '',
-            description: '',
-            category: '',
-            price: '',
-            quantity: '',
-            unit: 'Bag',
-            location: '',
-        });
-    };
-
-    return (
-        <Container
-            maxWidth="lg"
-            sx={{
-                py: 3,
-                pb: 12,
-            }}
-        >
-            <Typography
-                variant="h4"
-                fontWeight={700}
-                gutterBottom
-            >
-                {t('Marketplace')}
-            </Typography>
-
-            <Paper
-                elevation={3}
-                sx={{
-                    p: 3,
-                    mb: 4,
-                    borderRadius: 3,
-                }}
-            >
-                <Typography
-                    variant="h6"
-                    gutterBottom
-                >
-                    {t('Create New Listing')}
-                </Typography>
-
-                <Box
-                    component="form"
-                    onSubmit={handleSubmit}
-                >
-
-                    <Stack spacing={2}>
-
-                        <TextField
-                            label={t('Title')}
-                            name="title"
-                            value={formData.title}
-                            onChange={handleChange}
-                            fullWidth
-                            required
-                        />
-
-                        <TextField
-                            label={t('Description')}
-                            name="description"
-                            value={formData.description}
-                            onChange={handleChange}
-                            multiline
-                            rows={4}
-                            fullWidth
-                            required
-                        />
-
-                        <FormControl fullWidth required>
-                            <InputLabel>
-                                {t('Category')}
-                            </InputLabel>
-
-                            <Select
-                                label={t('Category')}
-                                name="category"
-                                value={formData.category}
-                                onChange={handleChange}
-                            >
-                                <MenuItem value="produce">
-                                    {t('Agro Produce')}
-                                </MenuItem>
-
-                                <MenuItem value="livestock">
-                                    {t('Livestock')}
-                                </MenuItem>
-
-                                <MenuItem value="equipment">
-                                    {t('Farm Equipment')}
-                                </MenuItem>
-
-                                <MenuItem value="services">
-                                    {t('Farm Services')}
-                                </MenuItem>
-
-                                <MenuItem value="land">
-                                    {t('Farmland')}
-                                </MenuItem>
-                            </Select>
-
-                        </FormControl>
-
-                        <Grid container spacing={2}>
-
-                            <Grid item xs={12} md={4}>
-
-                                <TextField
-                                    label={t('Price')}
-                                    name="price"
-                                    type="number"
-                                    value={formData.price}
-                                    onChange={handleChange}
-                                    fullWidth
-                                    required
-                                />
-
-                            </Grid>
-
-                            <Grid item xs={12} md={4}>
-
-                                <TextField
-                                    label={t('Quantity')}
-                                    name="quantity"
-                                    type="number"
-                                    value={formData.quantity}
-                                    onChange={handleChange}
-                                    fullWidth
-                                />
-
-                            </Grid>
-
-                            <Grid item xs={12} md={4}>
-
-                                <TextField
-                                    label={t('Unit')}
-                                    name="unit"
-                                    value={formData.unit}
-                                    onChange={handleChange}
-                                    fullWidth
-                                />
-
-                            </Grid>
-
-                        </Grid>
-
-                        <TextField
-                            label={t('Location')}
-                            name="location"
-                            value={formData.location}
-                            onChange={handleChange}
-                            fullWidth
-                        />
-
-                        <Button
-                            type="submit"
-                            variant="contained"
-                            size="large"
-                            disabled={loading}
-                        >
-                            {loading
-                                ? t('Submitting...')
-                                : t('Create Listing')}
-                        </Button>
-
-                    </Stack>
-
-                </Box>
-            </Paper>
-
-            {loading && (
-                <Box
-                    display="flex"
-                    justifyContent="center"
-                    py={5}
-                >
-                    <CircularProgress />
-                </Box>
-            )}
-
-            {!loading && listings.length === 0 && (
-
-                <Paper sx={{ p: 4 }}>
-
-                    <Typography align="center">
-
-                        {t('No marketplace listings yet.')}
-
-                    </Typography>
-
-                </Paper>
-
-            )}
-
-            <Grid container spacing={3}>
-
-                {listings.map((listing) => (
-
-                    <Grid
-                        item
-                        xs={12}
-                        sm={6}
-                        md={4}
-                        key={listing._id}
-                    >
-
-                        <Card
-                            sx={{
-                                height: '100%',
-                                borderRadius: 3,
-                            }}
-                        >
-
-                            <CardContent>
-
-                                <Typography
-                                    variant="h6"
-                                    gutterBottom
-                                >
-                                    {listing.title}
-                                </Typography>
-
-                                <Typography
-                                    color="text.secondary"
-                                    gutterBottom
-                                >
-                                    {listing.category}
-                                </Typography>
-
-                                <Typography
-                                    sx={{ mb: 2 }}
-                                >
-                                    {listing.description}
-                                </Typography>
-
-                                <Typography fontWeight={700}>
-                                    ₦{Number(listing.price).toLocaleString()}
-                                </Typography>
-
-                                <Typography variant="body2">
-                                    {listing.quantity} {listing.unit}
-                                </Typography>
-
-                                <Typography
-                                    variant="body2"
-                                    color="text.secondary"
-                                >
-                                    📍 {listing.location}
-                                </Typography>
-
-                                {listing.user && (
-
-                                    <Typography
-                                        variant="caption"
-                                        display="block"
-                                        sx={{ mt: 1 }}
-                                    >
-                                        {t('Seller')}:
-                                        {' '}
-                                        {listing.user.name}
-                                    </Typography>
-
-                                )}
-
-                            </CardContent>
-
-                        </Card>
-
-                    </Grid>
-
-                ))}
-
-            </Grid>
-
-            <Snackbar
-                open={snackbarOpen}
-                autoHideDuration={3000}
-                onClose={() => setSnackbarOpen(false)}
-            >
-                <Alert
-                    severity="success"
-                    variant="filled"
-                    onClose={() => setSnackbarOpen(false)}
-                >
-                    {t('Listing created successfully!')}
-                </Alert>
-            </Snackbar>
-
-            {error && (
-
-                <Alert
-                    severity="error"
-                    sx={{ mt: 3 }}
-                >
-                    {error}
-                </Alert>
-
-            )}
-
-        </Container>
-    );
+import React,{useEffect,useState}from'react';
+import {useDispatch,useSelector}from'react-redux';
+import {useTranslation}from'react-i18next';
+
+import{
+Container,
+Typography,
+Box,
+Button,
+Alert,
+CircularProgress,
+FormControlLabel,
+Switch
+}from'@mui/material';
+
+import AddIcon from'@mui/icons-material/Add';
+
+import{
+fetchListings,
+createListing,
+updateListing,
+deleteListing
+}from'../../redux/actions/marketplaceActions';
+
+import MarketplaceGrid from'./MarketplaceGrid';
+import MarketplaceDialog from'./MarketplaceDialog';
+import DeleteMarketplaceDialog from'./DeleteMarketplaceDialog';
+import MarketplaceSearchBar from './MarketplaceSearchBar';
+import CategoryFilter from './CategoryFilter';
+import MarketplaceSummaryCards from './MarketplaceSummaryCards';
+import AvailabilityFilter from './AvailabilityFilter';
+
+const Marketplace=()=>{
+const{t}=useTranslation();
+const dispatch=useDispatch();
+
+const{
+listings,
+loading,
+error
+}=useSelector(state=>state.marketplace);
+
+const{user}=useSelector(state=>state.auth);
+
+const[dialogOpen,setDialogOpen]=useState(false);
+const[selectedListing,setSelectedListing]=useState(null);
+const[deleteDialogOpen,setDeleteDialogOpen]=useState(false);
+const[search,setSearch]=useState('');
+const[selectedCategory,setSelectedCategory]=useState('All');
+const[showMine,setShowMine]=useState(false);
+const[availability,setAvailability]=useState('All');
+
+useEffect(()=>{
+dispatch(fetchListings());
+},[dispatch]);
+
+const filteredListings=(listings||[]).filter(listing=>{
+const keyword=search.toLowerCase();
+const matchesSearch=
+(listing.title||'').toLowerCase().includes(keyword)||
+(listing.location||'').toLowerCase().includes(keyword)||
+(listing.category||'').toLowerCase().includes(keyword);
+
+const matchesCategory=
+selectedCategory==='All'||
+listing.category===selectedCategory;
+
+const matchesAvailability=
+availability==='All'
+||
+(availability==='Available'&&listing.available)
+
+||
+(availability==='Sold'&&!listing.available);
+
+const matchesOwner=
+!showMine||
+listing.user?._id===user?._id;
+
+return matchesSearch&&matchesCategory&&matchesAvailability&&matchesOwner;
+});
+
+/*
+|--------------------------------------------------------------------------
+| Create Listing
+|--------------------------------------------------------------------------
+*/
+const handleCreate=()=>{
+setSelectedListing(null);
+setDialogOpen(true);
+};
+
+/*
+|--------------------------------------------------------------------------
+| Edit Listing
+|--------------------------------------------------------------------------
+*/
+const handleEditListing=listing=>{
+setSelectedListing(listing);
+setDialogOpen(true)
+};
+
+/*
+|--------------------------------------------------------------------------
+| Close Dialog
+|--------------------------------------------------------------------------
+*/
+const handleCloseDialog=()=>{
+if(loading)return;
+setSelectedListing(null);
+setDialogOpen(false);
+};
+
+/*
+|--------------------------------------------------------------------------
+| Delete Listing
+|--------------------------------------------------------------------------
+*/
+const handleDeleteListing=listing=>{
+setSelectedListing(listing);
+setDeleteDialogOpen(true);
+};
+const handleCloseDeleteDialog=()=>{
+if(loading)return;
+setSelectedListing(null);
+setDeleteDialogOpen(false);
+};
+
+/*
+|--------------------------------------------------------------------------
+| Submit/ save
+|--------------------------------------------------------------------------
+*/
+const handleSubmit=data=>{
+if(selectedListing){
+dispatch(
+updateListing(
+selectedListing._id,
+data
+)
+);
+}else{
+dispatch(
+createListing(data)
+);
+}
+handleCloseDialog();
+};
+
+/*
+|--------------------------------------------------------------------------
+| Confirm Delete
+|--------------------------------------------------------------------------
+*/
+const handleDelete=()=>{
+if(selectedListing){
+dispatch(
+deleteListing(
+selectedListing._id
+)
+);
+}
+handleCloseDeleteDialog();
+};
+
+const handleToggleAvailability=listing=>{
+dispatch(
+updateListing(
+listing._id,
+{
+available:!listing.available
+}
+)
+);
+};
+
+return(
+<Container
+maxWidth="xl"
+sx={{
+py:3,
+pb:10
+}}
+>
+<Box
+display="flex"
+justifyContent="space-between"
+alignItems="center"
+mb={4}
+flexWrap="wrap"
+gap={2}
+>
+<Box>
+<Typography
+variant="h4"
+fontWeight={700}
+>
+{t('Marketplace')}
+</Typography>
+<Typography
+variant="body1"
+color="text.secondary"
+>
+{t('Buy and sell agricultural products.')}
+</Typography>
+</Box>
+<Button
+variant="contained"
+startIcon={<AddIcon/>}
+onClick={handleCreate}
+>
+{t('Create Listing')}
+</Button>
+</Box>
+
+<MarketplaceSearchBar
+value={search}
+onChange={setSearch}
+/>
+
+<MarketplaceSummaryCards
+listings={filteredListings}
+/>
+
+<CategoryFilter
+selected={selectedCategory}
+onChange={setSelectedCategory}
+/>
+
+<AvailabilityFilter
+value={availability}
+onChange={setAvailability}
+/>
+
+<FormControlLabel
+control={
+<Switch
+checked={showMine}
+onChange={e=>setShowMine(e.target.checked)}
+/>
+}
+label={t('Show My Listings')}
+sx={{mb:3}}
+/>
+
+{loading&&(
+<Box
+display="flex"
+justifyContent="center"
+py={6}
+>
+<CircularProgress/>
+</Box>
+)}
+{error&&(
+<Alert
+severity="error"
+sx={{mb:3}}
+>
+{error}
+</Alert>
+)}
+
+{!loading&&(
+<MarketplaceGrid
+listings={filteredListings}
+loading={loading}
+error={error}
+onEdit={handleEditListing}
+onDelete={handleDeleteListing}
+onToggleAvailability={handleToggleAvailability}
+onCreate={handleCreate}
+/>
+)}
+
+<MarketplaceDialog
+open={dialogOpen}
+loading={loading}
+listing={selectedListing}
+onClose={handleCloseDialog}
+onSubmit={handleSubmit}
+/>
+
+<DeleteMarketplaceDialog
+open={deleteDialogOpen}
+loading={loading}
+listing={selectedListing}
+onClose={handleCloseDeleteDialog}
+onConfirm={handleDelete}
+/>
+</Container>
+);
 };
 
 export default Marketplace;
