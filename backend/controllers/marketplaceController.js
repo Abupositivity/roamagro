@@ -72,12 +72,6 @@ success:false,
 message:'Marketplace listing not found.'
 });
 }
-if(item.user.toString()!==req.user._id.toString()){
-return res.status(403).json({
-success:false,
-message:'Not authorized.'
-});
-}
 Object.assign(item,req.body);
 await item.save();
 res.status(200).json({
@@ -98,12 +92,6 @@ if(!item){
 return res.status(404).json({
 success:false,
 message:'Marketplace listing not found.'
-});
-}
-if(item.user.toString()!==req.user._id.toString()){
-return res.status(403).json({
-success:false,
-message:'Not authorized.'
 });
 }
 await item.deleteOne();
