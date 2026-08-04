@@ -4,12 +4,19 @@ import {
     fetchPriceIndex,
     submitPrice,
 } from '../../redux/actions/priceIndexActions';
+import {
+    fetchPriceAlerts,
+    createPriceAlert,
+    deletePriceAlert,
+} from '../../redux/actions/priceAlertActions';
+
 import { useTranslation } from 'react-i18next';
 
 import {
     Container,
     Typography,
     Alert,
+    Box,
 } from '@mui/material';
 
 import PriceSummaryCards from './PriceSummaryCards';
@@ -20,6 +27,8 @@ import CategoryFilter from './CategoryFilter';
 import LocationFilter from './LocationFilter';
 import RecentPrices from './RecentPrices';
 import MarketComparison from './MarketComparison';
+import PriceAlertForm from './PriceAlertForm';
+import PriceAlertList from './PriceAlertList';
 
 const PriceIndex = () => {
 
@@ -32,6 +41,13 @@ const PriceIndex = () => {
         error,
     } = useSelector(
         (state) => state.priceIndex
+    );
+
+    const {
+        alerts,
+        loading: alertsLoading,
+    } = useSelector(
+        state => state.priceAlerts
     );
 
     const [search, setSearch] = useState('');
@@ -49,6 +65,7 @@ const PriceIndex = () => {
 
     useEffect(() => {
         dispatch(fetchPriceIndex());
+        dispatch(fetchPriceAlerts());
     }, [dispatch]);
 
     const handleChange = (e) => {
@@ -69,7 +86,10 @@ const PriceIndex = () => {
             return;
         }
 
-        dispatch(submitPrice(newPrice));
+        dispatch(submitPrice(newPrice))
+            .then(() => {
+                dispatch(fetchPriceIndex());
+            });
 
         setNewPrice({
             product: '',
@@ -78,6 +98,21 @@ const PriceIndex = () => {
             unit: 'Bag',
             location: '',
             market: '',
+        });
+    };
+
+    const handleCreateAlert = (data) => {
+    dispatch(createPriceAlert(data))
+        .then(() => {
+            dispatch(fetchPriceAlerts());
+        });
+    };
+
+    const handleDeleteAlert = (id) => {
+    dispatch(deletePriceAlert(id))
+        .then(() => {
+
+            dispatch(fetchPriceAlerts());
         });
     };
 
@@ -103,7 +138,8 @@ const PriceIndex = () => {
         [priceIndex]
     );
 
-    const filteredPrices = priceIndex.filter((entry) => {
+    const filteredPrices = useMemo(() => {
+        return priceIndex.filter((entry) => {
 
         const keyword = search.toLowerCase();
 
@@ -129,7 +165,8 @@ const PriceIndex = () => {
             matchesCategory &&
             matchesLocation
         );
-    });
+        });
+    }, [priceIndex, search, selectedCategory, selectedLocation]);
 
     return (
         <Container
@@ -163,39 +200,75 @@ const PriceIndex = () => {
                     {error}
                 </Alert>
             )}
+            <Box my={3}>
             <PriceSummaryCards
                 prices={filteredPrices}
             />
+            </Box>
+            <Box my={3}>
             <PriceTrendSummary
                 prices={filteredPrices}
             />
+            </Box>
+            <Box my={3}>
             <PriceSearchBar
                 search={search}
                 onSearchChange={setSearch}
             />
+            </Box>
+            <Box my={3}>
             <CategoryFilter
                 categories={categories}
                 value={selectedCategory}
                 onChange={setSelectedCategory}
             />
+            </Box>
+            <Box my={3}>
             <LocationFilter
                 locations={locations}
                 value={selectedLocation}
                 onChange={setSelectedLocation}
             />
+            </Box>
+            <Box my={3}>
+            <MarketComparison
+                prices={filteredPrices}
+            />
+            </Box>
+            <Box my={3}>
             <PriceForm
                 newPrice={newPrice}
                 loading={loading}
                 onChange={handleChange}
                 onSubmit={handleSubmit}
             />
+            </Box>
+            <Typography
+                variant="h5"
+                fontWeight={700}
+                mt={4}
+                mb={2}
+            >
+                {t("Price Alerts")}
+            </Typography>
+            <Box my={3}>
+            <PriceAlertForm
+                loading={alertsLoading}
+                onSubmit={handleCreateAlert}
+            />
+            </Box>
+            <Box my={3}>
+            <PriceAlertList
+                alerts={alerts || []}
+                onDelete={handleDeleteAlert}
+            />
+            </Box>
+            <Box my={3}>
             <RecentPrices
                 prices={filteredPrices}
                 loading={loading}
             />
-            <MarketComparison
-                prices={filteredPrices}
-            />
+            </Box>
         </Container>
     );
 };
