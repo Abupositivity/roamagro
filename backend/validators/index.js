@@ -4,4 +4,5 @@ module.exports = {
     ...require('./marketplaceValidator'),
     ...require('./communityValidator'),
     ...require('./priceIndexValidator'),
+    ...require('./priceAlertValidator'),
 };

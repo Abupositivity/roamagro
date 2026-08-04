@@ -135,6 +135,7 @@ const priceIndexRoutes = require('./routes/priceIndexRoutes');
 const communityRoutes = require('./routes/communityRoutes');
 const agriFeedRoutes = require('./routes/agriFeedRoutes');
 const financialRoutes=require('./routes/financialRoutes');
+const priceAlertRoutes = require('./routes/priceAlertRoutes');
 
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/dashboard', dashboardRoutes);
@@ -142,6 +143,7 @@ app.use('/api/v1/farm-projects', farmProjectRoutes);
 app.use('/api/v1/marketplace', marketplaceRoutes);
 app.use('/api/v1/price-index', priceIndexRoutes);
 app.use('/api/v1/financial', financialRoutes);
+app.use('/api/v1/price-alerts', priceAlertRoutes);
 app.use('/api/v1/community', communityRoutes);
 app.use('/api/v1/feed', agriFeedRoutes);
 
