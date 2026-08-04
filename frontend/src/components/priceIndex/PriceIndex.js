@@ -29,6 +29,7 @@ import RecentPrices from './RecentPrices';
 import MarketComparison from './MarketComparison';
 import PriceAlertForm from './PriceAlertForm';
 import PriceAlertList from './PriceAlertList';
+import PriceInsights from './PriceInsights';
 
 const PriceIndex = () => {
 
@@ -232,6 +233,11 @@ const PriceIndex = () => {
             </Box>
             <Box my={3}>
             <MarketComparison
+                prices={filteredPrices}
+            />
+            </Box>
+            <Box my={3}>
+            <PriceInsights
                 prices={filteredPrices}
             />
             </Box>
