@@ -26,7 +26,9 @@ exports.createMarketplaceValidator = [
         .withMessage('Price is required.')
         .bail()
         .isNumeric()
-        .withMessage('Price must be a valid number.'),
+        .withMessage('Price must be a valid number.')
+        .isFloat({min:1})
+        .withMessage('Price must be greater than zero.'),
     body('quantity')
         .optional()
         .isInt({ min: 1 })

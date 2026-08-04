@@ -1,26 +1,28 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
     fetchPriceIndex,
-    updatePriceIndex,
+    submitPrice,
 } from '../../redux/actions/priceIndexActions';
-
 import { useTranslation } from 'react-i18next';
 
 import {
     Container,
-    Grid,
-    Paper,
     Typography,
-    TextField,
-    Button,
-    Stack,
-    CircularProgress,
     Alert,
-    Divider,
 } from '@mui/material';
 
+import PriceSummaryCards from './PriceSummaryCards';
+import PriceTrendSummary from './PriceTrendSummary';
+import PriceForm from './PriceForm';
+import PriceSearchBar from './PriceSearchBar';
+import CategoryFilter from './CategoryFilter';
+import LocationFilter from './LocationFilter';
+import RecentPrices from './RecentPrices';
+import MarketComparison from './MarketComparison';
+
 const PriceIndex = () => {
+
     const { t } = useTranslation();
     const dispatch = useDispatch();
 
@@ -28,7 +30,13 @@ const PriceIndex = () => {
         priceIndex,
         loading,
         error,
-    } = useSelector((state) => state.priceIndex);
+    } = useSelector(
+        (state) => state.priceIndex
+    );
+
+    const [search, setSearch] = useState('');
+    const [selectedCategory, setSelectedCategory] = useState('All');
+    const [selectedLocation, setSelectedLocation] = useState('All');
 
     const [newPrice, setNewPrice] = useState({
         product: '',
@@ -61,7 +69,7 @@ const PriceIndex = () => {
             return;
         }
 
-        dispatch(updatePriceIndex(newPrice));
+        dispatch(submitPrice(newPrice));
 
         setNewPrice({
             product: '',
@@ -73,18 +81,71 @@ const PriceIndex = () => {
         });
     };
 
+    const categories = useMemo(
+        () => [
+            ...new Set(
+                priceIndex
+                    .map(item => item.category)
+                    .filter(Boolean)
+            ),
+        ],
+        [priceIndex]
+    );
+
+    const locations = useMemo(
+        () => [
+            ...new Set(
+                priceIndex
+                    .map(item => item.location)
+                    .filter(Boolean)
+            ),
+        ],
+        [priceIndex]
+    );
+
+    const filteredPrices = priceIndex.filter((entry) => {
+
+        const keyword = search.toLowerCase();
+
+        const matchesSearch =
+            (entry.product || '')
+                .toLowerCase()
+                .includes(keyword) ||
+            (entry.location || '')
+                .toLowerCase()
+                .includes(keyword) ||
+            (entry.market || '')
+                .toLowerCase()
+                .includes(keyword);
+        const matchesCategory =
+            selectedCategory === 'All' ||
+            entry.category === selectedCategory;
+
+        const matchesLocation =
+            selectedLocation === 'All' ||
+            entry.location === selectedLocation;
+        return (
+            matchesSearch &&
+            matchesCategory &&
+            matchesLocation
+        );
+    });
+
     return (
         <Container
             maxWidth="lg"
             sx={{
                 py: 3,
-                pb: 12, // Prevent Bottom Navigation overlap
+                pb: 12,
             }}
         >
-            <Typography variant="h4" fontWeight={700} gutterBottom>
+            <Typography
+                variant="h4"
+                fontWeight={700}
+                gutterBottom
+            >
                 {t('Local Price Index')}
             </Typography>
-
             <Typography
                 variant="body2"
                 color="text.secondary"
@@ -94,201 +155,47 @@ const PriceIndex = () => {
                     'Help other farmers by sharing current market prices in your area.'
                 )}
             </Typography>
-
             {error && (
-                <Alert severity="error" sx={{ mb: 2 }}>
+                <Alert
+                    severity="error"
+                    sx={{ mb: 3 }}
+                >
                     {error}
                 </Alert>
             )}
-
-            <Paper
-                elevation={2}
-                sx={{
-                    p: 3,
-                    borderRadius: 3,
-                    mb: 4,
-                }}
-            >
-                <Typography variant="h6" mb={2}>
-                    {t('Update Price')}
-                </Typography>
-
-                <Stack
-                    spacing={2}
-                    component="form"
-                    onSubmit={handleSubmit}
-                >
-                    <TextField
-                        label={t('Product')}
-                        name="product"
-                        value={newPrice.product}
-                        onChange={handleChange}
-                        fullWidth
-                    />
-
-                    <TextField
-                        label={t('Category')}
-                        name="category"
-                        value={newPrice.category}
-                        onChange={handleChange}
-                        fullWidth
-                    />
-
-                    <TextField
-                        label={t('Price')}
-                        name="price"
-                        type="number"
-                        value={newPrice.price}
-                        onChange={handleChange}
-                        fullWidth
-                    />
-
-                    <TextField
-                        label={t('Unit')}
-                        name="unit"
-                        value={newPrice.unit}
-                        onChange={handleChange}
-                        fullWidth
-                    />
-
-                    <TextField
-                        label={t('Location')}
-                        name="location"
-                        value={newPrice.location}
-                        onChange={handleChange}
-                        fullWidth
-                    />
-
-                    <TextField
-                        label={t('Market')}
-                        name="market"
-                        value={newPrice.market}
-                        onChange={handleChange}
-                        fullWidth
-                    />
-
-                    <Button
-                        type="submit"
-                        variant="contained"
-                        size="large"
-                        disabled={loading}
-                    >
-                        {loading ? (
-                            <CircularProgress
-                                size={22}
-                                color="inherit"
-                            />
-                        ) : (
-                            t('Submit Price')
-                        )}
-                    </Button>
-                </Stack>
-            </Paper>
-
-            <Typography variant="h5" gutterBottom>
-                {t('Recent Market Prices')}
-            </Typography>
-
-            <Divider sx={{ mb: 3 }} />
-
-            {loading ? (
-                <Stack
-                    justifyContent="center"
-                    alignItems="center"
-                    sx={{ py: 5 }}
-                >
-                    <CircularProgress />
-                </Stack>
-            ) : priceIndex.length === 0 ? (
-                <Alert severity="info">
-                    {t('No price records available yet.')}
-                </Alert>
-            ) : (
-                <Grid container spacing={3}>
-                    {priceIndex.map((entry) => (
-                        <Grid
-                            item
-                            xs={12}
-                            sm={6}
-                            md={4}
-                            key={entry._id}
-                        >
-                            <Paper
-                                elevation={2}
-                                sx={{
-                                    p: 3,
-                                    height: '100%',
-                                    borderRadius: 3,
-                                }}
-                            >
-                                <Typography
-                                    variant="h6"
-                                    fontWeight={700}
-                                    gutterBottom
-                                >
-                                    {entry.product}
-                                </Typography>
-
-                                {entry.category && (
-                                    <Typography
-                                        color="text.secondary"
-                                        gutterBottom
-                                    >
-                                        {entry.category}
-                                    </Typography>
-                                )}
-
-                                <Typography>
-                                    <strong>{t('Price')}:</strong>{' '}
-                                    ₦
-                                    {Number(
-                                        entry.price
-                                    ).toLocaleString()}
-                                </Typography>
-
-                                <Typography>
-                                    <strong>{t('Unit')}:</strong>{' '}
-                                    {entry.unit}
-                                </Typography>
-
-                                <Typography>
-                                    <strong>{t('Location')}:</strong>{' '}
-                                    {entry.location}
-                                </Typography>
-
-                                {entry.market && (
-                                    <Typography>
-                                        <strong>{t('Market')}:</strong>{' '}
-                                        {entry.market}
-                                    </Typography>
-                                )}
-
-                                {entry.submittedBy?.name && (
-                                    <Typography
-                                        mt={2}
-                                        variant="body2"
-                                        color="text.secondary"
-                                    >
-                                        {t('Submitted by')}:{' '}
-                                        {entry.submittedBy.name}
-                                    </Typography>
-                                )}
-
-                                <Typography
-                                    variant="caption"
-                                    display="block"
-                                    mt={1}
-                                    color="text.secondary"
-                                >
-                                    {new Date(
-                                        entry.createdAt
-                                    ).toLocaleDateString()}
-                                </Typography>
-                            </Paper>
-                        </Grid>
-                    ))}
-                </Grid>
-            )}
+            <PriceSummaryCards
+                prices={filteredPrices}
+            />
+            <PriceTrendSummary
+                prices={filteredPrices}
+            />
+            <PriceSearchBar
+                search={search}
+                onSearchChange={setSearch}
+            />
+            <CategoryFilter
+                categories={categories}
+                value={selectedCategory}
+                onChange={setSelectedCategory}
+            />
+            <LocationFilter
+                locations={locations}
+                value={selectedLocation}
+                onChange={setSelectedLocation}
+            />
+            <PriceForm
+                newPrice={newPrice}
+                loading={loading}
+                onChange={handleChange}
+                onSubmit={handleSubmit}
+            />
+            <RecentPrices
+                prices={filteredPrices}
+                loading={loading}
+            />
+            <MarketComparison
+                prices={filteredPrices}
+            />
         </Container>
     );
 };

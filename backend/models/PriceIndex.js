@@ -37,6 +37,11 @@ const PriceIndexSchema = new mongoose.Schema(
     user: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
+    },
+
+    source: {
+        type: String,
+        default: 'Farmer'
     }
 
 },

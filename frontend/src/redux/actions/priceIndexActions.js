@@ -1,50 +1,62 @@
 import api from '../../services/api';
 
 import {
-FETCH_PRICE_INDEX_REQUEST,
-FETCH_PRICE_INDEX_SUCCESS,
-FETCH_PRICE_INDEX_FAIL,
-UPDATE_PRICE_INDEX_REQUEST,
-UPDATE_PRICE_INDEX_SUCCESS,
-UPDATE_PRICE_INDEX_FAIL,
-}
-from './types';
+    FETCH_PRICE_INDEX_REQUEST,
+    FETCH_PRICE_INDEX_SUCCESS,
+    FETCH_PRICE_INDEX_FAIL,
+    UPDATE_PRICE_INDEX_REQUEST,
+    UPDATE_PRICE_INDEX_SUCCESS,
+    UPDATE_PRICE_INDEX_FAIL,
+} from './types';
 
-export const fetchPriceIndex=()=>async(dispatch)=>{
+/**
+ * Fetch all market prices
+ */
+export const fetchPriceIndex = () => async (dispatch) => {
     dispatch({
-        type:FETCH_PRICE_INDEX_REQUEST,
+        type: FETCH_PRICE_INDEX_REQUEST,
     });
-    try{
-        const res=await api.get('/price-index');
+
+    try {
+        const res = await api.get('/price-index');
+
         dispatch({
-            type:FETCH_PRICE_INDEX_SUCCESS,
-            payload:res.data.data,
+            type: FETCH_PRICE_INDEX_SUCCESS,
+            payload: res.data.data,
         });
-    }
-    catch(error){
+    } catch (error) {
         dispatch({
-            type:FETCH_PRICE_INDEX_FAIL,
-            payload:error.response?.data?.message,
+            type: FETCH_PRICE_INDEX_FAIL,
+            payload:
+                error.response?.data?.message ||
+                'Failed to load market prices.',
         });
     }
 };
 
-export const updatePriceIndex=(price)=>async(dispatch)=>{
+/**
+ * Submit a new market price
+ */
+export const submitPrice = (priceData) => async (dispatch) => {
     dispatch({
-        type:UPDATE_PRICE_INDEX_REQUEST,
+        type: UPDATE_PRICE_INDEX_REQUEST,
     });
-    try{
-        const res=await api.post('/price-index',price);
+
+    try {
+        const res = await api.post('/price-index', priceData);
+
         dispatch({
-            type:UPDATE_PRICE_INDEX_SUCCESS,
-            payload:res.data.data,
+            type: UPDATE_PRICE_INDEX_SUCCESS,
+            payload: res.data.data,
         });
-        console.log("✅ Price Submitted");
-    }
-    catch(error){
+
+        console.log('✅ Price Submitted');
+    } catch (error) {
         dispatch({
-            type:UPDATE_PRICE_INDEX_FAIL,
-            payload:error.response?.data?.message,
+            type: UPDATE_PRICE_INDEX_FAIL,
+            payload:
+                error.response?.data?.message ||
+                'Failed to submit price.',
         });
     }
 };

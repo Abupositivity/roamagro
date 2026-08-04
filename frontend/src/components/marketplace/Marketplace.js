@@ -213,13 +213,13 @@ onClick={handleCreate}
 </Button>
 </Box>
 
+<MarketplaceSummaryCards
+listings={filteredListings}
+/>
+
 <MarketplaceSearchBar
 value={search}
 onChange={setSearch}
-/>
-
-<MarketplaceSummaryCards
-listings={filteredListings}
 />
 
 <CategoryFilter

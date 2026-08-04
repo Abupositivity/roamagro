@@ -13,7 +13,9 @@ exports.createPriceValidator = [
         .withMessage('Price is required.')
         .bail()
         .isNumeric()
-        .withMessage('Price must be numeric.'),
+        .withMessage('Price must be numeric.')
+        .isFloat({min:1})
+        .withMessage('Price must be greater than zero.'),
 
     body('location')
         .trim()
