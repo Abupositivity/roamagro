@@ -203,3 +203,34 @@ export const UPDATE_LISTING_FAIL='UPDATE_LISTING_FAIL';
 export const DELETE_LISTING_REQUEST='DELETE_LISTING_REQUEST';
 export const DELETE_LISTING_SUCCESS='DELETE_LISTING_SUCCESS';
 export const DELETE_LISTING_FAIL='DELETE_LISTING_FAIL';
+
+/*
+|--------------------------------------------------------------------------
+| Comments
+|--------------------------------------------------------------------------
+*/
+export const ADD_COMMENT_REQUEST = 'ADD_COMMENT_REQUEST';
+export const ADD_COMMENT_SUCCESS = 'ADD_COMMENT_SUCCESS';
+export const ADD_COMMENT_FAIL = 'ADD_COMMENT_FAIL';
+
+export const DELETE_COMMENT_REQUEST = 'DELETE_COMMENT_REQUEST';
+export const DELETE_COMMENT_SUCCESS = 'DELETE_COMMENT_SUCCESS';
+export const DELETE_COMMENT_FAIL = 'DELETE_COMMENT_FAIL';
+
+/*
+|--------------------------------------------------------------------------
+| Like / Unlike
+|--------------------------------------------------------------------------
+*/
+export const LIKE_POST_REQUEST = 'LIKE_POST_REQUEST';
+export const LIKE_POST_SUCCESS = 'LIKE_POST_SUCCESS';
+export const LIKE_POST_FAIL = 'LIKE_POST_FAIL';
+
+/*
+|--------------------------------------------------------------------------
+| Agri Feed
+|--------------------------------------------------------------------------
+*/
+export const FETCH_AGRI_FEED_REQUEST = 'FETCH_AGRI_FEED_REQUEST';
+export const FETCH_AGRI_FEED_SUCCESS = 'FETCH_AGRI_FEED_SUCCESS';
+export const FETCH_AGRI_FEED_FAIL = 'FETCH_AGRI_FEED_FAIL';

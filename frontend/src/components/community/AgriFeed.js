@@ -1,99 +1,122 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+
 import {
+    Alert,
     Box,
-    Card,
-    CardContent,
-    Typography,
-    Chip,
+    CircularProgress,
     Stack,
+    Typography,
 } from '@mui/material';
-import AgricultureIcon from '@mui/icons-material/Agriculture';
-import LightbulbIcon from '@mui/icons-material/Lightbulb';
+
+import { useDispatch, useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
 
+import { fetchAgriFeed } from '../../redux/actions/agriFeedActions';
+
+import AgriTipCard from './AgriTipCard';
+
 const AgriFeed = () => {
+
     const { t } = useTranslation();
 
-    // Static feed for MVP.
-    // Later this will come from the backend (/api/v1/feed)
-    const tips = [
-        {
-            id: 1,
-            category: t('Crop Management'),
-            title: t('Plant early to maximize rainfall.'),
-        },
-        {
-            id: 2,
-            category: t('Soil Health'),
-            title: t('Apply organic manure before planting.'),
-        },
-        {
-            id: 3,
-            category: t('Pest Control'),
-            title: t('Inspect crops weekly for early pest detection.'),
-        },
-        {
-            id: 4,
-            category: t('Market Tips'),
-            title: t('Monitor local market prices before selling.'),
-        },
-        {
-            id: 5,
-            category: t('Irrigation'),
-            title: t('Water crops early morning or late evening.'),
-        },
-        {
-            id: 6,
-            category: t('Livestock'),
-            title: t('Provide clean drinking water daily for livestock.'),
-        },
-    ];
+    const dispatch = useDispatch();
+
+    const {
+        tips,
+        loading,
+        error,
+    } = useSelector(
+        state => state.agriFeed
+    );
+
+    useEffect(() => {
+
+        dispatch(fetchAgriFeed());
+
+    }, [dispatch]);
+
     return (
+
         <Box>
+
+            <Typography
+                variant="h5"
+                fontWeight={700}
+                gutterBottom
+            >
+                🌱 {t('Agricultural Tips')}
+            </Typography>
+
             <Typography
                 variant="body2"
                 color="text.secondary"
                 mb={3}
             >
-                {t('Daily agricultural tips and best practices.')}
+                {t(
+                    'Daily farming tips and best practices shared by agricultural experts.'
+                )}
             </Typography>
-            <Stack spacing={2}>
-                {tips.map((tip) => (
-                    <Card
-                        key={tip.id}
-                        elevation={2}
-                        sx={{
-                            borderRadius: 3,
-                        }}
-                    >
-                        <CardContent>
-                            <Stack
-                                direction="row"
-                                spacing={2}
-                                alignItems="center"
-                                mb={2}
-                            >
-                                <AgricultureIcon
-                                    color="success"
-                                />
-                                <Chip
-                                    icon={<LightbulbIcon />}
-                                    label={tip.category}
-                                    color="success"
-                                    size="small"
-                                />
-                            </Stack>
-                            <Typography
-                                variant="body1"
-                            >
-                                {tip.title}
-                            </Typography>
-                        </CardContent>
-                    </Card>
-                ))}
-            </Stack>
+
+            {loading && (
+
+                <Box
+                    display="flex"
+                    justifyContent="center"
+                    py={5}
+                >
+                    <CircularProgress />
+                </Box>
+
+            )}
+
+            {error && (
+
+                <Alert
+                    severity="error"
+                    sx={{ mb: 3 }}
+                >
+                    {error}
+                </Alert>
+
+            )}
+
+            {!loading &&
+                !error &&
+                tips.length === 0 && (
+
+                <Alert severity="info">
+
+                    {t(
+                        'No agricultural tips available yet.'
+                    )}
+
+                </Alert>
+
+            )}
+
+            {!loading &&
+                !error &&
+                tips.length > 0 && (
+
+                <Stack spacing={2}>
+
+                    {tips.map((tip) => (
+
+                        <AgriTipCard
+                            key={tip._id}
+                            tip={tip}
+                        />
+
+                    ))}
+
+                </Stack>
+
+            )}
+
         </Box>
+
     );
+
 };
 
 export default AgriFeed;
