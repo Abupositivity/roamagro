@@ -83,9 +83,15 @@ const Dashboard = () => {
                         fontWeight={700}
                         gutterBottom
                     >
-                        {t("Agri-Feed")}
+                        {t("Agri-Feed")}🌱
                     </Typography>
-
+                    <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        mb={3}
+                    >
+                        {t('Daily agricultural tips and best practices shared by agricultural experts.')}
+                    </Typography>
                     <AgriFeed />
                 </Box>
 

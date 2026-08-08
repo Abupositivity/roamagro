@@ -8,6 +8,7 @@ import communityReducer from './communityReducer';
 import priceIndexReducer from './priceIndexReducer';
 import financialReducer from './financialReducer';
 import priceAlertReducer from './priceAlertReducer';
+import agriFeedReducer from './agriFeedReducer';
 
 const rootReducer = combineReducers({
     auth: authReducer,
@@ -17,7 +18,8 @@ const rootReducer = combineReducers({
     community: communityReducer,
     priceIndex: priceIndexReducer,
     financial:financialReducer,
-    priceAlerts: priceAlertReducer
+    priceAlerts: priceAlertReducer,
+    agriFeed: agriFeedReducer
 });
 
 export default rootReducer;

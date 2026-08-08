@@ -5,7 +5,6 @@ import {
     Box,
     CircularProgress,
     Stack,
-    Typography,
 } from '@mui/material';
 
 import { useDispatch, useSelector } from 'react-redux';
@@ -38,24 +37,6 @@ const AgriFeed = () => {
     return (
 
         <Box>
-
-            <Typography
-                variant="h5"
-                fontWeight={700}
-                gutterBottom
-            >
-                🌱 {t('Agricultural Tips')}
-            </Typography>
-
-            <Typography
-                variant="body2"
-                color="text.secondary"
-                mb={3}
-            >
-                {t(
-                    'Daily farming tips and best practices shared by agricultural experts.'
-                )}
-            </Typography>
 
             {loading && (
 

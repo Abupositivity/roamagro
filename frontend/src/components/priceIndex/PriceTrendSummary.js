@@ -90,7 +90,7 @@ const PriceTrendSummary = ({
             mb={4}
         >
 
-            <Grid item xs={12} md={4}>
+            <Grid item xs={6} md={3}>
 
                 <SummaryCard
                     title={t('Rising')}
@@ -105,7 +105,7 @@ const PriceTrendSummary = ({
 
             </Grid>
 
-            <Grid item xs={12} md={4}>
+            <Grid item xs={6} md={3}>
 
                 <SummaryCard
                     title={t('Stable')}
@@ -120,7 +120,7 @@ const PriceTrendSummary = ({
 
             </Grid>
 
-            <Grid item xs={12} md={4}>
+            <Grid item xs={6} md={3}>
 
                 <SummaryCard
                     title={t('Falling')}

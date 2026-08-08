@@ -232,6 +232,12 @@ const PriceIndex = () => {
             />
             </Box>
             <Box my={3}>
+            <RecentPrices
+                prices={filteredPrices}
+                loading={loading}
+            />
+            </Box>
+            <Box my={3}>
             <MarketComparison
                 prices={filteredPrices}
             />
@@ -267,12 +273,6 @@ const PriceIndex = () => {
             <PriceAlertList
                 alerts={alerts || []}
                 onDelete={handleDeleteAlert}
-            />
-            </Box>
-            <Box my={3}>
-            <RecentPrices
-                prices={filteredPrices}
-                loading={loading}
             />
             </Box>
         </Container>

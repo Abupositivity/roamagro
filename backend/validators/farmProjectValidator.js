@@ -11,20 +11,21 @@ exports.createFarmProjectValidator = [
         .bail()
         .isLength({ max: 150 })
         .withMessage('Project name cannot exceed 150 characters.'),
+
     body('description')
+        .optional({ checkFalsy: true })
         .trim()
-        .notEmpty()
-        .withMessage('Description is required.')
-        .bail()
         .isLength({ min: 10 })
         .withMessage('Description must be at least 10 characters.'),
+
     body('crop')
-        .optional()
+        .optional({ checkFalsy: true })
         .trim()
         .isLength({ max: 100 })
         .withMessage('Crop name is too long.'),
+
     body('farmType')
-        .optional()
+        .optional({ checkFalsy: true })
         .isIn([
             'Crop Farming',
             'Livestock',
@@ -34,40 +35,46 @@ exports.createFarmProjectValidator = [
             'Other',
         ])
         .withMessage('Invalid farm type.'),
+
     body('farmSize')
-        .optional()
+        .optional({ checkFalsy: true })
         .isFloat({ min: 0 })
         .withMessage('Farm size must be a positive number.'),
+
     body('measurementUnit')
-        .optional()
+        .optional({ checkFalsy: true })
         .isIn([
             'Acres',
             'Hectares',
         ])
         .withMessage('Invalid measurement unit.'),
+
     body('location')
-        .optional()
+        .optional({ checkFalsy: true })
         .trim()
         .isLength({ max: 200 })
         .withMessage('Location is too long.'),
+
     body('season')
-        .optional()
+        .optional({ checkFalsy: true })
         .isIn([
             'Dry Season',
             'Rainy Season',
             'All Season',
         ])
         .withMessage('Invalid farming season.'),
+
     body('priority')
-        .optional()
+        .optional({ checkFalsy: true })
         .isIn([
             'Low',
             'Medium',
             'High',
         ])
         .withMessage('Invalid priority.'),
+
     body('status')
-        .optional()
+        .optional({ checkFalsy: true })
         .isIn([
             'Planning',
             'Active',
@@ -75,28 +82,33 @@ exports.createFarmProjectValidator = [
             'Completed',
         ])
         .withMessage('Invalid status.'),
+
     body('progress')
-        .optional()
+        .optional({ checkFalsy: true })
         .isInt({
             min: 0,
             max: 100,
         })
         .withMessage('Progress must be between 0 and 100.'),
+
     body('startDate')
-        .optional()
+        .optional({ checkFalsy: true })
         .isISO8601()
         .withMessage('Invalid start date.'),
+
     body('endDate')
-        .optional()
+        .optional({ checkFalsy: true })
         .isISO8601()
         .withMessage('Invalid end date.'),
+
     body('weatherNotes')
-        .optional()
+        .optional({ checkFalsy: true })
         .trim()
         .isLength({ max: 1000 })
         .withMessage('Weather notes are too long.'),
+
     body('tags')
-        .optional()
+        .optional({ checkFalsy: true })
         .isArray()
         .withMessage('Tags must be an array.')
 ];
@@ -108,25 +120,30 @@ exports.updateFarmProjectValidator = [
     param('id')
         .isMongoId()
         .withMessage('Invalid project ID.'),
+
     body('name')
-        .optional()
+        .optional({ checkFalsy: true })
         .trim()
         .isLength({ max: 150 }),
+
     body('description')
-        .optional()
+        .optional({ checkFalsy: true })
         .trim()
         .isLength({ min: 10 }),
+
     body('farmSize')
-        .optional()
+        .optional({ checkFalsy: true })
         .isFloat({ min: 0 }),
+
     body('progress')
-        .optional()
+        .optional({ checkFalsy: true })
         .isInt({
             min: 0,
             max: 100,
         }),
+
     body('status')
-        .optional()
+        .optional({ checkFalsy: true })
         .isIn([
             'Planning',
             'Active',
@@ -147,487 +164,530 @@ exports.projectIdValidator = [
 /**
  * Validate Expense ID
  */
-exports.createExpenseValidator=[
-param('id')
-.isMongoId()
-.withMessage('Invalid project ID.'),
-body('category')
-.trim()
-.notEmpty()
-.withMessage('Expense category is required.')
-.isLength({max:100})
-.withMessage('Category cannot exceed 100 characters.'),
-body('description')
-.optional()
-.trim()
-.isLength({max:500})
-.withMessage('Description cannot exceed 500 characters.'),
-body('amount')
-.notEmpty()
-.withMessage('Amount is required.')
-.isFloat({min:0})
-.withMessage('Amount must be a positive number.'),
-body('date')
-.optional()
-.isISO8601()
-.withMessage('Invalid expense date.')
+exports.createExpenseValidator = [
+    param('id')
+        .isMongoId()
+        .withMessage('Invalid project ID.'),
+
+    body('category')
+        .trim()
+        .notEmpty()
+        .withMessage('Expense category is required.')
+        .isLength({ max: 100 })
+        .withMessage('Category cannot exceed 100 characters.'),
+
+    body('description')
+        .optional({ checkFalsy: true })
+        .trim()
+        .isLength({ max: 500 })
+        .withMessage('Description cannot exceed 500 characters.'),
+
+    body('amount')
+        .notEmpty()
+        .withMessage('Amount is required.')
+        .isFloat({ min: 0 })
+        .withMessage('Amount must be a positive number.'),
+
+    body('date')
+        .optional({ checkFalsy: true })
+        .isISO8601()
+        .withMessage('Invalid expense date.')
 ];
 
 /**
  * Update Expense
  */
-exports.updateExpenseValidator=[
-param('id')
-.isMongoId()
-.withMessage('Invalid project ID.'),
-param('expenseId')
-.isMongoId()
-.withMessage('Invalid expense ID.'),
-body('category')
-.optional()
-.trim()
-.isLength({max:100})
-.withMessage('Category cannot exceed 100 characters.'),
-body('description')
-.optional()
-.trim()
-.isLength({max:500})
-.withMessage('Description cannot exceed 500 characters.'),
-body('amount')
-.optional()
-.isFloat({min:0})
-.withMessage('Amount must be a positive number.'),
-body('date')
-.optional()
-.isISO8601()
-.withMessage('Invalid expense date.')
+exports.updateExpenseValidator = [
+    param('id')
+        .isMongoId()
+        .withMessage('Invalid project ID.'),
+
+    param('expenseId')
+        .isMongoId()
+        .withMessage('Invalid expense ID.'),
+
+    body('category')
+        .optional({ checkFalsy: true })
+        .trim()
+        .isLength({ max: 100 })
+        .withMessage('Category cannot exceed 100 characters.'),
+
+    body('description')
+        .optional({ checkFalsy: true })
+        .trim()
+        .isLength({ max: 500 })
+        .withMessage('Description cannot exceed 500 characters.'),
+
+    body('amount')
+        .optional({ checkFalsy: true })
+        .isFloat({ min: 0 })
+        .withMessage('Amount must be a positive number.'),
+
+    body('date')
+        .optional({ checkFalsy: true })
+        .isISO8601()
+        .withMessage('Invalid expense date.')
 ];
 
 /**
  * Validate Expense ID
  */
-exports.expenseIdValidator=[
-param('id')
-.isMongoId()
-.withMessage('Invalid project ID.'),
-param('expenseId')
-.isMongoId()
-.withMessage('Invalid expense ID.')
+exports.expenseIdValidator = [
+    param('id')
+        .isMongoId()
+        .withMessage('Invalid project ID.'),
+
+    param('expenseId')
+        .isMongoId()
+        .withMessage('Invalid expense ID.')
 ];
 
 /**
  * Validate Activity ID
  */
-exports.activityIdValidator=[
-param('id')
-.isMongoId()
-.withMessage('Invalid project ID.'),
-param('activityId')
-.isMongoId()
-.withMessage('Invalid activity ID.')
+exports.activityIdValidator = [
+    param('id')
+        .isMongoId()
+        .withMessage('Invalid project ID.'),
+
+    param('activityId')
+        .isMongoId()
+        .withMessage('Invalid activity ID.')
 ];
 
 /**
  * Create Activity
  */
-exports.createActivityValidator=[
-param('id')
-.isMongoId()
-.withMessage('Invalid project ID.'),
+exports.createActivityValidator = [
+    param('id')
+        .isMongoId()
+        .withMessage('Invalid project ID.'),
 
-body('title')
-.trim()
-.notEmpty()
-.withMessage('Activity title is required.')
-.isLength({max:150})
-.withMessage('Activity title cannot exceed 150 characters.'),
+    body('title')
+        .trim()
+        .notEmpty()
+        .withMessage('Activity title is required.')
+        .isLength({ max: 150 })
+        .withMessage('Activity title cannot exceed 150 characters.'),
 
-body('description')
-.optional()
-.trim()
-.isLength({max:1000})
-.withMessage('Description is too long.'),
+    body('description')
+        .optional({ checkFalsy: true })
+        .trim()
+        .isLength({ max: 1000 })
+        .withMessage('Description is too long.'),
 
-body('category')
-.optional()
-.isIn([
-'Land Preparation',
-'Planting',
-'Irrigation',
-'Weeding',
-'Fertilizer',
-'Pesticide',
-'Harvest',
-'Feeding',
-'Vaccination',
-'Maintenance',
-'Other'
-])
-.withMessage('Invalid activity category.'),
+    body('category')
+        .optional({ checkFalsy: true })
+        .isIn([
+            'Land Preparation',
+            'Planting',
+            'Irrigation',
+            'Weeding',
+            'Fertilizer',
+            'Pesticide',
+            'Harvest',
+            'Feeding',
+            'Vaccination',
+            'Maintenance',
+            'Other'
+        ])
+        .withMessage('Invalid activity category.'),
 
-body('priority')
-.optional()
-.isIn([
-'Low',
-'Medium',
-'High'
-])
-.withMessage('Invalid priority.'),
+    body('priority')
+        .optional({ checkFalsy: true })
+        .isIn([
+            'Low',
+            'Medium',
+            'High'
+        ])
+        .withMessage('Invalid priority.'),
 
-body('status')
-.optional()
-.isIn([
-'Pending',
-'In Progress',
-'Completed'
-])
-.withMessage('Invalid activity status.'),
+    body('status')
+        .optional({ checkFalsy: true })
+        .isIn([
+            'Pending',
+            'In Progress',
+            'Completed'
+        ])
+        .withMessage('Invalid activity status.'),
 
-body('dueDate')
-.optional()
-.isISO8601()
-.withMessage('Invalid due date.'),
+    body('dueDate')
+        .optional({ checkFalsy: true })
+        .isISO8601()
+        .withMessage('Invalid due date.'),
 
-body('notes')
-.optional()
-.trim()
-.isLength({max:1000})
-.withMessage('Notes cannot exceed 1000 characters.')
+    body('notes')
+        .optional({ checkFalsy: true })
+        .trim()
+        .isLength({ max: 1000 })
+        .withMessage('Notes cannot exceed 1000 characters.')
 ];
 
 /**
  * Update Activity
  */
-exports.updateActivityValidator=[
-param('id')
-.isMongoId()
-.withMessage('Invalid project ID.'),
+exports.updateActivityValidator = [
+    param('id')
+        .isMongoId()
+        .withMessage('Invalid project ID.'),
 
-param('activityId')
-.isMongoId()
-.withMessage('Invalid activity ID.'),
+    param('activityId')
+        .isMongoId()
+        .withMessage('Invalid activity ID.'),
 
-body('title')
-.optional()
-.trim()
-.isLength({max:150})
-.withMessage('Activity title cannot exceed 150 characters.'),
+    body('title')
+        .optional({ checkFalsy: true })
+        .trim()
+        .isLength({ max: 150 })
+        .withMessage('Activity title cannot exceed 150 characters.'),
 
-body('description')
-.optional()
-.trim()
-.isLength({max:1000})
-.withMessage('Description is too long.'),
+    body('description')
+        .optional({ checkFalsy: true })
+        .trim()
+        .isLength({ max: 1000 })
+        .withMessage('Description is too long.'),
 
-body('category')
-.optional()
-.isIn([
-'Land Preparation',
-'Planting',
-'Irrigation',
-'Weeding',
-'Fertilizer',
-'Pesticide',
-'Harvest',
-'Feeding',
-'Vaccination',
-'Maintenance',
-'Other'
-]),
+    body('category')
+        .optional({ checkFalsy: true })
+        .isIn([
+            'Land Preparation',
+            'Planting',
+            'Irrigation',
+            'Weeding',
+            'Fertilizer',
+            'Pesticide',
+            'Harvest',
+            'Feeding',
+            'Vaccination',
+            'Maintenance',
+            'Other'
+        ]),
 
-body('priority')
-.optional()
-.isIn([
-'Low',
-'Medium',
-'High'
-]),
+    body('priority')
+        .optional({ checkFalsy: true })
+        .isIn([
+            'Low',
+            'Medium',
+            'High'
+        ]),
 
-body('status')
-.optional()
-.isIn([
-'Pending',
-'In Progress',
-'Completed'
-]),
+    body('status')
+        .optional({ checkFalsy: true })
+        .isIn([
+            'Pending',
+            'In Progress',
+            'Completed'
+        ]),
 
-body('dueDate')
-.optional()
-.isISO8601(),
+    body('dueDate')
+        .optional({ checkFalsy: true })
+        .isISO8601(),
 
-body('notes')
-.optional()
-.trim()
-.isLength({max:1000})
+    body('notes')
+        .optional({ checkFalsy: true })
+        .trim()
+        .isLength({ max: 1000 })
 ];
 
 /**
  * Update Activity Status
  */
-exports.updateActivityStatusValidator=[
-param('id')
-.isMongoId()
-.withMessage('Invalid project ID.'),
+exports.updateActivityStatusValidator = [
+    param('id')
+        .isMongoId()
+        .withMessage('Invalid project ID.'),
 
-param('activityId')
-.isMongoId()
-.withMessage('Invalid activity ID.'),
+    param('activityId')
+        .isMongoId()
+        .withMessage('Invalid activity ID.'),
 
-body('status')
-.notEmpty()
-.withMessage('Status is required.')
-.isIn([
-'Pending',
-'In Progress',
-'Completed'
-])
-.withMessage('Invalid activity status.')
+    body('status')
+        .notEmpty()
+        .withMessage('Status is required.')
+        .isIn([
+            'Pending',
+            'In Progress',
+            'Completed'
+        ])
+        .withMessage('Invalid activity status.')
 ];
 
 /**
  * Create Task
  */
-exports.createTaskValidator=[
-param('id')
-.isMongoId()
-.withMessage('Invalid project ID.'),
-body('title')
-.trim()
-.notEmpty()
-.withMessage('Task title is required.')
-.bail()
-.isLength({max:150})
-.withMessage('Task title cannot exceed 150 characters.'),
-body('description')
-.optional()
-.trim()
-.isLength({max:1000})
-.withMessage('Description cannot exceed 1000 characters.'),
-body('priority')
-.optional()
-.isIn([
-'Low',
-'Medium',
-'High'
-])
-.withMessage('Invalid priority.'),
-body('status')
-.optional()
-.isIn([
-'Pending',
-'In Progress',
-'Completed'
-])
-.withMessage('Invalid status.'),
-body('assignedTo')
-.optional()
-.trim()
-.isLength({max:100})
-.withMessage('Assigned user is too long.'),
-body('dueDate')
-.optional()
-.isISO8601()
-.withMessage('Invalid due date.'),
-body('notes')
-.optional()
-.trim()
-.isLength({max:2000})
-.withMessage('Notes cannot exceed 2000 characters.')
+exports.createTaskValidator = [
+    param('id')
+        .isMongoId()
+        .withMessage('Invalid project ID.'),
+
+    body('title')
+        .trim()
+        .notEmpty()
+        .withMessage('Task title is required.')
+        .bail()
+        .isLength({ max: 150 })
+        .withMessage('Task title cannot exceed 150 characters.'),
+
+    body('description')
+        .optional({ checkFalsy: true })
+        .trim()
+        .isLength({ max: 1000 })
+        .withMessage('Description cannot exceed 1000 characters.'),
+
+    body('priority')
+        .optional({ checkFalsy: true })
+        .isIn([
+            'Low',
+            'Medium',
+            'High'
+        ])
+        .withMessage('Invalid priority.'),
+
+    body('status')
+        .optional({ checkFalsy: true })
+        .isIn([
+            'Pending',
+            'In Progress',
+            'Completed'
+        ])
+        .withMessage('Invalid status.'),
+
+    body('assignedTo')
+        .optional({ checkFalsy: true })
+        .trim()
+        .isLength({ max: 100 })
+        .withMessage('Assigned user is too long.'),
+
+    body('dueDate')
+        .optional({ checkFalsy: true })
+        .isISO8601()
+        .withMessage('Invalid due date.'),
+
+    body('notes')
+        .optional({ checkFalsy: true })
+        .trim()
+        .isLength({ max: 2000 })
+        .withMessage('Notes cannot exceed 2000 characters.')
 ];
 
 /**
  * Update Task
  */
-exports.updateTaskValidator=[
-param('id')
-.isMongoId()
-.withMessage('Invalid project ID.'),
-param('taskId')
-.isMongoId()
-.withMessage('Invalid task ID.'),
-body('title')
-.optional()
-.trim()
-.isLength({max:150})
-.withMessage('Task title cannot exceed 150 characters.'),
-body('description')
-.optional()
-.trim()
-.isLength({max:1000})
-.withMessage('Description cannot exceed 1000 characters.'),
-body('priority')
-.optional()
-.isIn([
-'Low',
-'Medium',
-'High'
-])
-.withMessage('Invalid priority.'),
-body('status')
-.optional()
-.isIn([
-'Pending',
-'In Progress',
-'Completed'
-])
-.withMessage('Invalid status.'),
-body('assignedTo')
-.optional()
-.trim()
-.isLength({max:100})
-.withMessage('Assigned user is too long.'),
-body('dueDate')
-.optional()
-.isISO8601()
-.withMessage('Invalid due date.'),
-body('notes')
-.optional()
-.trim()
-.isLength({max:2000})
-.withMessage('Notes cannot exceed 2000 characters.')
+exports.updateTaskValidator = [
+    param('id')
+        .isMongoId()
+        .withMessage('Invalid project ID.'),
+
+    param('taskId')
+        .isMongoId()
+        .withMessage('Invalid task ID.'),
+
+    body('title')
+        .optional({ checkFalsy: true })
+        .trim()
+        .isLength({ max: 150 })
+        .withMessage('Task title cannot exceed 150 characters.'),
+
+    body('description')
+        .optional({ checkFalsy: true })
+        .trim()
+        .isLength({ max: 1000 })
+        .withMessage('Description cannot exceed 1000 characters.'),
+
+    body('priority')
+        .optional({ checkFalsy: true })
+        .isIn([
+            'Low',
+            'Medium',
+            'High'
+        ]),
+
+    body('status')
+        .optional({ checkFalsy: true })
+        .isIn([
+            'Pending',
+            'In Progress',
+            'Completed'
+        ]),
+
+    body('assignedTo')
+        .optional({ checkFalsy: true })
+        .trim()
+        .isLength({ max: 100 })
+        .withMessage('Assigned user is too long.'),
+
+    body('dueDate')
+        .optional({ checkFalsy: true })
+        .isISO8601(),
+
+    body('notes')
+        .optional({ checkFalsy: true })
+        .trim()
+        .isLength({ max: 2000 })
 ];
 
 /**
- * update task status
+ * Update Task Status
  */
-exports.updateTaskStatusValidator=[
-param('id')
-.isMongoId()
-.withMessage('Invalid project ID.'),
-param('taskId')
-.isMongoId()
-.withMessage('Invalid task ID.'),
-body('status')
-.notEmpty()
-.withMessage('Status is required.')
-.isIn([
-'Pending',
-'In Progress',
-'Completed'
-])
-.withMessage('Invalid task status.')
+exports.updateTaskStatusValidator = [
+    param('id')
+        .isMongoId()
+        .withMessage('Invalid project ID.'),
+
+    param('taskId')
+        .isMongoId()
+        .withMessage('Invalid task ID.'),
+
+    body('status')
+        .notEmpty()
+        .withMessage('Status is required.')
+        .isIn([
+            'Pending',
+            'In Progress',
+            'Completed'
+        ])
+        .withMessage('Invalid task status.')
 ];
 
 /**
- * Validate task ID
+ * Validate Task ID
  */
-exports.taskIdValidator=[
-param('id')
-.isMongoId()
-.withMessage('Invalid project ID.'),
-param('taskId')
-.isMongoId()
-.withMessage('Invalid task ID.')
+exports.taskIdValidator = [
+    param('id')
+        .isMongoId()
+        .withMessage('Invalid project ID.'),
+
+    param('taskId')
+        .isMongoId()
+        .withMessage('Invalid task ID.')
 ];
 
 /**
  * Harvest Validators
  */
-exports.createHarvestValidator=[
-body('crop')
-.trim()
-.notEmpty()
-.withMessage('Crop is required.'),
-body('quantity')
-.isFloat({min:0})
-.withMessage('Quantity must be a positive number.'),
-body('unit')
-.optional()
-.trim()
-.isLength({max:30})
-.withMessage('Unit is too long.'),
-body('pricePerUnit')
-.isFloat({min:0})
-.withMessage('Price per unit must be a positive number.'),
-body('harvestDate')
-.optional()
-.isISO8601()
-.withMessage('Invalid harvest date.')
+exports.createHarvestValidator = [
+    body('crop')
+        .trim()
+        .notEmpty()
+        .withMessage('Crop is required.'),
+
+    body('quantity')
+        .isFloat({ min: 0 })
+        .withMessage('Quantity must be a positive number.'),
+
+    body('unit')
+        .optional({ checkFalsy: true })
+        .trim()
+        .isLength({ max: 30 })
+        .withMessage('Unit is too long.'),
+
+    body('pricePerUnit')
+        .isFloat({ min: 0 })
+        .withMessage('Price per unit must be a positive number.'),
+
+    body('harvestDate')
+        .optional({ checkFalsy: true })
+        .isISO8601()
+        .withMessage('Invalid harvest date.')
 ];
 
-exports.updateHarvestValidator=[
-param('id')
-.isMongoId()
-.withMessage('Invalid project ID.'),
-param('harvestId')
-.isMongoId()
-.withMessage('Invalid harvest ID.'),
-body('crop')
-.optional()
-.trim(),
-body('quantity')
-.optional()
-.isFloat({min:0}),
-body('unit')
-.optional()
-.trim(),
-body('pricePerUnit')
-.optional()
-.isFloat({min:0}),
-body('harvestDate')
-.optional()
-.isISO8601()
+exports.updateHarvestValidator = [
+    param('id')
+        .isMongoId()
+        .withMessage('Invalid project ID.'),
+
+    param('harvestId')
+        .isMongoId()
+        .withMessage('Invalid harvest ID.'),
+
+    body('crop')
+        .optional({ checkFalsy: true })
+        .trim(),
+
+    body('quantity')
+        .optional({ checkFalsy: true })
+        .isFloat({ min: 0 }),
+
+    body('unit')
+        .optional({ checkFalsy: true })
+        .trim(),
+
+    body('pricePerUnit')
+        .optional({ checkFalsy: true })
+        .isFloat({ min: 0 }),
+
+    body('harvestDate')
+        .optional({ checkFalsy: true })
+        .isISO8601()
 ];
 
-exports.harvestIdValidator=[
-param('id')
-.isMongoId()
-.withMessage('Invalid project ID.'),
-param('harvestId')
-.isMongoId()
-.withMessage('Invalid harvest ID.')
+exports.harvestIdValidator = [
+    param('id')
+        .isMongoId()
+        .withMessage('Invalid project ID.'),
+
+    param('harvestId')
+        .isMongoId()
+        .withMessage('Invalid harvest ID.')
 ];
 
 /**
  * Reminder Validators
  */
-exports.createReminderValidator=[
-body('title')
-.trim()
-.notEmpty()
-.withMessage('Reminder title is required.')
-.bail()
-.isLength({max:150})
-.withMessage('Reminder title cannot exceed 150 characters.'),
-body('reminderDate')
-.notEmpty()
-.withMessage('Reminder date is required.')
-.bail()
-.isISO8601()
-.withMessage('Invalid reminder date.'),
-body('completed')
-.optional()
-.isBoolean()
-.withMessage('Completed must be true or false.')
+exports.createReminderValidator = [
+    body('title')
+        .trim()
+        .notEmpty()
+        .withMessage('Reminder title is required.')
+        .bail()
+        .isLength({ max: 150 })
+        .withMessage('Reminder title cannot exceed 150 characters.'),
+
+    body('reminderDate')
+        .notEmpty()
+        .withMessage('Reminder date is required.')
+        .bail()
+        .isISO8601()
+        .withMessage('Invalid reminder date.'),
+
+    body('completed')
+        .optional({ checkFalsy: true })
+        .isBoolean()
+        .withMessage('Completed must be true or false.')
 ];
 
-exports.updateReminderValidator=[
-param('id')
-.isMongoId()
-.withMessage('Invalid project ID.'),
-param('reminderId')
-.isMongoId()
-.withMessage('Invalid reminder ID.'),
-body('title')
-.optional()
-.trim()
-.isLength({max:150})
-.withMessage('Reminder title cannot exceed 150 characters.'),
-body('reminderDate')
-.optional()
-.isISO8601()
-.withMessage('Invalid reminder date.'),
-body('completed')
-.optional()
-.isBoolean()
-.withMessage('Completed must be true or false.')
+exports.updateReminderValidator = [
+    param('id')
+        .isMongoId()
+        .withMessage('Invalid project ID.'),
+
+    param('reminderId')
+        .isMongoId()
+        .withMessage('Invalid reminder ID.'),
+
+    body('title')
+        .optional({ checkFalsy: true })
+        .trim()
+        .isLength({ max: 150 })
+        .withMessage('Reminder title cannot exceed 150 characters.'),
+
+    body('reminderDate')
+        .optional({ checkFalsy: true })
+        .isISO8601()
+        .withMessage('Invalid reminder date.'),
+
+    body('completed')
+        .optional({ checkFalsy: true })
+        .isBoolean()
+        .withMessage('Completed must be true or false.')
 ];
 
-exports.reminderIdValidator=[
-param('id')
-.isMongoId()
-.withMessage('Invalid project ID.'),
-param('reminderId')
-.isMongoId()
-.withMessage('Invalid reminder ID.')
+exports.reminderIdValidator = [
+    param('id')
+        .isMongoId()
+        .withMessage('Invalid project ID.'),
+
+    param('reminderId')
+        .isMongoId()
+        .withMessage('Invalid reminder ID.')
 ];

@@ -67,7 +67,7 @@ const PriceSummaryCards = ({ prices = [] }) => {
             spacing={2}
             mb={4}
         >
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid item xs={6} sm={6} md={3}>
                 <SummaryCard
                     title={t('Products')}
                     value={total}
@@ -79,7 +79,7 @@ const PriceSummaryCards = ({ prices = [] }) => {
                     }
                 />
             </Grid>
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid item xs={6} sm={6} md={3}>
                 <SummaryCard
                     title={t('Average Price')}
                     value={`₦${average.toLocaleString()}`}
@@ -91,7 +91,7 @@ const PriceSummaryCards = ({ prices = [] }) => {
                     }
                 />
             </Grid>
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid item xs={6} sm={6} md={3}>
                 <SummaryCard
                     title={t('Highest')}
                     value={`₦${highest.toLocaleString()}`}
@@ -103,7 +103,7 @@ const PriceSummaryCards = ({ prices = [] }) => {
                     }
                 />
             </Grid>
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid item xs={6} sm={6} md={3}>
                 <SummaryCard
                     title={t('Lowest')}
                     value={`₦${lowest.toLocaleString()}`}

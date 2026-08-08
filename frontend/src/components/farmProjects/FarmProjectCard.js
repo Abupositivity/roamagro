@@ -145,21 +145,6 @@ sx={{height:8,borderRadius:5}}
 variant="caption"
 color="text.secondary"
 >
-{t('Income')}
-</Typography>
-<Typography
-variant="subtitle2"
-fontWeight={700}
-color="success.main"
->
-{currency(financials.income)}
-</Typography>
-</Box>
-<Box textAlign="center">
-<Typography
-variant="caption"
-color="text.secondary"
->
 {t('Expenses')}
 </Typography>
 <Typography
@@ -168,6 +153,21 @@ fontWeight={700}
 color="error.main"
 >
 {currency(financials.expenses)}
+</Typography>
+</Box>
+<Box textAlign="center">
+<Typography
+variant="caption"
+color="text.secondary"
+>
+{t('Income')}
+</Typography>
+<Typography
+variant="subtitle2"
+fontWeight={700}
+color="success.main"
+>
+{currency(financials.income)}
 </Typography>
 </Box>
 <Box textAlign="center">

@@ -11,7 +11,6 @@ import {
 import WbSunnyOutlinedIcon from "@mui/icons-material/WbSunnyOutlined";
 import CloudOutlinedIcon from "@mui/icons-material/CloudOutlined";
 import NightsStayOutlinedIcon from "@mui/icons-material/NightsStayOutlined";
-import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
 
 import { useSelector } from "react-redux";
 import { useTranslation } from "react-i18next";
@@ -114,23 +113,9 @@ const DashboardHeader = () => {
                 spacing={2}
                 mt={3}
             >
-
-                <Chip
-                    icon={<LocationOnOutlinedIcon />}
-                    label={t("Northern Nigeria")}
-                    color="primary"
-                    variant="outlined"
-                />
-
                 <Chip
                     label={t("Weather integration coming soon")}
                     color="success"
-                    variant="outlined"
-                />
-
-                <Chip
-                    label={t("Market updates available")}
-                    color="warning"
                     variant="outlined"
                 />
 
