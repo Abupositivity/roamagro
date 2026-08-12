@@ -1,4 +1,5 @@
 import React from 'react';
+
 import {
     Avatar,
     Box,
@@ -14,35 +15,45 @@ const CommentItem = ({
     canDelete = false,
     onDelete,
 }) => {
-
     return (
         <Stack
             direction="row"
             spacing={2}
             sx={{
                 py: 2,
-                borderBottom: '1px solid',
-                borderColor: 'divider',
+                borderBottom:
+                    '1px solid',
+                borderColor:
+                    'divider',
             }}
         >
             <Avatar
-                src={comment.user?.profilePhoto}
+                src={
+                    comment.user
+                        ?.profilePhoto
+                }
             >
-                {comment.user?.name?.charAt(0)}
+                {comment.user?.name?.charAt(
+                    0
+                )}
             </Avatar>
 
             <Box flex={1}>
-                <Typography
-                    fontWeight={600}
-                >
-                    {comment.user?.name || 'Farmer'}
+                <Typography fontWeight={600}>
+                    {comment.user
+                        ?.name ||
+                        'Farmer'}
                 </Typography>
+
                 <Typography
                     variant="body2"
-                    sx={{ mt: 0.5 }}
+                    sx={{
+                        mt: 0.5,
+                    }}
                 >
                     {comment.content}
                 </Typography>
+
                 <Typography
                     variant="caption"
                     color="text.secondary"
@@ -58,8 +69,11 @@ const CommentItem = ({
                     color="error"
                     size="small"
                     onClick={() =>
-                        onDelete(comment._id)
+                        onDelete(
+                            comment._id
+                        )
                     }
+                    aria-label="Delete comment"
                 >
                     <DeleteOutlineIcon />
                 </IconButton>

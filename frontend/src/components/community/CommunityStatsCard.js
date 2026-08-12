@@ -3,14 +3,14 @@ import {
     Card,
     CardContent,
     Typography,
-    Box,
+    Stack,
 } from '@mui/material';
 
 const CommunityStatsCard = ({
     title,
     value,
     icon,
-    color = 'primary.main',
+    //color = 'primary.main',
 }) => {
 
     return (
@@ -25,36 +25,32 @@ const CommunityStatsCard = ({
 
             <CardContent>
 
-                <Box
-                    display="flex"
-                    justifyContent="space-between"
+                <Stack
+                    spacing={1}
                     alignItems="center"
-                    mb={2}
-                >
+                    >
+
+                    {icon}
+
+                    <Typography
+                        variant="h4"
+                        fontWeight={700}
+                    >
+
+                    {value}
+
+                    </Typography>
 
                     <Typography
                         variant="body2"
                         color="text.secondary"
                     >
-                        {title}
+
+                    {title}
+
                     </Typography>
 
-                    <Box
-                        sx={{
-                            color,
-                        }}
-                    >
-                        {icon}
-                    </Box>
-
-                </Box>
-
-                <Typography
-                    variant="h4"
-                    fontWeight={700}
-                >
-                    {value}
-                </Typography>
+                </Stack>
 
             </CardContent>
 

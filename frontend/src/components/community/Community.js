@@ -1,11 +1,25 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, {
+    useEffect,
+    useState,
+} from 'react';
+
 import {
+    Accordion,
+    AccordionDetails,
+    AccordionSummary,
     Alert,
     Box,
+    Button,
     Container,
+    Grid,
     Snackbar,
     Typography,
 } from '@mui/material';
+
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined';
+import InsightsOutlinedIcon from '@mui/icons-material/InsightsOutlined';
+import PublicIcon from '@mui/icons-material/Public';
 
 import { useDispatch, useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
@@ -25,141 +39,126 @@ import CommunitySearchBar from './CommunitySearchBar';
 import CommunityCategoryFilter from './CommunityCategoryFilter';
 
 const Community = () => {
-
     const { t } = useTranslation();
-
     const dispatch = useDispatch();
 
     const {
         topics,
         loading,
         error,
+        page,
+        limit,
+        hasMore,
+        loadingMore,
     } = useSelector(
-        state => state.community
+        (state) => state.community
     );
+
     const [openSnackbar, setOpenSnackbar] =
         useState(false);
 
-    /*
-    ------------------------------------------------
-    Search & Filter
-    ------------------------------------------------
-    */
-    const [search, setSearch] = useState('');
-    const [selectedCategory, setSelectedCategory] =
-        useState('All');
+    const [search, setSearch] =
+        useState('');
 
-    /*
-    ------------------------------------------------
-    Create Post Form
-    ------------------------------------------------
-    */
+    const [
+        selectedCategory,
+        setSelectedCategory,
+    ] = useState('All');
+
+    const [showMyPosts, setShowMyPosts] =
+        useState(false);
+
     const [formData, setFormData] = useState({
         title: '',
         content: '',
         category: 'General',
         image: '',
     });
-    useEffect(() => {
-        dispatch(fetchTopics());
-    }, [dispatch]);
 
-    /*
-    ------------------------------------------------
-    Form
-    ------------------------------------------------
-    */
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            dispatch(
+                fetchTopics({
+                    page: 1,
+                    limit,
+                    search,
+                    category: selectedCategory,
+                    mine: showMyPosts,
+                })
+            );
+        }, 400);
+
+        return () => clearTimeout(timer);
+    }, [
+        dispatch,
+        search,
+        selectedCategory,
+        showMyPosts,
+        limit,
+    ]);
+
     const handleChange = (e) => {
-        setFormData(prev => ({
+        setFormData((prev) => ({
             ...prev,
-            [e.target.name]: e.target.value,
+            [e.target.name]:
+                e.target.value,
         }));
     };
-    const handleSubmit = () => {
+
+    const handleSubmit = async () => {
         if (
-            !formData.title ||
-            !formData.content
+            !formData.title.trim() ||
+            !formData.content.trim()
         ) {
             return;
         }
-        dispatch(createTopic(formData));
-        setFormData({
-            title: '',
-            content: '',
-            category: 'General',
-            image: '',
-        });
-        setOpenSnackbar(true);
+
+        const result = await dispatch(
+            createTopic(formData)
+        );
+
+        if (result?.success) {
+            setFormData({
+                title: '',
+                content: '',
+                category: 'General',
+                image: '',
+            });
+
+            setOpenSnackbar(true);
+        }
     };
 
-    /*
-    ------------------------------------------------
-    Categories
-    ------------------------------------------------
-    */
-    const categories = useMemo(() => {
-        return [
-            'All',
-            ...new Set(
-                topics
-                    .map(post => post.category)
-                    .filter(Boolean)
-            ),
-        ];
-    }, [topics]);
+    const featuredPosts = topics.filter(
+        (post) => post.featured
+    );
 
-    /*
-    ------------------------------------------------
-    Filtered Topics
-    ------------------------------------------------
-    */
-    const filteredTopics = useMemo(() => {
-        return topics.filter(post => {
-            const keyword = search.toLowerCase();
-            const matchesSearch =
-                (post.title || '')
-                    .toLowerCase()
-                    .includes(keyword)
-                ||
-                (post.content || '')
-                    .toLowerCase()
-                    .includes(keyword);
-            const matchesCategory =
-                selectedCategory === 'All'
-                ||
-                post.category === selectedCategory;
-            return (
-                matchesSearch &&
-                matchesCategory
-            );
-        });
-    }, [
-        topics,
-        search,
-        selectedCategory,
-    ]);
+    const communityFeed = topics.filter(
+        (post) => !post.featured
+    );
 
-    /*
-    ------------------------------------------------
-    Featured
-    ------------------------------------------------
-    */
-    const featuredPosts = useMemo(() => {
-        return filteredTopics.filter(
-            post => post.featured
+    const handleLoadMore = () => {
+        if (!hasMore || loadingMore) {
+            return;
+        }
+
+        dispatch(
+            fetchTopics({
+                page: page + 1,
+                limit,
+                search,
+                category: selectedCategory,
+                mine: showMyPosts,
+                append: true,
+            })
         );
-    }, [filteredTopics]);
+    };
 
-    /*
-    ------------------------------------------------
-    Feed
-    ------------------------------------------------
-    */
-    const communityFeed = useMemo(() => {
-        return filteredTopics.filter(
-            post => !post.featured
+    const handleToggleMyPosts = () => {
+        setShowMyPosts(
+            (previous) => !previous
         );
-    }, [filteredTopics]);
+    };
 
     return (
         <Container
@@ -169,22 +168,26 @@ const Community = () => {
                 pb: 12,
             }}
         >
-            <Typography
-                variant="h4"
-                fontWeight={700}
-                gutterBottom
-            >
-                {t('Community')}
-            </Typography>
-            <Typography
-                variant="body2"
-                color="text.secondary"
-                mb={4}
-            >
-                {t(
-                    'Share experiences, ask questions and learn from fellow farmers.'
-                )}
-            </Typography>
+            <Box>
+                <Typography
+                    variant="h4"
+                    fontWeight={700}
+                    gutterBottom
+                >
+                    {t('Community')}
+                </Typography>
+
+                <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    mb={3}
+                >
+                    {t(
+                        'Share experiences, ask questions and learn from fellow farmers.'
+                    )}
+                </Typography>
+            </Box>
+
             {error && (
                 <Alert
                     severity="error"
@@ -193,47 +196,159 @@ const Community = () => {
                     {error}
                 </Alert>
             )}
-            <Box mb={3}>
-                <CommunitySummaryCards
-                    posts={filteredTopics}
-                />
-            </Box>
-            <Box mb={3}>
-                <TrendingCategories
-                    posts={filteredTopics}
-                />
-            </Box>
-            <Box mb={3}>
-                <RecentActivity
-                    posts={filteredTopics}
-                />
-            </Box>
-            <Box mb={3}>
-                <CommunitySearchBar
-                    search={search}
-                    onSearchChange={setSearch}
-                />
-            </Box>
-            <Box mb={3}>
-                <CommunityCategoryFilter
-                    categories={categories}
-                    value={selectedCategory}
-                    onChange={setSelectedCategory}
-                />
-            </Box>
-            <FeaturedPosts
-                posts={featuredPosts}
-            />
+
             <PostComposer
                 formData={formData}
                 loading={loading}
                 onChange={handleChange}
                 onSubmit={handleSubmit}
             />
+
+            <Grid
+                container
+                spacing={2}
+                mb={3}
+            >
+                <Grid item xs={12} sm={7}>
+                    <CommunitySearchBar
+                        search={search}
+                        onSearchChange={setSearch}
+                    />
+                </Grid>
+
+                <Grid item xs={12} sm={5}>
+                    <CommunityCategoryFilter
+                        value={selectedCategory}
+                        onChange={
+                            setSelectedCategory
+                        }
+                    />
+                </Grid>
+            </Grid>
+
+            <Box
+                sx={{
+                    display: 'flex',
+                    gap: 1,
+                    mb: 3,
+                    flexWrap: 'wrap',
+                }}
+            >
+                <Button
+                    variant={
+                        !showMyPosts
+                            ? 'contained'
+                            : 'outlined'
+                    }
+                    startIcon={
+                        <PublicIcon />
+                    }
+                    onClick={() => {
+                        if (showMyPosts) {
+                            handleToggleMyPosts();
+                        }
+                    }}
+                >
+                    {t('All Posts')}
+                </Button>
+
+                <Button
+                    variant={
+                        showMyPosts
+                            ? 'contained'
+                            : 'outlined'
+                    }
+                    startIcon={
+                        <ArticleOutlinedIcon />
+                    }
+                    onClick={() => {
+                        if (!showMyPosts) {
+                            handleToggleMyPosts();
+                        }
+                    }}
+                >
+                    {t('My Posts')}
+                </Button>
+            </Box>
+
+            <Box mb={3}>
+                <CommunitySummaryCards
+                    posts={topics}
+                />
+            </Box>
+
+            {!showMyPosts && (
+                <FeaturedPosts
+                    posts={featuredPosts}
+                />
+            )}
+
             <CommunityFeed
                 loading={loading}
                 posts={communityFeed}
+                hasMore={hasMore}
+                loadingMore={loadingMore}
+                onLoadMore={handleLoadMore}
             />
+
+            <Accordion
+                disableGutters
+                elevation={1}
+                sx={{
+                    mt: 4,
+                    borderRadius: 3,
+                    overflow: 'hidden',
+                    '&:before': {
+                        display: 'none',
+                    },
+                }}
+            >
+                <AccordionSummary
+                    expandIcon={
+                        <ExpandMoreIcon />
+                    }
+                    sx={{
+                        px: 2,
+                        minHeight: 56,
+                        '& .MuiAccordionSummary-content':
+                            {
+                                alignItems:
+                                    'center',
+                            },
+                    }}
+                >
+                    <InsightsOutlinedIcon
+                        sx={{
+                            mr: 1.5,
+                            color: 'success.main',
+                        }}
+                    />
+
+                    <Typography
+                        fontWeight={700}
+                    >
+                        {t('Community Insights')}
+                    </Typography>
+                </AccordionSummary>
+
+                <AccordionDetails
+                    sx={{
+                        px: 2,
+                        pb: 2,
+                    }}
+                >
+                    <Box mb={3}>
+                        <TrendingCategories
+                            posts={topics}
+                        />
+                    </Box>
+
+                    <RecentActivity
+                        posts={topics}
+                    />
+                </AccordionDetails>
+            </Accordion>
+
             <Snackbar
                 open={openSnackbar}
                 autoHideDuration={3000}

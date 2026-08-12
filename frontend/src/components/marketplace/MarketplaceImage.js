@@ -1,44 +1,66 @@
-import React,{useState}from'react';
-import{
-Box,
-CardMedia
-}from'@mui/material';
+import React, { useState } from 'react';
 
-import ImagePreviewDialog from'./ImagePreviewDialog';
+import {
+    Box,
+    CardMedia,
+} from '@mui/material';
 
-const PLACEHOLDER='https://via.placeholder.com/600x400?text=RoamAgro';
+import ImagePreviewDialog from './ImagePreviewDialog';
 
-const MarketplaceImage=({
-images=[]
-})=>{
+const PLACEHOLDER =
+    'https://via.placeholder.com/600x400?text=RoamAgro';
 
-const[open,setOpen]=useState(false);
-const image=
-images.length
-?images[0]
-:PLACEHOLDER;
-return(
-<>
-<Box
-sx={{
-cursor:'pointer'
-}}
-onClick={()=>setOpen(true)}
->
-<CardMedia
-component="img"
-height="180"
-image={image}
-alt="Marketplace"
-/>
-</Box>
-<ImagePreviewDialog
-open={open}
-image={image}
-onClose={()=>setOpen(false)}
-/>
-</>
-);
+const MarketplaceImage = ({
+    images = [],
+}) => {
+    const [open, setOpen] = useState(false);
+
+    const image =
+        Array.isArray(images)
+            ? images.find(Boolean) || PLACEHOLDER
+            : PLACEHOLDER;
+
+    const handleImageError = (event) => {
+        if (event.currentTarget.src !== PLACEHOLDER) {
+            event.currentTarget.src = PLACEHOLDER;
+        }
+    };
+
+    return (
+        <>
+            <Box
+                onClick={() => setOpen(true)}
+                sx={{
+                    cursor: 'pointer',
+                    position: 'relative',
+                    overflow: 'hidden',
+                }}
+            >
+                <CardMedia
+                    component="img"
+                    image={image}
+                    alt="Marketplace listing"
+                    onError={handleImageError}
+                    sx={{
+                        width: '100%',
+                        height: {
+                            xs: 200,
+                            sm: 220,
+                        },
+                        objectFit: 'cover',
+                        display: 'block',
+                        backgroundColor: 'action.hover',
+                    }}
+                />
+            </Box>
+
+            <ImagePreviewDialog
+                open={open}
+                image={image}
+                onClose={() => setOpen(false)}
+            />
+        </>
+    );
 };
 
 export default MarketplaceImage;

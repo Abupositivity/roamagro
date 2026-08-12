@@ -60,6 +60,22 @@ export const CREATE_TOPIC_REQUEST = 'CREATE_TOPIC_REQUEST';
 export const CREATE_TOPIC_SUCCESS = 'CREATE_TOPIC_SUCCESS';
 export const CREATE_TOPIC_FAIL = 'CREATE_TOPIC_FAIL';
 
+export const FETCH_MY_TOPICS_REQUEST = 'FETCH_MY_TOPICS_REQUEST';
+export const FETCH_MY_TOPICS_SUCCESS = 'FETCH_MY_TOPICS_SUCCESS';
+export const FETCH_MY_TOPICS_FAIL = 'FETCH_MY_TOPICS_FAIL';
+
+export const UPDATE_TOPIC_REQUEST = 'UPDATE_TOPIC_REQUEST';
+export const UPDATE_TOPIC_SUCCESS = 'UPDATE_TOPIC_SUCCESS';
+export const UPDATE_TOPIC_FAIL = 'UPDATE_TOPIC_FAIL';
+
+export const DELETE_TOPIC_REQUEST = 'DELETE_TOPIC_REQUEST';
+export const DELETE_TOPIC_SUCCESS = 'DELETE_TOPIC_SUCCESS';
+export const DELETE_TOPIC_FAIL = 'DELETE_TOPIC_FAIL';
+
+export const SHARE_POST_REQUEST = 'SHARE_POST_REQUEST';
+export const SHARE_POST_SUCCESS = 'SHARE_POST_SUCCESS';
+export const SHARE_POST_FAIL = 'SHARE_POST_FAIL';
+
 // ==============================
 // PRICE INDEX
 // ==============================
@@ -72,11 +88,9 @@ export const UPDATE_PRICE_INDEX_REQUEST = 'UPDATE_PRICE_INDEX_REQUEST';
 export const UPDATE_PRICE_INDEX_SUCCESS = 'UPDATE_PRICE_INDEX_SUCCESS';
 export const UPDATE_PRICE_INDEX_FAIL = 'UPDATE_PRICE_INDEX_FAIL';
 
-/*
-|--------------------------------------------------------------------------
-| Dashboard
-|--------------------------------------------------------------------------
-*/
+// ==============================
+// DASHBOARD
+// ==============================
 
 export const DASHBOARD_REQUEST = 'DASHBOARD_REQUEST';
 export const DASHBOARD_SUCCESS = 'DASHBOARD_SUCCESS';
@@ -85,11 +99,9 @@ export const DASHBOARD_FAIL = 'DASHBOARD_FAIL';
 export const UPDATE_DASHBOARD_POST = 'UPDATE_DASHBOARD_POST';
 export const CLEAR_DASHBOARD_POST = 'CLEAR_DASHBOARD_POST';
 
-/*
-|--------------------------------------------------------------------------
-| Activity
-|--------------------------------------------------------------------------
-*/
+// ==============================
+// ACTIVITY
+// ==============================
 
 export const FETCH_ACTIVITIES_REQUEST = 'FETCH_ACTIVITIES_REQUEST';
 export const FETCH_ACTIVITIES_SUCCESS = 'FETCH_ACTIVITIES_SUCCESS';
@@ -111,11 +123,10 @@ export const UPDATE_ACTIVITY_STATUS_REQUEST = 'UPDATE_ACTIVITY_STATUS_REQUEST';
 export const UPDATE_ACTIVITY_STATUS_SUCCESS = 'UPDATE_ACTIVITY_STATUS_SUCCESS';
 export const UPDATE_ACTIVITY_STATUS_FAIL = 'UPDATE_ACTIVITY_STATUS_FAIL';
 
-/*
-|--------------------------------------------------------------------------
-| Task
-|--------------------------------------------------------------------------
-*/
+// ==============================
+// TASK
+// ==============================
+
 export const CREATE_TASK_REQUEST = 'CREATE_TASK_REQUEST';
 export const CREATE_TASK_SUCCESS = 'CREATE_TASK_SUCCESS';
 export const CREATE_TASK_FAIL = 'CREATE_TASK_FAIL';
@@ -132,83 +143,78 @@ export const UPDATE_TASK_STATUS_REQUEST = 'TOGGLE_TASK_STATUS_REQUEST';
 export const UPDATE_TASK_STATUS_SUCCESS = 'TOGGLE_TASK_STATUS_SUCCESS';
 export const UPDATE_TASK_STATUS_FAIL = 'TOGGLE_TASK_STATUS_FAIL';
 
-/*
-|--------------------------------------------------------------------------
-| Expense
-|--------------------------------------------------------------------------
-*/
-export const CREATE_EXPENSE_REQUEST='CREATE_EXPENSE_REQUEST';
-export const CREATE_EXPENSE_SUCCESS='CREATE_EXPENSE_SUCCESS';
-export const CREATE_EXPENSE_FAIL='CREATE_EXPENSE_FAIL';
+// ==============================
+// EXPENSE
+// ==============================
 
-export const UPDATE_EXPENSE_REQUEST='UPDATE_EXPENSE_REQUEST';
-export const UPDATE_EXPENSE_SUCCESS='UPDATE_EXPENSE_SUCCESS';
-export const UPDATE_EXPENSE_FAIL='UPDATE_EXPENSE_FAIL';
+export const CREATE_EXPENSE_REQUEST = 'CREATE_EXPENSE_REQUEST';
+export const CREATE_EXPENSE_SUCCESS = 'CREATE_EXPENSE_SUCCESS';
+export const CREATE_EXPENSE_FAIL = 'CREATE_EXPENSE_FAIL';
 
-export const DELETE_EXPENSE_REQUEST='DELETE_EXPENSE_REQUEST';
-export const DELETE_EXPENSE_SUCCESS='DELETE_EXPENSE_SUCCESS';
-export const DELETE_EXPENSE_FAIL='DELETE_EXPENSE_FAIL';
+export const UPDATE_EXPENSE_REQUEST = 'UPDATE_EXPENSE_REQUEST';
+export const UPDATE_EXPENSE_SUCCESS = 'UPDATE_EXPENSE_SUCCESS';
+export const UPDATE_EXPENSE_FAIL = 'UPDATE_EXPENSE_FAIL';
 
-/*
-|--------------------------------------------------------------------------
-| Harvests
-|--------------------------------------------------------------------------
-*/
-export const CREATE_HARVEST_REQUEST='CREATE_HARVEST_REQUEST';
-export const CREATE_HARVEST_SUCCESS='CREATE_HARVEST_SUCCESS';
-export const CREATE_HARVEST_FAIL='CREATE_HARVEST_FAIL';
+export const DELETE_EXPENSE_REQUEST = 'DELETE_EXPENSE_REQUEST';
+export const DELETE_EXPENSE_SUCCESS = 'DELETE_EXPENSE_SUCCESS';
+export const DELETE_EXPENSE_FAIL = 'DELETE_EXPENSE_FAIL';
 
-export const UPDATE_HARVEST_REQUEST='UPDATE_HARVEST_REQUEST';
-export const UPDATE_HARVEST_SUCCESS='UPDATE_HARVEST_SUCCESS';
-export const UPDATE_HARVEST_FAIL='UPDATE_HARVEST_FAIL';
+// ==============================
+// HARVESTS
+// ==============================
 
-export const DELETE_HARVEST_REQUEST='DELETE_HARVEST_REQUEST';
-export const DELETE_HARVEST_SUCCESS='DELETE_HARVEST_SUCCESS';
-export const DELETE_HARVEST_FAIL='DELETE_HARVEST_FAIL';
+export const CREATE_HARVEST_REQUEST = 'CREATE_HARVEST_REQUEST';
+export const CREATE_HARVEST_SUCCESS = 'CREATE_HARVEST_SUCCESS';
+export const CREATE_HARVEST_FAIL = 'CREATE_HARVEST_FAIL';
 
-/*
-|--------------------------------------------------------------------------
-| Reminders
-|--------------------------------------------------------------------------
-*/
-export const CREATE_REMINDER_REQUEST='CREATE_REMINDER_REQUEST';
-export const CREATE_REMINDER_SUCCESS='CREATE_REMINDER_SUCCESS';
-export const CREATE_REMINDER_FAIL='CREATE_REMINDER_FAIL';
+export const UPDATE_HARVEST_REQUEST = 'UPDATE_HARVEST_REQUEST';
+export const UPDATE_HARVEST_SUCCESS = 'UPDATE_HARVEST_SUCCESS';
+export const UPDATE_HARVEST_FAIL = 'UPDATE_HARVEST_FAIL';
 
-export const UPDATE_REMINDER_REQUEST='UPDATE_REMINDER_REQUEST';
-export const UPDATE_REMINDER_SUCCESS='UPDATE_REMINDER_SUCCESS';
-export const UPDATE_REMINDER_FAIL='UPDATE_REMINDER_FAIL';
+export const DELETE_HARVEST_REQUEST = 'DELETE_HARVEST_REQUEST';
+export const DELETE_HARVEST_SUCCESS = 'DELETE_HARVEST_SUCCESS';
+export const DELETE_HARVEST_FAIL = 'DELETE_HARVEST_FAIL';
 
-export const DELETE_REMINDER_REQUEST='DELETE_REMINDER_REQUEST';
-export const DELETE_REMINDER_SUCCESS='DELETE_REMINDER_SUCCESS';
-export const DELETE_REMINDER_FAIL='DELETE_REMINDER_FAIL';
+// ==============================
+// REMINDERS
+// ==============================
 
-export const TOGGLE_REMINDER_REQUEST='TOGGLE_REMINDER_REQUEST';
-export const TOGGLE_REMINDER_SUCCESS='TOGGLE_REMINDER_SUCCESS';
-export const TOGGLE_REMINDER_FAIL='TOGGLE_REMINDER_FAIL';
+export const CREATE_REMINDER_REQUEST = 'CREATE_REMINDER_REQUEST';
+export const CREATE_REMINDER_SUCCESS = 'CREATE_REMINDER_SUCCESS';
+export const CREATE_REMINDER_FAIL = 'CREATE_REMINDER_FAIL';
 
-/*
-|--------------------------------------------------------------------------
-| Listings
-|--------------------------------------------------------------------------
-*/
-export const GET_LISTING_REQUEST='GET_LISTING_REQUEST';
-export const GET_LISTING_SUCCESS='GET_LISTING_SUCCESS';
-export const GET_LISTING_FAIL='GET_LISTING_FAIL';
+export const UPDATE_REMINDER_REQUEST = 'UPDATE_REMINDER_REQUEST';
+export const UPDATE_REMINDER_SUCCESS = 'UPDATE_REMINDER_SUCCESS';
+export const UPDATE_REMINDER_FAIL = 'UPDATE_REMINDER_FAIL';
 
-export const UPDATE_LISTING_REQUEST='UPDATE_LISTING_REQUEST';
-export const UPDATE_LISTING_SUCCESS='UPDATE_LISTING_SUCCESS';
-export const UPDATE_LISTING_FAIL='UPDATE_LISTING_FAIL';
+export const DELETE_REMINDER_REQUEST = 'DELETE_REMINDER_REQUEST';
+export const DELETE_REMINDER_SUCCESS = 'DELETE_REMINDER_SUCCESS';
+export const DELETE_REMINDER_FAIL = 'DELETE_REMINDER_FAIL';
 
-export const DELETE_LISTING_REQUEST='DELETE_LISTING_REQUEST';
-export const DELETE_LISTING_SUCCESS='DELETE_LISTING_SUCCESS';
-export const DELETE_LISTING_FAIL='DELETE_LISTING_FAIL';
+export const TOGGLE_REMINDER_REQUEST = 'TOGGLE_REMINDER_REQUEST';
+export const TOGGLE_REMINDER_SUCCESS = 'TOGGLE_REMINDER_SUCCESS';
+export const TOGGLE_REMINDER_FAIL = 'TOGGLE_REMINDER_FAIL';
 
-/*
-|--------------------------------------------------------------------------
-| Comments
-|--------------------------------------------------------------------------
-*/
+// ==============================
+// LISTINGS
+// ==============================
+
+export const GET_LISTING_REQUEST = 'GET_LISTING_REQUEST';
+export const GET_LISTING_SUCCESS = 'GET_LISTING_SUCCESS';
+export const GET_LISTING_FAIL = 'GET_LISTING_FAIL';
+
+export const UPDATE_LISTING_REQUEST = 'UPDATE_LISTING_REQUEST';
+export const UPDATE_LISTING_SUCCESS = 'UPDATE_LISTING_SUCCESS';
+export const UPDATE_LISTING_FAIL = 'UPDATE_LISTING_FAIL';
+
+export const DELETE_LISTING_REQUEST = 'DELETE_LISTING_REQUEST';
+export const DELETE_LISTING_SUCCESS = 'DELETE_LISTING_SUCCESS';
+export const DELETE_LISTING_FAIL = 'DELETE_LISTING_FAIL';
+
+// ==============================
+// COMMENTS
+// ==============================
+
 export const ADD_COMMENT_REQUEST = 'ADD_COMMENT_REQUEST';
 export const ADD_COMMENT_SUCCESS = 'ADD_COMMENT_SUCCESS';
 export const ADD_COMMENT_FAIL = 'ADD_COMMENT_FAIL';
@@ -217,20 +223,18 @@ export const DELETE_COMMENT_REQUEST = 'DELETE_COMMENT_REQUEST';
 export const DELETE_COMMENT_SUCCESS = 'DELETE_COMMENT_SUCCESS';
 export const DELETE_COMMENT_FAIL = 'DELETE_COMMENT_FAIL';
 
-/*
-|--------------------------------------------------------------------------
-| Like / Unlike
-|--------------------------------------------------------------------------
-*/
+// ==============================
+// LIKE / UNLIKE
+// ==============================
+
 export const LIKE_POST_REQUEST = 'LIKE_POST_REQUEST';
 export const LIKE_POST_SUCCESS = 'LIKE_POST_SUCCESS';
 export const LIKE_POST_FAIL = 'LIKE_POST_FAIL';
 
-/*
-|--------------------------------------------------------------------------
-| Agri Feed
-|--------------------------------------------------------------------------
-*/
+// ==============================
+// AGRI FEED
+// ==============================
+
 export const FETCH_AGRI_FEED_REQUEST = 'FETCH_AGRI_FEED_REQUEST';
 export const FETCH_AGRI_FEED_SUCCESS = 'FETCH_AGRI_FEED_SUCCESS';
 export const FETCH_AGRI_FEED_FAIL = 'FETCH_AGRI_FEED_FAIL';

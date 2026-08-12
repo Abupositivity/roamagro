@@ -2,15 +2,19 @@ import {
     FETCH_LISTINGS_REQUEST,
     FETCH_LISTINGS_SUCCESS,
     FETCH_LISTINGS_FAIL,
+
     CREATE_LISTING_REQUEST,
     CREATE_LISTING_SUCCESS,
     CREATE_LISTING_FAIL,
+
     GET_LISTING_REQUEST,
     GET_LISTING_SUCCESS,
     GET_LISTING_FAIL,
+
     UPDATE_LISTING_REQUEST,
     UPDATE_LISTING_SUCCESS,
     UPDATE_LISTING_FAIL,
+
     DELETE_LISTING_REQUEST,
     DELETE_LISTING_SUCCESS,
     DELETE_LISTING_FAIL,
@@ -19,17 +23,26 @@ import {
 const initialState = {
     listings: [],
     selectedListing: null,
+
     loading: false,
     success: false,
     error: null,
+
+    page: 1,
+    limit: 12,
+    total: 0,
+    totalPages: 0,
+    hasMore: false,
 };
 
-const marketplaceReducer = (state = initialState, action) => {
+const marketplaceReducer = (
+    state = initialState,
+    action
+) => {
     switch (action.type) {
-
         /*
         |--------------------------------------------------------------------------
-        |Requests
+        | Requests
         |--------------------------------------------------------------------------
         */
         case FETCH_LISTINGS_REQUEST:
@@ -49,14 +62,47 @@ const marketplaceReducer = (state = initialState, action) => {
         | Fetch Listings
         |--------------------------------------------------------------------------
         */
-        case FETCH_LISTINGS_SUCCESS:
+        case FETCH_LISTINGS_SUCCESS: {
+            const payload = action.payload;
+            const incomingListings =
+                payload.data || [];
+
             return {
                 ...state,
                 loading: false,
                 success: true,
-                listings: action.payload,
                 error: null,
+
+                listings:
+                    payload.append
+                        ? [
+                              ...state.listings,
+                              ...incomingListings,
+                          ]
+                        : incomingListings,
+
+                page:
+                    payload.page ||
+                    1,
+
+                limit:
+                    payload.limit ||
+                    12,
+
+                total:
+                    payload.total ||
+                    0,
+
+                totalPages:
+                    payload.totalPages ||
+                    0,
+
+                hasMore:
+                    Boolean(
+                        payload.hasMore
+                    ),
             };
+        }
 
         /*
         |--------------------------------------------------------------------------
@@ -68,7 +114,8 @@ const marketplaceReducer = (state = initialState, action) => {
                 ...state,
                 loading: false,
                 success: true,
-                selectedListing: action.payload,
+                selectedListing:
+                    action.payload,
                 error: null,
             };
 
@@ -86,6 +133,7 @@ const marketplaceReducer = (state = initialState, action) => {
                     action.payload,
                     ...state.listings,
                 ],
+                total: state.total + 1,
                 error: null,
             };
 
@@ -99,12 +147,16 @@ const marketplaceReducer = (state = initialState, action) => {
                 ...state,
                 loading: false,
                 success: true,
-                listings: state.listings.map(listing =>
-                    listing._id === action.payload._id
-                        ? action.payload
-                        : listing
-                ),
-                selectedListing: action.payload,
+                listings:
+                    state.listings.map(
+                        (listing) =>
+                            listing._id ===
+                            action.payload._id
+                                ? action.payload
+                                : listing
+                    ),
+                selectedListing:
+                    action.payload,
                 error: null,
             };
 
@@ -118,14 +170,26 @@ const marketplaceReducer = (state = initialState, action) => {
                 ...state,
                 loading: false,
                 success: true,
-                listings: state.listings.filter(
-                    listing => listing._id !== action.payload
-                ),
+
+                listings:
+                    state.listings.filter(
+                        (listing) =>
+                            listing._id !==
+                            action.payload
+                    ),
+
                 selectedListing:
                     state.selectedListing &&
-                    state.selectedListing._id === action.payload
+                    state.selectedListing._id ===
+                        action.payload
                         ? null
                         : state.selectedListing,
+
+                total: Math.max(
+                    state.total - 1,
+                    0
+                ),
+
                 error: null,
             };
 
@@ -145,6 +209,7 @@ const marketplaceReducer = (state = initialState, action) => {
                 success: false,
                 error: action.payload,
             };
+
         default:
             return state;
     }

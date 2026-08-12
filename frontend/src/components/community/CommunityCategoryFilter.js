@@ -1,5 +1,4 @@
 import React from 'react';
-
 import {
     Paper,
     FormControl,
@@ -7,34 +6,44 @@ import {
     Select,
     MenuItem,
 } from '@mui/material';
-
 import { useTranslation } from 'react-i18next';
 
+const categories = [
+    'Crop Production',
+    'Livestock',
+    'Poultry',
+    'Soil Health',
+    'Pest Control',
+    'Diseases',
+    'Climate',
+    'Weather',
+    'Market Prices',
+    'Government Support',
+    'Mechanization',
+    'Agribusiness',
+    'Finance',
+    'Technology',
+    'General',
+];
+
 const CommunityCategoryFilter = ({
-    categories = [],
-    value,
+    value = 'All',
     onChange,
 }) => {
-
     const { t } = useTranslation();
 
     return (
-
         <Paper
             elevation={2}
             sx={{
-                p: 2,
-                mb: 3,
+                p: 1.5,
                 borderRadius: 3,
+                height: '100%',
             }}
         >
-
-            <FormControl fullWidth>
-
+            <FormControl fullWidth size="small">
                 <InputLabel>
-
                     {t('Category')}
-
                 </InputLabel>
 
                 <Select
@@ -44,32 +53,22 @@ const CommunityCategoryFilter = ({
                         onChange(e.target.value)
                     }
                 >
-
                     <MenuItem value="All">
-
                         {t('All Categories')}
-
                     </MenuItem>
 
                     {categories.map((category) => (
-
                         <MenuItem
                             key={category}
                             value={category}
                         >
-                            {category}
+                            {t(category)}
                         </MenuItem>
-
                     ))}
-
                 </Select>
-
             </FormControl>
-
         </Paper>
-
     );
-
 };
 
 export default CommunityCategoryFilter;

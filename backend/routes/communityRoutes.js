@@ -8,7 +8,9 @@ const {
     createCommunityPost,
     getCommunityPosts,
     getFeaturedPosts,
+    updateCommunityPost,
     archiveCommunityPost,
+    shareCommunityPost,
     addComment,
     deleteComment,
     toggleLike,
@@ -16,13 +18,9 @@ const {
 
 const {
     createCommunityValidator,
+    updateCommunityValidator,
+    commentCommunityValidator,
 } = require('../validators');
-
-/*
-|--------------------------------------------------------------------------
-| Public / Authenticated Read Routes
-|--------------------------------------------------------------------------
-*/
 
 router.get(
     '/',
@@ -36,12 +34,6 @@ router.get(
     getFeaturedPosts
 );
 
-/*
-|--------------------------------------------------------------------------
-| Community Posts
-|--------------------------------------------------------------------------
-*/
-
 router.post(
     '/',
     ensureAuthenticated,
@@ -50,41 +42,40 @@ router.post(
     createCommunityPost
 );
 
+router.put(
+    '/:id',
+    ensureAuthenticated,
+    updateCommunityValidator,
+    validateRequest,
+    updateCommunityPost
+);
+
 router.delete(
     '/:id',
     ensureAuthenticated,
     archiveCommunityPost
 );
 
-/*
-|--------------------------------------------------------------------------
-| Comments
-|--------------------------------------------------------------------------
-*/
+router.post(
+    '/:id/share',
+    ensureAuthenticated,
+    shareCommunityPost
+);
 
-/**
- * Add comment to a post
- */
 router.post(
     '/:id/comments',
     ensureAuthenticated,
+    commentCommunityValidator,
+    validateRequest,
     addComment
 );
 
-/**
- * Delete comment
- */
 router.delete(
     '/:postId/comments/:commentId',
     ensureAuthenticated,
     deleteComment
 );
 
-/*
-|--------------------------------------------------------------------------
-| Like / Unlike
-|--------------------------------------------------------------------------
-*/
 router.post(
     '/:id/like',
     ensureAuthenticated,

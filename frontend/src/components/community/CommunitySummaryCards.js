@@ -54,64 +54,61 @@ const CommunitySummaryCards = ({
         <Grid
             container
             spacing={2}
-            mb={4}
+            mb={3}
         >
 
             <Grid
                 item
-                xs={6}
-                md={3}
+                xs={3}
+                md={2}
             >
 
                 <CommunityStatsCard
                     title="Posts"
                     value={totalPosts}
-                    icon={<ForumIcon />}
+                    icon={<ForumIcon color="main"/>}
                 />
 
             </Grid>
 
             <Grid
                 item
-                xs={6}
-                md={3}
+                xs={3}
+                md={2}
             >
 
                 <CommunityStatsCard
                     title="Comments"
                     value={totalComments}
-                    icon={<CommentIcon />}
-                    color="success.main"
+                    icon={<CommentIcon color="success"/>}
                 />
 
             </Grid>
 
             <Grid
                 item
-                xs={6}
-                md={3}
+                xs={3}
+                md={2}
             >
 
                 <CommunityStatsCard
                     title="Likes"
                     value={totalLikes}
-                    icon={<FavoriteIcon />}
-                    color="error.main"
+                    icon={<FavoriteIcon color="error"/>}
                 />
 
             </Grid>
 
             <Grid
                 item
-                xs={6}
-                md={3}
+                xs={3}
+                md={2}
             >
 
                 <CommunityStatsCard
                     title="Categories"
                     value={totalCategories}
-                    icon={<CategoryIcon />}
-                    color="warning.main"
+                    icon={<CategoryIcon color="warning"/>}
                 />
 
             </Grid>

@@ -76,7 +76,7 @@ spacing={2}
 mb={3}
 >
 
-<Grid item xs={6} md={3}>
+<Grid item xs={4} md={3}>
 
 <SummaryCard
 title={t('Total Listings')}
@@ -86,7 +86,7 @@ icon={<Inventory2Icon color="primary" fontSize="large"/>}
 
 </Grid>
 
-<Grid item xs={6} md={3}>
+<Grid item xs={4} md={3}>
 
 <SummaryCard
 title={t('Available')}
@@ -96,7 +96,7 @@ icon={<CheckCircleIcon color="success" fontSize="large"/>}
 
 </Grid>
 
-<Grid item xs={6} md={3}>
+<Grid item xs={4} md={3}>
 
 <SummaryCard
 title={t('Sold')}

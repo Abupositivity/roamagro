@@ -775,14 +775,20 @@ const FarmProject = () => {
                 spacing={2}
                 mb={4}
             >
-
+                <Box>
                 <Typography
                     variant="h4"
-                    component="h1"
+                    fontWeight={700}
                 >
                     {t('Farm Projects')}
                 </Typography>
-
+                <Typography
+                variant="body1"
+                color="text.secondary"
+                >
+                    {t('Create and manage your agricultural projects.')}
+                </Typography>
+                </Box>
 
                 <Button
                     variant="contained"

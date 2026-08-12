@@ -1,295 +1,509 @@
-import React,{useEffect,useState}from'react';
-import {useDispatch,useSelector}from'react-redux';
-import {useTranslation}from'react-i18next';
+import React, {
+    useEffect,
+    useState,
+} from 'react';
 
-import{
-Container,
-Typography,
-Box,
-Button,
-Alert,
-CircularProgress,
-FormControlLabel,
-Switch
-}from'@mui/material';
+import {
+    useDispatch,
+    useSelector,
+} from 'react-redux';
 
-import AddIcon from'@mui/icons-material/Add';
+import { useTranslation } from 'react-i18next';
 
-import{
-fetchListings,
-createListing,
-updateListing,
-deleteListing
-}from'../../redux/actions/marketplaceActions';
+import {
+    Container,
+    Typography,
+    Box,
+    Button,
+    Alert,
+    CircularProgress,
+    FormControlLabel,
+    Switch,
+    Stack,
+} from '@mui/material';
 
-import MarketplaceGrid from'./MarketplaceGrid';
-import MarketplaceDialog from'./MarketplaceDialog';
-import DeleteMarketplaceDialog from'./DeleteMarketplaceDialog';
+import AddIcon from '@mui/icons-material/Add';
+
+import {
+    fetchListings,
+    createListing,
+    updateListing,
+    deleteListing,
+} from '../../redux/actions/marketplaceActions';
+
+import MarketplaceGrid from './MarketplaceGrid';
+import MarketplaceDialog from './MarketplaceDialog';
+import DeleteMarketplaceDialog from './DeleteMarketplaceDialog';
 import MarketplaceSearchBar from './MarketplaceSearchBar';
 import CategoryFilter from './CategoryFilter';
 import MarketplaceSummaryCards from './MarketplaceSummaryCards';
 import AvailabilityFilter from './AvailabilityFilter';
 
-const Marketplace=()=>{
-const{t}=useTranslation();
-const dispatch=useDispatch();
+const Marketplace = () => {
+    const { t } = useTranslation();
+    const dispatch = useDispatch();
 
-const{
-listings,
-loading,
-error
-}=useSelector(state=>state.marketplace);
+    const {
+        listings,
+        loading,
+        error,
+        page,
+        hasMore,
+    } = useSelector(
+        (state) => state.marketplace
+    );
 
-const{user}=useSelector(state=>state.auth);
+    const [dialogOpen, setDialogOpen] =
+        useState(false);
 
-const[dialogOpen,setDialogOpen]=useState(false);
-const[selectedListing,setSelectedListing]=useState(null);
-const[deleteDialogOpen,setDeleteDialogOpen]=useState(false);
-const[search,setSearch]=useState('');
-const[selectedCategory,setSelectedCategory]=useState('All');
-const[showMine,setShowMine]=useState(false);
-const[availability,setAvailability]=useState('All');
+    const [selectedListing, setSelectedListing] =
+        useState(null);
 
-useEffect(()=>{
-dispatch(fetchListings());
-},[dispatch]);
+    const [deleteDialogOpen, setDeleteDialogOpen] =
+        useState(false);
 
-const filteredListings=(listings||[]).filter(listing=>{
-const keyword=search.toLowerCase();
-const matchesSearch=
-(listing.title||'').toLowerCase().includes(keyword)||
-(listing.location||'').toLowerCase().includes(keyword)||
-(listing.category||'').toLowerCase().includes(keyword);
+    const [search, setSearch] =
+        useState('');
 
-const matchesCategory=
-selectedCategory==='All'||
-listing.category===selectedCategory;
+    const [selectedCategory, setSelectedCategory] =
+        useState('All');
 
-const matchesAvailability=
-availability==='All'
-||
-(availability==='Available'&&listing.available)
+    const [showMine, setShowMine] =
+        useState(false);
 
-||
-(availability==='Sold'&&!listing.available);
+    const [availability, setAvailability] =
+        useState('All');
 
-const matchesOwner=
-!showMine||
-listing.user?._id===user?._id;
+    const [loadingMore, setLoadingMore] =
+        useState(false);
 
-return matchesSearch&&matchesCategory&&matchesAvailability&&matchesOwner;
-});
+    /*
+    |--------------------------------------------------------------------------
+    | Fetch Listings
+    |--------------------------------------------------------------------------
+    */
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            dispatch(
+                fetchListings(
+                    {
+                        page: 1,
+                        limit: 20,
+                        search: search.trim(),
+                        category:
+                            selectedCategory === 'All'
+                                ? ''
+                                : selectedCategory,
+                        availability:
+                            availability === 'All'
+                                ? ''
+                                : availability,
+                        mine: showMine,
+                    },
+                    false
+                )
+            );
+        }, 350);
 
-/*
-|--------------------------------------------------------------------------
-| Create Listing
-|--------------------------------------------------------------------------
-*/
-const handleCreate=()=>{
-setSelectedListing(null);
-setDialogOpen(true);
-};
+        return () => clearTimeout(timer);
+    }, [
+        dispatch,
+        search,
+        selectedCategory,
+        availability,
+        showMine,
+    ]);
 
-/*
-|--------------------------------------------------------------------------
-| Edit Listing
-|--------------------------------------------------------------------------
-*/
-const handleEditListing=listing=>{
-setSelectedListing(listing);
-setDialogOpen(true)
-};
+    /*
+    |--------------------------------------------------------------------------
+    | Create Listing
+    |--------------------------------------------------------------------------
+    */
+    const handleCreate = () => {
+        setSelectedListing(null);
+        setDialogOpen(true);
+    };
 
-/*
-|--------------------------------------------------------------------------
-| Close Dialog
-|--------------------------------------------------------------------------
-*/
-const handleCloseDialog=()=>{
-if(loading)return;
-setSelectedListing(null);
-setDialogOpen(false);
-};
+    /*
+    |--------------------------------------------------------------------------
+    | Edit Listing
+    |--------------------------------------------------------------------------
+    */
+    const handleEditListing = (listing) => {
+        setSelectedListing(listing);
+        setDialogOpen(true);
+    };
 
-/*
-|--------------------------------------------------------------------------
-| Delete Listing
-|--------------------------------------------------------------------------
-*/
-const handleDeleteListing=listing=>{
-setSelectedListing(listing);
-setDeleteDialogOpen(true);
-};
-const handleCloseDeleteDialog=()=>{
-if(loading)return;
-setSelectedListing(null);
-setDeleteDialogOpen(false);
-};
+    /*
+    |--------------------------------------------------------------------------
+    | Close Listing Dialog
+    |--------------------------------------------------------------------------
+    */
+    const handleCloseDialog = () => {
+        if (loading) {
+            return;
+        }
 
-/*
-|--------------------------------------------------------------------------
-| Submit/ save
-|--------------------------------------------------------------------------
-*/
-const handleSubmit=data=>{
-if(selectedListing){
-dispatch(
-updateListing(
-selectedListing._id,
-data
-)
-);
-}else{
-dispatch(
-createListing(data)
-);
-}
-handleCloseDialog();
-};
+        setSelectedListing(null);
+        setDialogOpen(false);
+    };
 
-/*
-|--------------------------------------------------------------------------
-| Confirm Delete
-|--------------------------------------------------------------------------
-*/
-const handleDelete=()=>{
-if(selectedListing){
-dispatch(
-deleteListing(
-selectedListing._id
-)
-);
-}
-handleCloseDeleteDialog();
-};
+    /*
+    |--------------------------------------------------------------------------
+    | Delete Listing
+    |--------------------------------------------------------------------------
+    */
+    const handleDeleteListing = (listing) => {
+        setSelectedListing(listing);
+        setDeleteDialogOpen(true);
+    };
 
-const handleToggleAvailability=listing=>{
-dispatch(
-updateListing(
-listing._id,
-{
-available:!listing.available
-}
-)
-);
-};
+    /*
+    |--------------------------------------------------------------------------
+    | Close Delete Dialog
+    |--------------------------------------------------------------------------
+    */
+    const handleCloseDeleteDialog = () => {
+        if (loading) {
+            return;
+        }
 
-return(
-<Container
-maxWidth="xl"
-sx={{
-py:3,
-pb:10
-}}
->
-<Box
-display="flex"
-justifyContent="space-between"
-alignItems="center"
-mb={4}
-flexWrap="wrap"
-gap={2}
->
-<Box>
-<Typography
-variant="h4"
-fontWeight={700}
->
-{t('Marketplace')}
-</Typography>
-<Typography
-variant="body1"
-color="text.secondary"
->
-{t('Buy and sell agricultural products.')}
-</Typography>
-</Box>
-<Button
-variant="contained"
-startIcon={<AddIcon/>}
-onClick={handleCreate}
->
-{t('Create Listing')}
-</Button>
-</Box>
+        setSelectedListing(null);
+        setDeleteDialogOpen(false);
+    };
 
-<MarketplaceSummaryCards
-listings={filteredListings}
-/>
+    /*
+    |--------------------------------------------------------------------------
+    | Submit / Save Listing
+    |--------------------------------------------------------------------------
+    */
+    const handleSubmit = async (data) => {
+        let result;
 
-<MarketplaceSearchBar
-value={search}
-onChange={setSearch}
-/>
+        if (selectedListing) {
+            result = await dispatch(
+                updateListing(
+                    selectedListing._id,
+                    data
+                )
+            );
+        } else {
+            result = await dispatch(
+                createListing(data)
+            );
+        }
 
-<CategoryFilter
-selected={selectedCategory}
-onChange={setSelectedCategory}
-/>
+        if (result?.success) {
+            handleCloseDialog();
+        }
+    };
 
-<AvailabilityFilter
-value={availability}
-onChange={setAvailability}
-/>
+    /*
+    |--------------------------------------------------------------------------
+    | Confirm Delete
+    |--------------------------------------------------------------------------
+    */
+    const handleDelete = async () => {
+        if (!selectedListing) {
+            return;
+        }
 
-<FormControlLabel
-control={
-<Switch
-checked={showMine}
-onChange={e=>setShowMine(e.target.checked)}
-/>
-}
-label={t('Show My Listings')}
-sx={{mb:3}}
-/>
+        const result = await dispatch(
+            deleteListing(
+                selectedListing._id
+            )
+        );
 
-{loading&&(
-<Box
-display="flex"
-justifyContent="center"
-py={6}
->
-<CircularProgress/>
-</Box>
-)}
-{error&&(
-<Alert
-severity="error"
-sx={{mb:3}}
->
-{error}
-</Alert>
-)}
+        if (result?.success) {
+            handleCloseDeleteDialog();
+        }
+    };
 
-{!loading&&(
-<MarketplaceGrid
-listings={filteredListings}
-loading={loading}
-error={error}
-onEdit={handleEditListing}
-onDelete={handleDeleteListing}
-onToggleAvailability={handleToggleAvailability}
-onCreate={handleCreate}
-/>
-)}
+    /*
+    |--------------------------------------------------------------------------
+    | Toggle Availability
+    |--------------------------------------------------------------------------
+    */
+    const handleToggleAvailability = (
+        listing
+    ) => {
+        dispatch(
+            updateListing(
+                listing._id,
+                {
+                    available:
+                        !listing.available,
+                }
+            )
+        );
+    };
 
-<MarketplaceDialog
-open={dialogOpen}
-loading={loading}
-listing={selectedListing}
-onClose={handleCloseDialog}
-onSubmit={handleSubmit}
-/>
+    /*
+    |--------------------------------------------------------------------------
+    | Load More
+    |--------------------------------------------------------------------------
+    */
+    const handleLoadMore = async () => {
+        if (
+            loadingMore ||
+            loading ||
+            !hasMore
+        ) {
+            return;
+        }
 
-<DeleteMarketplaceDialog
-open={deleteDialogOpen}
-loading={loading}
-listing={selectedListing}
-onClose={handleCloseDeleteDialog}
-onConfirm={handleDelete}
-/>
-</Container>
-);
+        setLoadingMore(true);
+
+        try {
+            await dispatch(
+                fetchListings(
+                    {
+                        page: page + 1,
+                        limit: 20,
+                        search: search.trim(),
+                        category:
+                            selectedCategory === 'All'
+                                ? ''
+                                : selectedCategory,
+                        availability:
+                            availability === 'All'
+                                ? ''
+                                : availability,
+                        mine: showMine,
+                    },
+                    true
+                )
+            );
+        } finally {
+            setLoadingMore(false);
+        }
+    };
+
+    return (
+        <Container
+            maxWidth="xl"
+            sx={{
+                py: 3,
+                pb: 10,
+            }}
+        >
+            {/* Header */}
+            <Box
+                display="flex"
+                justifyContent="space-between"
+                alignItems="center"
+                mb={4}
+                flexWrap="wrap"
+                gap={2}
+            >
+                <Box>
+                    <Typography
+                        variant="h4"
+                        fontWeight={700}
+                    >
+                        {t('Marketplace')}
+                    </Typography>
+
+                    <Typography
+                        variant="body2"
+                        color="text.secondary"
+                    >
+                        {t(
+                            'Buy and sell agricultural products, equipment and services.'
+                        )}
+                    </Typography>
+                </Box>
+
+                <Button
+                    variant="contained"
+                    startIcon={<AddIcon />}
+                    onClick={handleCreate}
+                >
+                    {t('Create Listing')}
+                </Button>
+            </Box>
+
+            {/* Error */}
+            {error && (
+                <Alert
+                    severity="error"
+                    sx={{ mb: 3 }}
+                >
+                    {error}
+                </Alert>
+            )}
+
+            {/* Search */}
+            <Box sx={{ mb: 3 }}>
+                <MarketplaceSearchBar
+                    search={search}
+                    onSearchChange={
+                        setSearch
+                    }
+                />
+            </Box>
+
+            {/* Filters */}
+            <Stack
+                direction={{
+                    xs: 'column',
+                    md: 'row',
+                }}
+                spacing={3}
+                sx={{ mb: 4 }}
+            >
+                <Box sx={{ flex: 1 }}>
+                    <CategoryFilter
+                        selected={
+                            selectedCategory
+                        }
+                        onChange={
+                            setSelectedCategory
+                        }
+                    />
+                </Box>
+
+                <Box sx={{ flex: 1 }}>
+                    <AvailabilityFilter
+                        value={
+                            availability
+                        }
+                        onChange={
+                            setAvailability
+                        }
+                    />
+                </Box>
+            </Stack>
+
+            {/* My Listings Toggle */}
+            <Box sx={{ mb: 3 }}>
+                <FormControlLabel
+                    control={
+                        <Switch
+                            checked={showMine}
+                            onChange={(event) =>
+                                setShowMine(
+                                    event.target.checked
+                                )
+                            }
+                        />
+                    }
+                    label={t(
+                        'Show My Listings'
+                    )}
+                />
+            </Box>
+
+            {/* Summary */}
+            <Box sx={{ mb: 3 }}>
+                <MarketplaceSummaryCards
+                    listings={
+                        listings || []
+                    }
+                />
+            </Box>
+
+            {/* Marketplace Listings */}
+            <MarketplaceGrid
+                listings={
+                    listings || []
+                }
+                loading={
+                    loading &&
+                    (!listings ||
+                        listings.length === 0)
+                }
+                error={error}
+                onEdit={
+                    handleEditListing
+                }
+                onDelete={
+                    handleDeleteListing
+                }
+                onToggleAvailability={
+                    handleToggleAvailability
+                }
+                onCreate={handleCreate}
+            />
+
+            {/* Load More */}
+            {hasMore && (
+                <Box
+                    display="flex"
+                    justifyContent="center"
+                    mt={5}
+                >
+                    <Button
+                        variant="outlined"
+                        size="large"
+                        onClick={
+                            handleLoadMore
+                        }
+                        disabled={
+                            loadingMore ||
+                            loading
+                        }
+                    >
+                        {loadingMore ? (
+                            <CircularProgress
+                                size={24}
+                            />
+                        ) : (
+                            t('Load More')
+                        )}
+                    </Button>
+                </Box>
+            )}
+
+            {/* End of Listings */}
+            {!hasMore &&
+                listings &&
+                listings.length > 0 && (
+                    <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        textAlign="center"
+                        mt={5}
+                    >
+                        {t(
+                            'You have reached the end of the listings.'
+                        )}
+                    </Typography>
+                )}
+
+            {/* Create / Edit Dialog */}
+            <MarketplaceDialog
+                open={dialogOpen}
+                onClose={
+                    handleCloseDialog
+                }
+                listing={
+                    selectedListing
+                }
+                loading={loading}
+                onSubmit={
+                    handleSubmit
+                }
+            />
+
+            {/* Delete Dialog */}
+            <DeleteMarketplaceDialog
+                open={
+                    deleteDialogOpen
+                }
+                onClose={
+                    handleCloseDeleteDialog
+                }
+                listing={
+                    selectedListing
+                }
+                loading={loading}
+                onConfirm={
+                    handleDelete
+                }
+            />
+        </Container>
+    );
 };
 
 export default Marketplace;

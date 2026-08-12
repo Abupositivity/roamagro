@@ -1,7 +1,6 @@
 const { body } = require('express-validator');
 
 exports.createPriceValidator = [
-
     body('product')
         .trim()
         .notEmpty()
@@ -13,14 +12,28 @@ exports.createPriceValidator = [
         .withMessage('Price is required.')
         .bail()
         .isNumeric()
-        .withMessage('Price must be numeric.')
-        .isFloat({min:1})
-        .withMessage('Price must be greater than zero.'),
+        .withMessage(
+            'Price must be numeric.'
+        )
+        .isFloat({ min: 1 })
+        .withMessage(
+            'Price must be greater than zero.'
+        ),
 
     body('location')
         .trim()
         .notEmpty()
-        .withMessage('Location is required.')
+        .withMessage(
+            'Location is required.'
+        )
+        .escape(),
+
+    body('market')
+        .trim()
+        .notEmpty()
+        .withMessage(
+            'Market is required.'
+        )
         .escape(),
 
     body('category')
@@ -28,14 +41,8 @@ exports.createPriceValidator = [
         .trim()
         .escape(),
 
-    body('market')
-        .optional()
-        .trim()
-        .escape(),
-
     body('unit')
         .optional()
         .trim()
-        .escape()
-
+        .escape(),
 ];

@@ -1,49 +1,70 @@
 import React from 'react';
+
 import {
-Stack,
-Chip
+    Stack,
+    Chip,
 } from '@mui/material';
 
-const categories=[
-'All',
-'Crop',
-'Livestock',
-'Poultry',
-'Fishery',
-'Equipment',
-'Farm Inputs',
-'Services'
+import { useTranslation } from 'react-i18next';
+
+const defaultCategories = [
+    'All',
+    'Crop',
+    'Fruit',
+    'Vegetable',
+    'Livestock',
+    'Poultry',
+    'Fishery',
+    'Equipment',
+    'Farm Input',
+    'Service',
+    'Other',
 ];
 
-const CategoryFilter=({
-selected,
-onChange
-})=>{
-return(
-<Stack
-direction="row"
-spacing={1}
-mb={3}
-sx={{
-overflowX:'auto',
-pb:1
-}}
->
-{categories.map(category=>(
-<Chip
-key={category}
-label={category}
-clickable
-color={
-selected===category
-?'primary'
-:'default'
-}
-onClick={()=>onChange(category)}
-/>
-))}
-</Stack>
-);
+const CategoryFilter = ({
+    categories = [],
+    selected = 'All',
+    onChange,
+}) => {
+    const { t } = useTranslation();
+
+    const availableCategories = [
+        ...new Set(
+            [
+                ...defaultCategories,
+                ...categories,
+            ].filter(Boolean)
+        ),
+    ];
+
+    return (
+        <Stack
+            direction="row"
+            spacing={1}
+            sx={{
+                overflowX: 'auto',
+                pb: 1,
+            }}
+        >
+            {availableCategories.map(
+                (category) => (
+                    <Chip
+                        key={category}
+                        label={t(category)}
+                        clickable
+                        color={
+                            selected === category
+                                ? 'primary'
+                                : 'default'
+                        }
+                        onClick={() =>
+                            onChange(category)
+                        }
+                    />
+                )
+            )}
+        </Stack>
+    );
 };
 
 export default CategoryFilter;
