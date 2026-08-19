@@ -1,30 +1,58 @@
 import React from 'react';
-
 import {
     Box,
     Button,
-    CircularProgress,
     Divider,
     List,
     Menu,
     Stack,
     Typography,
 } from '@mui/material';
+import { useDispatch } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 
 import NotificationItem from './NotificationItem';
+
+import {
+    markNotificationAsRead,
+    markAllNotificationsAsRead,
+} from '../../redux/actions/notificationActions';
 
 const NotificationMenu = ({
     anchorEl,
     open,
     onClose,
     notifications = [],
-    loading = false,
-    actionLoading = false,
-    onNotificationClick,
-    onMarkAllAsRead,
 }) => {
+    const dispatch = useDispatch();
+    const navigate = useNavigate();
+
+    const handleNotificationClick = (
+        notification
+    ) => {
+        if (!notification.read) {
+            dispatch(
+                markNotificationAsRead(
+                    notification._id
+                )
+            );
+        }
+
+        onClose();
+
+        if (notification.link) {
+            navigate(notification.link);
+        }
+    };
+
+    const handleMarkAllRead = () => {
+        dispatch(
+            markAllNotificationsAsRead()
+        );
+    };
+
     const unreadCount = notifications.filter(
-        (notification) => !notification.read
+        notification => !notification.read
     ).length;
 
     return (
@@ -38,7 +66,6 @@ const NotificationMenu = ({
                         xs: 320,
                         sm: 380,
                     },
-                    maxWidth: 'calc(100vw - 24px)',
                     maxHeight: 520,
                 },
             }}
@@ -48,31 +75,18 @@ const NotificationMenu = ({
                     direction="row"
                     justifyContent="space-between"
                     alignItems="center"
-                    spacing={2}
                 >
-                    <Box>
-                        <Typography
-                            variant="h6"
-                            fontWeight={700}
-                        >
-                            Notifications
-                        </Typography>
-
-                        {unreadCount > 0 && (
-                            <Typography
-                                variant="caption"
-                                color="text.secondary"
-                            >
-                                {unreadCount} unread
-                            </Typography>
-                        )}
-                    </Box>
+                    <Typography
+                        variant="h6"
+                        fontWeight={700}
+                    >
+                        Notifications
+                    </Typography>
 
                     {unreadCount > 0 && (
                         <Button
                             size="small"
-                            onClick={onMarkAllAsRead}
-                            disabled={actionLoading}
+                            onClick={handleMarkAllRead}
                         >
                             Mark all read
                         </Button>
@@ -82,16 +96,8 @@ const NotificationMenu = ({
 
             <Divider />
 
-            {loading ? (
-                <Box
-                    py={5}
-                    display="flex"
-                    justifyContent="center"
-                >
-                    <CircularProgress size={28} />
-                </Box>
-            ) : notifications.length === 0 ? (
-                <Box px={3} py={5}>
+            {notifications.length === 0 ? (
+                <Box p={3}>
                     <Typography
                         color="text.secondary"
                         align="center"
@@ -102,14 +108,16 @@ const NotificationMenu = ({
             ) : (
                 <List disablePadding>
                     {notifications.map(
-                        (notification) => (
+                        notification => (
                             <NotificationItem
-                                key={notification._id}
+                                key={
+                                    notification._id
+                                }
                                 notification={
                                     notification
                                 }
                                 onClick={
-                                    onNotificationClick
+                                    handleNotificationClick
                                 }
                             />
                         )

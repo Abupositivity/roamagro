@@ -39,6 +39,13 @@ const UserSchema = new mongoose.Schema(
         default: ''
     },
 
+    bio: {
+        type: String,
+        default: '',
+        trim: true,
+        maxlength: 500
+    },
+
     phone: {
         type: String,
         default: ''
@@ -74,6 +81,26 @@ const UserSchema = new mongoose.Schema(
     isVerified: {
         type: Boolean,
         default: false
+    },
+
+    emailVerificationToken:{
+        type:String,
+        default:null
+    },
+    
+    emailVerificationExpires:{
+        type:Date,
+        default:null
+    },
+    
+    passwordResetToken:{
+        type:String,
+        default:null
+    },
+    
+    passwordResetExpires:{
+        type:Date,
+        default:null
     }
 
 },

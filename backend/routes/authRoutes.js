@@ -1,30 +1,29 @@
-const express = require('express');
-const passport = require('passport');
+const express=require('express');
+const passport=require('passport');
 
-const {
+const{
     registerUser,
     loginUser,
     googleAuth,
-    getCurrentUser,
-} = require('../controllers/authController');
+    verifyEmail,
+    forgotPassword,
+    resetPassword,
+    getCurrentUser
+}=require('../controllers/authController');
 
-const ensureAuthenticated = require('../middleware/ensureAuthenticated');
+const ensureAuthenticated=require('../middleware/ensureAuthenticated');
+const validateRequest=require('../middleware/validateRequest');
 
-const validateRequest = require('../middleware/validateRequest');
-
-const {
+const{
     registerValidator,
     loginValidator,
     googleValidator,
-} = require('../validators');
+    forgotPasswordValidator,
+    resetPasswordValidator
+}=require('../validators');
 
-const router = express.Router();
+const router=express.Router();
 
-/*
-|--------------------------------------------------------------------------
-| Public
-|--------------------------------------------------------------------------
-*/
 router.post(
     '/register',
     registerValidator,
@@ -46,49 +45,58 @@ router.post(
     googleAuth
 );
 
-/*
-|--------------------------------------------------------------------------
-| Passport Google OAuth
-|--------------------------------------------------------------------------
-*/
+router.get(
+    '/verify-email',
+    verifyEmail
+);
+
+router.post(
+    '/forgot-password',
+    forgotPasswordValidator,
+    validateRequest,
+    forgotPassword
+);
+
+router.post(
+    '/reset-password',
+    resetPasswordValidator,
+    validateRequest,
+    resetPassword
+);
+
 router.get(
     '/google',
-    passport.authenticate('google', {
-        scope: ['profile', 'email'],
+    passport.authenticate('google',{
+        scope:['profile','email']
     })
 );
 
 router.get(
     '/google/callback',
-    passport.authenticate('google', {
-        session: false,
-        failureRedirect: `${process.env.FRONTEND_URL}/login`,
+    passport.authenticate('google',{
+        session:false,
+        failureRedirect:`${process.env.FRONTEND_URL}/login`
     }),
-    (req, res) => {
+    (req,res)=>{
         res.redirect(`${process.env.FRONTEND_URL}/dashboard`);
     }
 );
 
-/*
-|--------------------------------------------------------------------------
-| Protected
-|--------------------------------------------------------------------------
-*/
 router.get(
     '/me',
     ensureAuthenticated,
     getCurrentUser
 );
 
-router.post('/logout', (req, res) => {
-    req.logout(() => {
-        req.session?.destroy(() => {
+router.post('/logout',(req,res)=>{
+    req.logout(()=>{
+        req.session?.destroy(()=>{
             res.json({
-                success: true,
-                message: 'Logged out successfully.',
+                success:true,
+                message:'Logged out successfully.'
             });
         });
     });
 });
 
-module.exports = router;
+module.exports=router;

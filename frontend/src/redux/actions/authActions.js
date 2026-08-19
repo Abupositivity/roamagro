@@ -1,6 +1,6 @@
 import api from "../../services/api";
 
-import {
+import{
     LOGIN_REQUEST,
     LOGIN_SUCCESS,
     LOGIN_FAIL,
@@ -10,110 +10,289 @@ import {
     GOOGLE_LOGIN_REQUEST,
     GOOGLE_LOGIN_SUCCESS,
     GOOGLE_LOGIN_FAIL,
-    LOGOUT,
-} from "./types";
+    VERIFY_EMAIL_REQUEST,
+    VERIFY_EMAIL_SUCCESS,
+    VERIFY_EMAIL_FAIL,
+    FORGOT_PASSWORD_REQUEST,
+    FORGOT_PASSWORD_SUCCESS,
+    FORGOT_PASSWORD_FAIL,
+    RESET_PASSWORD_REQUEST,
+    RESET_PASSWORD_SUCCESS,
+    RESET_PASSWORD_FAIL,
+    UPDATE_PROFILE_REQUEST,
+    UPDATE_PROFILE_SUCCESS,
+    UPDATE_PROFILE_FAIL,
+    LOGOUT
+}from"./types";
 
-/*
-|--------------------------------------------------------------------------
-| Register User
-|--------------------------------------------------------------------------
-*/
-export const register = (userData) => async (dispatch) => {
-    dispatch({
-        type: REGISTER_REQUEST,
-    });
-    try {
-        const res = await api.post("/auth/register", userData);
+export const register=userData=>async dispatch=>{
+    dispatch({type:REGISTER_REQUEST});
+
+    try{
+        const res=await api.post(
+            "/auth/register",
+            userData
+        );
+
         dispatch({
-            type: REGISTER_SUCCESS,
-            payload: res.data.data,
+            type:REGISTER_SUCCESS,
+            payload:res.data
         });
-        // Automatically log the user in after registration
-        dispatch(login({
-            email: userData.email,
-            password: userData.password,
-        }));
-    } catch (error) {
+
+        return{
+            success:true,
+            message:res.data.message,
+            email:res.data.data?.email
+        };
+    }catch(error){
+        const message=
+            error.response?.data?.message||
+            "Registration failed.";
+
         dispatch({
-            type: REGISTER_FAIL,
-            payload:
-                error.response?.data?.message ||
-                "Registration failed.",
+            type:REGISTER_FAIL,
+            payload:message
         });
+
+        return{
+            success:false,
+            message
+        };
     }
 };
 
-/*
-|--------------------------------------------------------------------------
-| Login User
-|--------------------------------------------------------------------------
-*/
-export const login = (credentials) => async (dispatch) => {
-    dispatch({
-        type: LOGIN_REQUEST,
-    });
-    try {
-        const res = await api.post("/auth/login", credentials);
-        const { token, user } = res.data.data;
-        localStorage.setItem("token", token);
+export const login=credentials=>async dispatch=>{
+    dispatch({type:LOGIN_REQUEST});
+
+    try{
+        const res=await api.post(
+            "/auth/login",
+            credentials
+        );
+
+        const{token,user}=res.data.data;
+
+        localStorage.setItem("token",token);
+        localStorage.setItem("user",JSON.stringify(user));
+
         dispatch({
-            type: LOGIN_SUCCESS,
-            payload: {
+            type:LOGIN_SUCCESS,
+            payload:{token,user}
+        });
+
+        return{
+            success:true
+        };
+    }catch(error){
+        const message=
+            error.response?.data?.message||
+            "Invalid email or password.";
+
+        dispatch({
+            type:LOGIN_FAIL,
+            payload:message
+        });
+
+        return{
+            success:false,
+            message
+        };
+    }
+};
+
+export const googleLogin=googleToken=>async dispatch=>{
+    dispatch({type:GOOGLE_LOGIN_REQUEST});
+
+    try{
+        const res=await api.post(
+            "/auth/google",
+            {token:googleToken}
+        );
+
+        const{token,user}=res.data.data;
+
+        localStorage.setItem("token",token);
+        localStorage.setItem("user",JSON.stringify(user));
+
+        dispatch({
+            type:GOOGLE_LOGIN_SUCCESS,
+            payload:{token,user}
+        });
+
+        return{success:true};
+    }catch(error){
+        const message=
+            error.response?.data?.message||
+            "Google login failed.";
+
+        dispatch({
+            type:GOOGLE_LOGIN_FAIL,
+            payload:message
+        });
+
+        return{
+            success:false,
+            message
+        };
+    }
+};
+
+export const verifyEmail=token=>async dispatch=>{
+    dispatch({type:VERIFY_EMAIL_REQUEST});
+
+    try{
+        const res=await api.get(
+            `/auth/verify-email?token=${encodeURIComponent(token)}`
+        );
+
+        dispatch({
+            type:VERIFY_EMAIL_SUCCESS,
+            payload:res.data.message
+        });
+
+        return{
+            success:true,
+            message:res.data.message
+        };
+    }catch(error){
+        const message=
+            error.response?.data?.message||
+            "Email verification failed.";
+
+        dispatch({
+            type:VERIFY_EMAIL_FAIL,
+            payload:message
+        });
+
+        return{
+            success:false,
+            message
+        };
+    }
+};
+
+export const forgotPassword=email=>async dispatch=>{
+    dispatch({type:FORGOT_PASSWORD_REQUEST});
+
+    try{
+        const res=await api.post(
+            "/auth/forgot-password",
+            {email}
+        );
+
+        dispatch({
+            type:FORGOT_PASSWORD_SUCCESS,
+            payload:res.data.message
+        });
+
+        return{
+            success:true,
+            message:res.data.message
+        };
+    }catch(error){
+        const message=
+            error.response?.data?.message||
+            "Unable to process password recovery.";
+
+        dispatch({
+            type:FORGOT_PASSWORD_FAIL,
+            payload:message
+        });
+
+        return{
+            success:false,
+            message
+        };
+    }
+};
+
+export const resetPassword=(token,password)=>async dispatch=>{
+    dispatch({type:RESET_PASSWORD_REQUEST});
+
+    try{
+        const res=await api.post(
+            "/auth/reset-password",
+            {
                 token,
-                user,
-            },
-        });
-    } catch (error) {
+                password
+            }
+        );
+
         dispatch({
-            type: LOGIN_FAIL,
-            payload:
-                error.response?.data?.message ||
-                "Invalid email or password.",
+            type:RESET_PASSWORD_SUCCESS,
+            payload:res.data.message
         });
+
+        return{
+            success:true,
+            message:res.data.message
+        };
+    }catch(error){
+        const message=
+            error.response?.data?.message||
+            "Unable to reset your password.";
+
+        dispatch({
+            type:RESET_PASSWORD_FAIL,
+            payload:message
+        });
+
+        return{
+            success:false,
+            message
+        };
     }
 };
 
-/*
-|--------------------------------------------------------------------------
-| Google Login
-|--------------------------------------------------------------------------
-*/
-export const googleLogin = (googleToken) => async (dispatch) => {
+export const updateProfile=profileData=>async dispatch=>{
     dispatch({
-        type: GOOGLE_LOGIN_REQUEST,
+        type:UPDATE_PROFILE_REQUEST
     });
-    try {
-        const res = await api.post("/auth/google", {
-            token: googleToken,
-        });
-        const { token, user } = res.data.data;
-        localStorage.setItem("token", token);
+
+    try{
+        const res=await api.put(
+            "/users/profile",
+            profileData
+        );
+
+        const user=res.data.data;
+
+        localStorage.setItem(
+            "user",
+            JSON.stringify(user)
+        );
+
         dispatch({
-            type: GOOGLE_LOGIN_SUCCESS,
-            payload: {
-                token,
-                user,
-            },
+            type:UPDATE_PROFILE_SUCCESS,
+            payload:user
         });
-    } catch (error) {
+
+        return{
+            success:true,
+            user
+        };
+    }catch(error){
+        const message=
+            error.response?.data?.message||
+            "Unable to update profile.";
+
         dispatch({
-            type: GOOGLE_LOGIN_FAIL,
-            payload:
-                error.response?.data?.message ||
-                "Google login failed.",
+            type:UPDATE_PROFILE_FAIL,
+            payload:message
         });
+
+        return{
+            success:false,
+            message
+        };
     }
 };
 
-/*
-|--------------------------------------------------------------------------
-| Logout
-|--------------------------------------------------------------------------
-*/
-export const logout = () => (dispatch) => {
+export const logout=()=>dispatch=>{
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+
     dispatch({
-        type: LOGOUT,
+        type:LOGOUT
     });
 };

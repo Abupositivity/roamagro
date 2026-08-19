@@ -9,7 +9,6 @@ import{
     Container,
     IconButton,
     InputAdornment,
-    Snackbar,
     Stack,
     TextField,
     Typography
@@ -19,13 +18,14 @@ import{
     VisibilityOff
 }from"@mui/icons-material";
 import{useDispatch,useSelector}from"react-redux";
-import{register}from"../../redux/actions/authActions";
-import{Link,useNavigate}from"react-router-dom";
+import{resetPassword}from"../../redux/actions/authActions";
+import{Link,useNavigate,useSearchParams}from"react-router-dom";
 import{useTranslation}from"react-i18next";
 
-const Register=()=>{
+const ResetPassword=()=>{
     const dispatch=useDispatch();
     const navigate=useNavigate();
+    const[tParams]=useSearchParams();
     const{t}=useTranslation();
 
     const{
@@ -33,59 +33,46 @@ const Register=()=>{
         error
     }=useSelector(state=>state.auth);
 
-    const[formData,setFormData]=useState({
-        name:"",
-        email:"",
-        password:""
-    });
+    const token=tParams.get("token");
 
+    const[password,setPassword]=useState("");
+    const[confirmPassword,setConfirmPassword]=useState("");
     const[showPassword,setShowPassword]=useState(false);
+    const[showConfirmPassword,setShowConfirmPassword]=useState(false);
     const[localError,setLocalError]=useState("");
     const[success,setSuccess]=useState(false);
-
-    const handleChange=e=>{
-        setFormData(previous=>({
-            ...previous,
-            [e.target.name]:e.target.value
-        }));
-
-        setLocalError("");
-    };
 
     const handleSubmit=async e=>{
         e.preventDefault();
         setLocalError("");
 
-        const name=formData.name.trim();
-        const email=formData.email.trim();
-
-        if(name.length<2){
+        if(!token){
             setLocalError(
-                t("Name must contain at least 2 characters.")
+                t(
+                    "This password reset link is invalid or incomplete."
+                )
             );
             return;
         }
 
-        if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+        if(password.length<6){
             setLocalError(
-                t("Please enter a valid email address.")
+                t(
+                    "Password must be at least 6 characters."
+                )
             );
             return;
         }
 
-        if(formData.password.length<6){
+        if(password!==confirmPassword){
             setLocalError(
-                t("Password must be at least 6 characters.")
+                t("Passwords do not match.")
             );
             return;
         }
 
         const result=await dispatch(
-            register({
-                name,
-                email,
-                password:formData.password
-            })
+            resetPassword(token,password)
         );
 
         if(result?.success){
@@ -97,7 +84,7 @@ const Register=()=>{
                         message:
                             result.message||
                             t(
-                                "Registration successful. Please verify your email before logging in."
+                                "Password reset successfully. You can now log in."
                             )
                     }
                 });
@@ -131,20 +118,19 @@ const Register=()=>{
                             <Box>
                                 <Typography
                                     variant="h4"
-                                    align="center"
                                     fontWeight={800}
+                                    align="center"
                                 >
-                                    {t("Register New User")}
+                                    {t("Reset Password")}
                                 </Typography>
 
                                 <Typography
-                                    variant="body2"
-                                    align="center"
                                     color="text.secondary"
+                                    align="center"
                                     sx={{mt:.7}}
                                 >
                                     {t(
-                                        "Create your RoamAgro account"
+                                        "Create a new password for your RoamAgro account."
                                     )}
                                 </Typography>
                             </Box>
@@ -155,53 +141,33 @@ const Register=()=>{
                                 </Alert>
                             )}
 
-                            <Alert severity="info">
-                                {t(
-                                    "You will need to verify your email address before you can log in."
-                                )}
-                            </Alert>
+                            {success&&(
+                                <Alert severity="success">
+                                    {t(
+                                        "Password reset successfully. Redirecting to login..."
+                                    )}
+                                </Alert>
+                            )}
 
                             <Box
                                 component="form"
                                 onSubmit={handleSubmit}
-                                noValidate
                             >
                                 <Stack spacing={2}>
                                     <TextField
                                         fullWidth
-                                        name="name"
-                                        label={t("Name")}
-                                        value={formData.name}
-                                        onChange={handleChange}
-                                        disabled={loading}
-                                        autoComplete="name"
-                                        required
-                                    />
-
-                                    <TextField
-                                        fullWidth
-                                        name="email"
-                                        label={t("Email Address")}
-                                        type="email"
-                                        value={formData.email}
-                                        onChange={handleChange}
-                                        disabled={loading}
-                                        autoComplete="email"
-                                        required
-                                    />
-
-                                    <TextField
-                                        fullWidth
-                                        name="password"
-                                        label={t("Password")}
+                                        label={t("New Password")}
                                         type={
                                             showPassword
                                                 ?"text"
                                                 :"password"
                                         }
-                                        value={formData.password}
-                                        onChange={handleChange}
-                                        disabled={loading}
+                                        value={password}
+                                        onChange={e=>{
+                                            setPassword(e.target.value);
+                                            setLocalError("");
+                                        }}
+                                        disabled={loading||success}
                                         autoComplete="new-password"
                                         required
                                         helperText={t(
@@ -211,15 +177,51 @@ const Register=()=>{
                                             endAdornment:(
                                                 <InputAdornment position="end">
                                                     <IconButton
-                                                        type="button"
                                                         onClick={()=>
                                                             setShowPassword(
                                                                 previous=>!previous
                                                             )
                                                         }
-                                                        edge="end"
                                                     >
                                                         {showPassword
+                                                            ?<VisibilityOff/>
+                                                            :<Visibility/>
+                                                        }
+                                                    </IconButton>
+                                                </InputAdornment>
+                                            )
+                                        }}
+                                    />
+
+                                    <TextField
+                                        fullWidth
+                                        label={t("Confirm New Password")}
+                                        type={
+                                            showConfirmPassword
+                                                ?"text"
+                                                :"password"
+                                        }
+                                        value={confirmPassword}
+                                        onChange={e=>{
+                                            setConfirmPassword(
+                                                e.target.value
+                                            );
+                                            setLocalError("");
+                                        }}
+                                        disabled={loading||success}
+                                        autoComplete="new-password"
+                                        required
+                                        InputProps={{
+                                            endAdornment:(
+                                                <InputAdornment position="end">
+                                                    <IconButton
+                                                        onClick={()=>
+                                                            setShowConfirmPassword(
+                                                                previous=>!previous
+                                                            )
+                                                        }
+                                                    >
+                                                        {showConfirmPassword
                                                             ?<VisibilityOff/>
                                                             :<Visibility/>
                                                         }
@@ -233,13 +235,12 @@ const Register=()=>{
                                         fullWidth
                                         variant="contained"
                                         size="large"
+                                        type="submit"
+                                        disabled={loading||success}
                                         sx={{
-                                            mt:1,
                                             borderRadius:2.5,
                                             py:1.3
                                         }}
-                                        disabled={loading}
-                                        type="submit"
                                     >
                                         {loading?(
                                             <CircularProgress
@@ -247,7 +248,7 @@ const Register=()=>{
                                                 color="inherit"
                                             />
                                         ):(
-                                            t("Create Account")
+                                            t("Reset Password")
                                         )}
                                     </Button>
                                 </Stack>
@@ -257,7 +258,6 @@ const Register=()=>{
                                 align="center"
                                 variant="body2"
                             >
-                                {t("Already have an account?")}{" "}
                                 <Typography
                                     component={Link}
                                     to="/login"
@@ -267,35 +267,15 @@ const Register=()=>{
                                         textDecoration:"none"
                                     }}
                                 >
-                                    {t("Login")}
+                                    {t("Back to Login")}
                                 </Typography>
                             </Typography>
                         </Stack>
                     </CardContent>
                 </Card>
             </Box>
-
-            <Snackbar
-                open={success}
-                autoHideDuration={2500}
-                onClose={()=>setSuccess(false)}
-                anchorOrigin={{
-                    vertical:"bottom",
-                    horizontal:"center"
-                }}
-            >
-                <Alert
-                    severity="success"
-                    variant="filled"
-                    onClose={()=>setSuccess(false)}
-                >
-                    {t(
-                        "Account created. Check your email to verify your account."
-                    )}
-                </Alert>
-            </Snackbar>
         </Container>
     );
 };
 
-export default Register;
+export default ResetPassword;

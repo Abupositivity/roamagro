@@ -1,44 +1,42 @@
-import React from 'react';
-
-import {
+import React from'react';
+import{
     Alert,
     Box,
     Button,
     CircularProgress,
     Stack,
     Typography,
-} from '@mui/material';
+}from'@mui/material';
+import {useTranslation}from'react-i18next';
+import AgriPostCard from'./AgriPostCard';
 
-import { useTranslation } from 'react-i18next';
-
-import AgriPostCard from './AgriPostCard';
-
-const CommunityFeed = ({
-    loading = false,
-    loadingMore = false,
-    posts = [],
-    hasMore = false,
+const CommunityFeed=({
+    loading=false,
+    loadingMore=false,
+    posts=[],
+    hasMore=false,
     onLoadMore,
-}) => {
-    const { t } = useTranslation();
+    onOpenProfile,
+})=>{
+    const{t}=useTranslation();
 
-    if (loading) {
-        return (
+    if(loading){
+        return(
             <Box
                 display="flex"
                 justifyContent="center"
                 py={6}
             >
-                <CircularProgress />
+                <CircularProgress/>
             </Box>
         );
     }
 
-    if (posts.length === 0) {
-        return (
+    if(posts.length===0){
+        return(
             <Alert
                 severity="info"
-                sx={{ mt: 3 }}
+                sx={{mt:3}}
             >
                 {t(
                     'No community discussions match your search.'
@@ -47,7 +45,7 @@ const CommunityFeed = ({
         );
     }
 
-    return (
+    return(
         <>
             <Typography
                 variant="h5"
@@ -60,15 +58,18 @@ const CommunityFeed = ({
             </Typography>
 
             <Stack spacing={3}>
-                {posts.map((post) => (
+                {posts.map(post=>(
                     <AgriPostCard
                         key={post._id}
                         post={post}
+                        onOpenProfile={
+                            onOpenProfile
+                        }
                     />
                 ))}
             </Stack>
 
-            {hasMore && (
+            {hasMore&&(
                 <Box
                     display="flex"
                     justifyContent="center"
@@ -80,20 +81,20 @@ const CommunityFeed = ({
                         onClick={onLoadMore}
                         disabled={loadingMore}
                         startIcon={
-                            loadingMore ? (
+                            loadingMore?(
                                 <CircularProgress
                                     size={20}
                                 />
-                            ) : null
+                            ):null
                         }
                         sx={{
-                            minWidth: 180,
-                            borderRadius: 2,
+                            minWidth:180,
+                            borderRadius:2,
                         }}
                     >
                         {loadingMore
-                            ? t('Loading...')
-                            : t('Load More')}
+                            ?t('Loading...')
+                            :t('Load More')}
                     </Button>
                 </Box>
             )}

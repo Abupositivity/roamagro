@@ -21,6 +21,7 @@ const MarketplaceGrid = ({
     onDelete,
     onToggleAvailability,
     onCreate,
+    onOpenProfile
 }) => {
     const { t } = useTranslation();
 
@@ -136,9 +137,8 @@ const MarketplaceGrid = ({
                             listing={listing}
                             onEdit={onEdit}
                             onDelete={onDelete}
-                            onToggleAvailability={
-                                onToggleAvailability
-                            }
+                            onToggleAvailability={onToggleAvailability}
+                            onOpenProfile={onOpenProfile}
                         />
                     </Grid>
                 ))}

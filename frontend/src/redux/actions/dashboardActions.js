@@ -1,7 +1,6 @@
 import api from '../../services/api';
 
 import {
-
     DASHBOARD_REQUEST,
     DASHBOARD_SUCCESS,
     DASHBOARD_FAIL,
@@ -9,18 +8,23 @@ import {
     CLEAR_DASHBOARD_POST,
 } from './types';
 
-export const fetchDashboard = () => async (dispatch) => {
+export const fetchDashboard = (type = '') => async (dispatch) => {
     dispatch({
         type: DASHBOARD_REQUEST,
     });
+
     try {
-        const res = await api.get('/dashboard');
+        const endpoint = type
+            ? `/dashboard${type}`
+            : '/dashboard';
+
+        const res = await api.get(endpoint);
+
         dispatch({
             type: DASHBOARD_SUCCESS,
             payload: res.data.data,
         });
-    }
-    catch (error) {
+    } catch (error) {
         dispatch({
             type: DASHBOARD_FAIL,
             payload:

@@ -1,23 +1,23 @@
-const mongoose = require('mongoose');
+const mongoose=require('mongoose');
 
-const NotificationSchema = new mongoose.Schema(
-{
-    recipient: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        required: true,
-        index: true
+const NotificationSchema=new mongoose.Schema({
+    recipient:{
+        type:mongoose.Schema.Types.ObjectId,
+        ref:'User',
+        required:true,
+        index:true
     },
-
-    sender: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        default: null
+    sender:{
+        type:mongoose.Schema.Types.ObjectId,
+        ref:'User',
+        required:true
     },
-
-    type: {
-        type: String,
-        enum: [
+    type:{
+        type:String,
+        enum:[
+            'connection_request',
+            'connection_accepted',
+            'connection_rejected',
             'like',
             'comment',
             'follow',
@@ -26,45 +26,46 @@ const NotificationSchema = new mongoose.Schema(
             'farm',
             'system'
         ],
-        default: 'system',
-        index: true
+        required:true,
+        index:true
     },
-
-    title: {
-        type: String,
-        required: true,
-        trim: true,
-        maxlength: 150
+    title:{
+        type:String,
+        required:true,
+        trim:true,
+        maxlength:150
     },
-
-    message: {
-        type: String,
-        required: true,
-        trim: true,
-        maxlength: 500
+    message:{
+        type:String,
+        required:true,
+        trim:true,
+        maxlength:500
     },
-
-    link: {
-        type: String,
-        default: ''
+    link:{
+        type:String,
+        default:'',
+        trim:true,
+        maxlength:500
     },
-
-    read: {
-        type: Boolean,
-        default: false,
-        index: true
+    read:{
+        type:Boolean,
+        default:false,
+        index:true
     }
-},
-{
-    timestamps: true
+},{
+    timestamps:true
 });
 
 NotificationSchema.index({
-    recipient: 1,
-    createdAt: -1
+    recipient:1,
+    read:1,
+    createdAt:-1
 });
 
-module.exports = mongoose.model(
-    'Notification',
-    NotificationSchema
-);
+NotificationSchema.index({
+    recipient:1,
+    type:1,
+    createdAt:-1
+});
+
+module.exports=mongoose.model('Notification',NotificationSchema);

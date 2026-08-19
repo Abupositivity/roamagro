@@ -1,5 +1,5 @@
-import React,{useRef,useState} from 'react';
-import {
+import React,{useRef,useState}from'react';
+import{
     Avatar,
     Box,
     Button,
@@ -18,26 +18,26 @@ import {
     Stack,
     TextField,
     Typography,
-} from '@mui/material';
-import FavoriteIcon from '@mui/icons-material/Favorite';
-import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
-import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
-import ShareIcon from '@mui/icons-material/Share';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
-import CameraAltIcon from '@mui/icons-material/CameraAlt';
-import {useDispatch,useSelector} from 'react-redux';
-import {useTranslation} from 'react-i18next';
-import {
+}from'@mui/material';
+import FavoriteIcon from'@mui/icons-material/Favorite';
+import FavoriteBorderIcon from'@mui/icons-material/FavoriteBorder';
+import ChatBubbleOutlineIcon from'@mui/icons-material/ChatBubbleOutline';
+import ShareIcon from'@mui/icons-material/Share';
+import MoreVertIcon from'@mui/icons-material/MoreVert';
+import DeleteOutlineIcon from'@mui/icons-material/DeleteOutline';
+import EditOutlinedIcon from'@mui/icons-material/EditOutlined';
+import CameraAltIcon from'@mui/icons-material/CameraAlt';
+import {useDispatch,useSelector}from'react-redux';
+import {useTranslation}from'react-i18next';
+import{
     addComment,
     deleteComment,
     likePost,
     updateTopic,
     deleteTopic,
     sharePost,
-} from '../../redux/actions/communityActions';
-import CommentDialog from './CommentDialog';
+}from'../../redux/actions/communityActions';
+import CommentDialog from'./CommentDialog';
 
 const categories=[
     'Crop Production',
@@ -60,7 +60,7 @@ const categories=[
 const MAX_IMAGE_SIZE=1200;
 const IMAGE_QUALITY=0.75;
 
-const compressImage=(file)=>
+const compressImage=file=>
     new Promise((resolve,reject)=>{
         if(!file?.type?.startsWith('image/')){
             reject(
@@ -73,7 +73,7 @@ const compressImage=(file)=>
 
         const reader=new FileReader();
 
-        reader.onload=(event)=>{
+        reader.onload=event=>{
             const image=new Image();
 
             image.onload=()=>{
@@ -163,12 +163,12 @@ const compressImage=(file)=>
         reader.readAsDataURL(file);
     });
 
-const getInitial=(name)=>{
+const getInitial=name=>{
     if(!name)return'F';
     return name.trim().charAt(0).toUpperCase();
 };
 
-const formatDate=(date)=>{
+const formatDate=date=>{
     if(!date)return'';
 
     const postDate=new Date(date);
@@ -196,10 +196,12 @@ const formatDate=(date)=>{
     );
 
     if(difference===0)return'Today';
-
     if(difference===1)return'Yesterday';
 
-    if(difference>1&&difference<7){
+    if(
+        difference>1&&
+        difference<7
+    ){
         return`${difference} days ago`;
     }
 
@@ -209,59 +211,63 @@ const formatDate=(date)=>{
             day:'numeric',
             month:'short',
             year:
-                postDate.getFullYear()!==now.getFullYear()
+                postDate.getFullYear()!==
+                now.getFullYear()
                     ?'numeric'
                     :undefined,
         }
     );
 };
 
-const AgriPostCard=({post})=>{
-    const {t}=useTranslation();
+const AgriPostCard=({
+    post,
+    onOpenProfile,
+})=>{
+    const{t}=useTranslation();
     const dispatch=useDispatch();
 
     const currentUser=useSelector(
-        (state)=>state.auth?.user
+        state=>state.auth?.user
     );
 
     const fileInputRef=useRef(null);
 
-    const [
+    const[
         openComments,
         setOpenComments,
     ]=useState(false);
 
-    const [
+    const[
         menuAnchor,
         setMenuAnchor,
     ]=useState(null);
 
-    const [
+    const[
         editOpen,
         setEditOpen,
     ]=useState(false);
 
-    const [
+    const[
         deleteLoading,
         setDeleteLoading,
     ]=useState(false);
 
-    const [
+    const[
         shareLoading,
         setShareLoading,
     ]=useState(false);
 
-    const [
+    const[
         imageLoading,
         setImageLoading,
     ]=useState(false);
 
-    const [
+    const[
         imageError,
         setImageError,
     ]=useState('');
 
-    const [
+    const[
         editData,
         setEditData,
     ]=useState({
@@ -287,9 +293,16 @@ const AgriPostCard=({post})=>{
             postUserId.toString()
     );
 
+    const isOwnProfile=Boolean(
+        userId&&
+        postUserId&&
+        userId.toString()===
+            postUserId.toString()
+    );
+
     const liked=Boolean(
         post.likes?.some(
-            (like)=>
+            like=>
                 (
                     like?._id||
                     like
@@ -298,13 +311,32 @@ const AgriPostCard=({post})=>{
         )
     );
 
-    const likeCount=post.likes?.length||0;
-    const commentCount=post.comments?.length||0;
-    const shareCount=post.shares||0;
+    const likeCount=
+        post.likes?.length||0;
+
+    const commentCount=
+        post.comments?.length||0;
+
+    const shareCount=
+        post.shares||0;
 
     const authorName=
         post.user?.name||
         'Farmer';
+
+    const handleOpenProfile=()=>{
+        if(
+            !onOpenProfile||
+            !postUserId||
+            isOwnProfile
+        ){
+            return;
+        }
+
+        onOpenProfile(
+            postUserId.toString()
+        );
+    };
 
     const handleLike=()=>{
         dispatch(
@@ -312,7 +344,7 @@ const AgriPostCard=({post})=>{
         );
     };
 
-    const handleAddComment=(content)=>{
+    const handleAddComment=content=>{
         dispatch(
             addComment(
                 post._id,
@@ -321,7 +353,7 @@ const AgriPostCard=({post})=>{
         );
     };
 
-    const handleDeleteComment=(commentId)=>{
+    const handleDeleteComment=commentId=>{
         dispatch(
             deleteComment(
                 post._id,
@@ -345,9 +377,9 @@ const AgriPostCard=({post})=>{
         setEditOpen(true);
     };
 
-    const handleEditChange=(event)=>{
+    const handleEditChange=event=>{
         setEditData(
-            (previous)=>({
+            previous=>({
                 ...previous,
                 [event.target.name]:
                     event.target.value,
@@ -355,7 +387,7 @@ const AgriPostCard=({post})=>{
         );
     };
 
-    const handleImageSelect=async(event)=>{
+    const handleImageSelect=async event=>{
         const file=
             event.target.files?.[0];
 
@@ -371,7 +403,7 @@ const AgriPostCard=({post})=>{
                 await compressImage(file);
 
             setEditData(
-                (previous)=>({
+                previous=>({
                     ...previous,
                     image,
                 })
@@ -391,7 +423,7 @@ const AgriPostCard=({post})=>{
 
     const handleRemoveImage=()=>{
         setEditData(
-            (previous)=>({
+            previous=>({
                 ...previous,
                 image:'',
             })
@@ -557,10 +589,29 @@ const AgriPostCard=({post})=>{
                                 post.user?.profilePhoto
                             }
                             alt={authorName}
+                            onClick={
+                                handleOpenProfile
+                            }
                             sx={{
                                 width:44,
                                 height:44,
                                 fontWeight:700,
+                                cursor:
+                                    onOpenProfile&&
+                                    postUserId&&
+                                    !isOwnProfile
+                                        ?'pointer'
+                                        :'default',
+                                '&:hover':
+                                    onOpenProfile&&
+                                    postUserId&&
+                                    !isOwnProfile
+                                        ?{
+                                            boxShadow:
+                                                0+
+                                                ' 0 0 0 3px rgba(0,191,99,0.18)',
+                                        }
+                                        :{},
                             }}
                         >
                             {getInitial(
@@ -576,6 +627,9 @@ const AgriPostCard=({post})=>{
                         >
                             <Typography
                                 fontWeight={700}
+                                onClick={
+                                    handleOpenProfile
+                                }
                                 sx={{
                                     fontSize:{
                                         xs:'0.95rem',
@@ -584,6 +638,21 @@ const AgriPostCard=({post})=>{
                                     overflow:'hidden',
                                     textOverflow:'ellipsis',
                                     whiteSpace:'nowrap',
+                                    cursor:
+                                        onOpenProfile&&
+                                        postUserId&&
+                                        !isOwnProfile
+                                            ?'pointer'
+                                            :'default',
+                                    '&:hover':
+                                        onOpenProfile&&
+                                        postUserId&&
+                                        !isOwnProfile
+                                            ?{
+                                                color:
+                                                    'primary.main',
+                                            }
+                                            :{},
                                 }}
                             >
                                 {authorName}
@@ -621,7 +690,7 @@ const AgriPostCard=({post})=>{
                         {isOwner&&(
                             <IconButton
                                 size="large"
-                                onClick={(event)=>
+                                onClick={event=>
                                     setMenuAnchor(
                                         event.currentTarget
                                     )
@@ -638,11 +707,7 @@ const AgriPostCard=({post})=>{
                         )}
                     </Stack>
 
-                    <Box
-                        sx={{
-                            mt:2,
-                        }}
-                    >
+                    <Box sx={{mt:2}}>
                         <Typography
                             variant="h6"
                             fontWeight={700}
@@ -701,9 +766,7 @@ const AgriPostCard=({post})=>{
                         />
                     )}
 
-                    <Divider
-                        sx={{my:1.5}}
-                    />
+                    <Divider sx={{my:1.5}}/>
 
                     <Stack
                         direction="row"
@@ -711,7 +774,7 @@ const AgriPostCard=({post})=>{
                         justifyContent="space-between"
                         sx={{
                             width:'100%',
-                            gap:0.5,
+                            gap:.5,
                         }}
                     >
                         <Button
@@ -724,12 +787,8 @@ const AgriPostCard=({post})=>{
                             onClick={handleLike}
                             startIcon={
                                 liked
-                                    ?(
-                                        <FavoriteIcon/>
-                                    )
-                                    :(
-                                        <FavoriteBorderIcon/>
-                                    )
+                                    ?<FavoriteIcon/>
+                                    :<FavoriteBorderIcon/>
                             }
                             sx={{
                                 minWidth:0,
@@ -750,7 +809,7 @@ const AgriPostCard=({post})=>{
                                         xs:'none',
                                         sm:'inline',
                                     },
-                                    ml:0.5,
+                                    ml:.5,
                                 }}
                             >
                                 {liked
@@ -787,7 +846,7 @@ const AgriPostCard=({post})=>{
                                         xs:'none',
                                         sm:'inline',
                                     },
-                                    ml:0.5,
+                                    ml:.5,
                                 }}
                             >
                                 {t('Comment')}
@@ -851,9 +910,7 @@ const AgriPostCard=({post})=>{
             >
                 <MenuItem
                     onClick={handleOpenEdit}
-                    sx={{
-                        minHeight:48,
-                    }}
+                    sx={{minHeight:48}}
                 >
                     <EditOutlinedIcon
                         fontSize="small"
@@ -865,9 +922,7 @@ const AgriPostCard=({post})=>{
                 <MenuItem
                     onClick={handleDelete}
                     disabled={deleteLoading}
-                    sx={{
-                        minHeight:48,
-                    }}
+                    sx={{minHeight:48}}
                 >
                     <DeleteOutlineIcon
                         fontSize="small"
@@ -940,7 +995,7 @@ const AgriPostCard=({post})=>{
                             }
                         >
                             {categories.map(
-                                (category)=>(
+                                category=>(
                                     <MenuItem
                                         key={
                                             category
@@ -959,7 +1014,7 @@ const AgriPostCard=({post})=>{
                             <Typography
                                 variant="subtitle2"
                                 fontWeight={600}
-                                mb={0.5}
+                                mb={.5}
                             >
                                 {t(
                                     'Photo (optional)'
@@ -1090,9 +1145,7 @@ const AgriPostCard=({post})=>{
                                     disabled={
                                         imageLoading
                                     }
-                                    sx={{
-                                        mt:1,
-                                    }}
+                                    sx={{mt:1}}
                                 >
                                     {t('Change Photo')}
                                 </Button>
@@ -1111,9 +1164,7 @@ const AgriPostCard=({post})=>{
                         onClick={()=>
                             setEditOpen(false)
                         }
-                        disabled={
-                            imageLoading
-                        }
+                        disabled={imageLoading}
                     >
                         {t('Cancel')}
                     </Button>

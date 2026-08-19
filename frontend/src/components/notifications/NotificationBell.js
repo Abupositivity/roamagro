@@ -1,18 +1,14 @@
 import React, { useEffect, useState } from 'react';
-
 import {
     Badge,
     IconButton,
 } from '@mui/material';
-
 import NotificationsIcon from '@mui/icons-material/Notifications';
-
 import { useDispatch, useSelector } from 'react-redux';
 
 import {
     fetchNotifications,
-    markNotificationAsRead,
-    markAllNotificationsAsRead,
+    fetchUnreadCount,
 } from '../../redux/actions/notificationActions';
 
 import NotificationMenu from './NotificationMenu';
@@ -22,56 +18,36 @@ const NotificationBell = () => {
 
     const {
         notifications,
-        loading,
-        actionLoading,
+        unreadCount,
     } = useSelector(
-        (state) => state.notifications
+        state => state.notifications
     );
 
     const [anchorEl, setAnchorEl] = useState(null);
 
     useEffect(() => {
         dispatch(fetchNotifications());
+        dispatch(fetchUnreadCount());
     }, [dispatch]);
 
-    const unreadCount = notifications.filter(
-        (notification) => !notification.read
-    ).length;
-
-    const handleNotificationClick = (notification) => {
-        if (!notification.read) {
-            dispatch(
-                markNotificationAsRead(
-                    notification._id
-                )
-            );
-        }
-
-        setAnchorEl(null);
+    const handleOpen = (event) => {
+        setAnchorEl(event.currentTarget);
     };
 
-    const handleMarkAllAsRead = () => {
-        if (unreadCount > 0) {
-            dispatch(markAllNotificationsAsRead());
-        }
+    const handleClose = () => {
+        setAnchorEl(null);
     };
 
     return (
         <>
             <IconButton
                 color="inherit"
-                onClick={(e) =>
-                    setAnchorEl(e.currentTarget)
-                }
-                aria-label="notifications"
+                onClick={handleOpen}
             >
                 <Badge
-                    badgeContent={
-                        unreadCount > 99
-                            ? '99+'
-                            : unreadCount
-                    }
+                    badgeContent={unreadCount}
                     color="error"
+                    max={99}
                 >
                     <NotificationsIcon />
                 </Badge>
@@ -80,16 +56,8 @@ const NotificationBell = () => {
             <NotificationMenu
                 anchorEl={anchorEl}
                 open={Boolean(anchorEl)}
-                onClose={() => setAnchorEl(null)}
+                onClose={handleClose}
                 notifications={notifications}
-                loading={loading}
-                actionLoading={actionLoading}
-                onNotificationClick={
-                    handleNotificationClick
-                }
-                onMarkAllAsRead={
-                    handleMarkAllAsRead
-                }
             />
         </>
     );

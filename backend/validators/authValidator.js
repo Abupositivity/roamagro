@@ -1,73 +1,58 @@
-const { body } = require('express-validator');
+const{body}=require('express-validator');
 
-/*
-|--------------------------------------------------------------------------
-| Register Validator
-|--------------------------------------------------------------------------
-*/
+const emailValidator=body('email')
+    .trim()
+    .normalizeEmail()
+    .notEmpty()
+    .withMessage('Email is required.')
+    .bail()
+    .isEmail()
+    .withMessage('Please provide a valid email address.');
 
-exports.registerValidator = [
-
+exports.registerValidator=[
     body('name')
         .trim()
         .notEmpty()
         .withMessage('Name is required.')
         .bail()
-        .isLength({ min: 2, max: 100 })
+        .isLength({min:2,max:100})
         .withMessage('Name must be between 2 and 100 characters.')
         .escape(),
-
-    body('email')
-        .trim()
-        .normalizeEmail()
-        .notEmpty()
-        .withMessage('Email is required.')
-        .bail()
-        .isEmail()
-        .withMessage('Please provide a valid email address.'),
-
+    emailValidator,
     body('password')
         .notEmpty()
         .withMessage('Password is required.')
         .bail()
-        .isLength({ min: 6 })
+        .isLength({min:6})
         .withMessage('Password must be at least 6 characters.')
-
 ];
 
-/*
-|--------------------------------------------------------------------------
-| Login Validator
-|--------------------------------------------------------------------------
-*/
-
-exports.loginValidator = [
-
-    body('email')
-        .trim()
-        .normalizeEmail()
-        .notEmpty()
-        .withMessage('Email is required.')
-        .bail()
-        .isEmail()
-        .withMessage('Please provide a valid email.'),
-
+exports.loginValidator=[
+    emailValidator,
     body('password')
         .notEmpty()
         .withMessage('Password is required.')
-
 ];
 
-/*
-|--------------------------------------------------------------------------
-| Google Validator
-|--------------------------------------------------------------------------
-*/
+exports.forgotPasswordValidator=[
+    emailValidator
+];
 
-exports.googleValidator = [
+exports.resetPasswordValidator=[
+    body('token')
+        .trim()
+        .notEmpty()
+        .withMessage('Password reset token is required.'),
+    body('password')
+        .notEmpty()
+        .withMessage('Password is required.')
+        .bail()
+        .isLength({min:6})
+        .withMessage('Password must be at least 6 characters.')
+];
 
+exports.googleValidator=[
     body('token')
         .notEmpty()
         .withMessage('Google authentication token is required.')
-
 ];

@@ -9,6 +9,8 @@ import priceIndexReducer from './priceIndexReducer';
 import financialReducer from './financialReducer';
 import priceAlertReducer from './priceAlertReducer';
 import agriFeedReducer from './agriFeedReducer';
+import notificationReducer from './notificationReducer';
+import connectionReducer from './connectionReducer';
 
 const rootReducer = combineReducers({
     auth: authReducer,
@@ -19,7 +21,9 @@ const rootReducer = combineReducers({
     priceIndex: priceIndexReducer,
     financial:financialReducer,
     priceAlerts: priceAlertReducer,
-    agriFeed: agriFeedReducer
+    agriFeed: agriFeedReducer,
+    notifications: notificationReducer,
+    connection:connectionReducer
 });
 
 export default rootReducer;

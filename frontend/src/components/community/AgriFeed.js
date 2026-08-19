@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { fetchAgriFeed } from '../../redux/actions/agriFeedActions';
 
 import AgriTipCard from './AgriTipCard';
+import FeaturedTips from './FeaturedTips';
 
 const AgriFeed = () => {
 
@@ -37,6 +38,8 @@ const AgriFeed = () => {
     return (
 
         <Box>
+
+            <FeaturedTips />
 
             {loading && (
 

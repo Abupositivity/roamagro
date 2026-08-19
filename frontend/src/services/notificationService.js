@@ -1,14 +1,20 @@
 import api from './api';
 
-const notificationService = {
-    getNotifications() {
+const notificationService={
+    getNotifications(){
         return api.get('/notifications');
     },
-    markAsRead(id) {
+    getUnreadCount(){
+        return api.get('/notifications/unread-count');
+    },
+    markAsRead(id){
         return api.patch(`/notifications/${id}/read`);
     },
-    markAllAsRead() {
+    markAllAsRead(){
         return api.patch('/notifications/read-all');
+    },
+    deleteNotification(id){
+        return api.delete(`/notifications/${id}`);
     }
 };
 

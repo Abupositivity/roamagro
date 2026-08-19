@@ -1,9 +1,5 @@
-import React, {
-    useEffect,
-    useState,
-} from 'react';
-
-import {
+import React,{useEffect,useState}from'react';
+import{
     Accordion,
     AccordionDetails,
     AccordionSummary,
@@ -14,35 +10,32 @@ import {
     Grid,
     Snackbar,
     Typography,
-} from '@mui/material';
-
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined';
-import InsightsOutlinedIcon from '@mui/icons-material/InsightsOutlined';
-import PublicIcon from '@mui/icons-material/Public';
-
-import { useDispatch, useSelector } from 'react-redux';
-import { useTranslation } from 'react-i18next';
-
-import {
+}from'@mui/material';
+import ExpandMoreIcon from'@mui/icons-material/ExpandMore';
+import ArticleOutlinedIcon from'@mui/icons-material/ArticleOutlined';
+import InsightsOutlinedIcon from'@mui/icons-material/InsightsOutlined';
+import PublicIcon from'@mui/icons-material/Public';
+import {useDispatch,useSelector}from'react-redux';
+import {useTranslation}from'react-i18next';
+import{
     fetchTopics,
     createTopic,
-} from '../../redux/actions/communityActions';
+}from'../../redux/actions/communityActions';
+import FeaturedPosts from'./FeaturedPosts';
+import PostComposer from'./PostComposer';
+import CommunityFeed from'./CommunityFeed';
+import CommunitySummaryCards from'./CommunitySummaryCards';
+import TrendingCategories from'./TrendingCategories';
+import RecentActivity from'./RecentActivity';
+import CommunitySearchBar from'./CommunitySearchBar';
+import CommunityCategoryFilter from'./CommunityCategoryFilter';
+import PublicProfile from'../connections/PublicProfile';
 
-import FeaturedPosts from './FeaturedPosts';
-import PostComposer from './PostComposer';
-import CommunityFeed from './CommunityFeed';
-import CommunitySummaryCards from './CommunitySummaryCards';
-import TrendingCategories from './TrendingCategories';
-import RecentActivity from './RecentActivity';
-import CommunitySearchBar from './CommunitySearchBar';
-import CommunityCategoryFilter from './CommunityCategoryFilter';
+const Community=()=>{
+    const{t}=useTranslation();
+    const dispatch=useDispatch();
 
-const Community = () => {
-    const { t } = useTranslation();
-    const dispatch = useDispatch();
-
-    const {
+    const{
         topics,
         loading,
         error,
@@ -50,46 +43,48 @@ const Community = () => {
         limit,
         hasMore,
         loadingMore,
-    } = useSelector(
-        (state) => state.community
+    }=useSelector(
+        state=>state.community
     );
 
-    const [openSnackbar, setOpenSnackbar] =
+    const[openSnackbar,setOpenSnackbar]=
         useState(false);
 
-    const [search, setSearch] =
-        useState('');
+    const[search,setSearch]=useState('');
 
-    const [
+    const[
         selectedCategory,
         setSelectedCategory,
-    ] = useState('All');
+    ]=useState('All');
 
-    const [showMyPosts, setShowMyPosts] =
+    const[showMyPosts,setShowMyPosts]=
         useState(false);
 
-    const [formData, setFormData] = useState({
-        title: '',
-        content: '',
-        category: 'General',
-        image: '',
+    const[selectedProfileId,setSelectedProfileId]=
+        useState(null);
+
+    const[formData,setFormData]=useState({
+        title:'',
+        content:'',
+        category:'General',
+        image:'',
     });
 
-    useEffect(() => {
-        const timer = setTimeout(() => {
+    useEffect(()=>{
+        const timer=setTimeout(()=>{
             dispatch(
                 fetchTopics({
-                    page: 1,
+                    page:1,
                     limit,
                     search,
-                    category: selectedCategory,
-                    mine: showMyPosts,
+                    category:selectedCategory,
+                    mine:showMyPosts,
                 })
             );
-        }, 400);
+        },400);
 
-        return () => clearTimeout(timer);
-    }, [
+        return()=>clearTimeout(timer);
+    },[
         dispatch,
         search,
         selectedCategory,
@@ -97,75 +92,99 @@ const Community = () => {
         limit,
     ]);
 
-    const handleChange = (e) => {
-        setFormData((prev) => ({
-            ...prev,
+    const handleChange=e=>{
+        setFormData(previous=>({
+            ...previous,
             [e.target.name]:
                 e.target.value,
         }));
     };
 
-    const handleSubmit = async () => {
-        if (
-            !formData.title.trim() ||
+    const handleSubmit=async()=>{
+        if(
+            !formData.title.trim()||
             !formData.content.trim()
-        ) {
+        ){
             return;
         }
 
-        const result = await dispatch(
+        const result=await dispatch(
             createTopic(formData)
         );
 
-        if (result?.success) {
+        if(result?.success){
             setFormData({
-                title: '',
-                content: '',
-                category: 'General',
-                image: '',
+                title:'',
+                content:'',
+                category:'General',
+                image:'',
             });
 
             setOpenSnackbar(true);
         }
     };
 
-    const featuredPosts = topics.filter(
-        (post) => post.featured
+    const featuredPosts=topics.filter(
+        post=>post.featured
     );
 
-    const communityFeed = topics.filter(
-        (post) => !post.featured
+    const communityFeed=topics.filter(
+        post=>!post.featured
     );
 
-    const handleLoadMore = () => {
-        if (!hasMore || loadingMore) {
+    const handleLoadMore=()=>{
+        if(!hasMore||loadingMore){
             return;
         }
 
         dispatch(
             fetchTopics({
-                page: page + 1,
+                page:page+1,
                 limit,
                 search,
-                category: selectedCategory,
-                mine: showMyPosts,
-                append: true,
+                category:selectedCategory,
+                mine:showMyPosts,
+                append:true,
             })
         );
     };
 
-    const handleToggleMyPosts = () => {
-        setShowMyPosts(
-            (previous) => !previous
-        );
+    const handleToggleMyPosts=()=>{
+        setShowMyPosts(previous=>!previous);
     };
 
-    return (
+    const handleOpenProfile=userId=>{
+        if(!userId){
+            return;
+        }
+
+        setSelectedProfileId(userId);
+
+        window.scrollTo({
+            top:0,
+            behavior:'smooth',
+        });
+    };
+
+    const handleCloseProfile=()=>{
+        setSelectedProfileId(null);
+    };
+
+    if(selectedProfileId){
+        return(
+            <PublicProfile
+                userId={selectedProfileId}
+                onBack={handleCloseProfile}
+            />
+        );
+    }
+
+    return(
         <Container
             maxWidth="md"
             sx={{
-                py: 3,
-                pb: 12,
+                py:3,
+                pb:12,
             }}
         >
             <Box>
@@ -188,10 +207,10 @@ const Community = () => {
                 </Typography>
             </Box>
 
-            {error && (
+            {error&&(
                 <Alert
                     severity="error"
-                    sx={{ mb: 3 }}
+                    sx={{mb:3}}
                 >
                     {error}
                 </Alert>
@@ -228,23 +247,21 @@ const Community = () => {
 
             <Box
                 sx={{
-                    display: 'flex',
-                    gap: 1,
-                    mb: 3,
-                    flexWrap: 'wrap',
+                    display:'flex',
+                    gap:1,
+                    mb:3,
+                    flexWrap:'wrap',
                 }}
             >
                 <Button
                     variant={
                         !showMyPosts
-                            ? 'contained'
-                            : 'outlined'
+                            ?'contained'
+                            :'outlined'
                     }
-                    startIcon={
-                        <PublicIcon />
-                    }
-                    onClick={() => {
-                        if (showMyPosts) {
+                    startIcon={<PublicIcon/>}
+                    onClick={()=>{
+                        if(showMyPosts){
                             handleToggleMyPosts();
                         }
                     }}
@@ -255,14 +272,14 @@ const Community = () => {
                 <Button
                     variant={
                         showMyPosts
-                            ? 'contained'
-                            : 'outlined'
+                            ?'contained'
+                            :'outlined'
                     }
                     startIcon={
-                        <ArticleOutlinedIcon />
+                        <ArticleOutlinedIcon/>
                     }
-                    onClick={() => {
-                        if (!showMyPosts) {
+                    onClick={()=>{
+                        if(!showMyPosts){
                             handleToggleMyPosts();
                         }
                     }}
@@ -277,7 +294,7 @@ const Community = () => {
                 />
             </Box>
 
-            {!showMyPosts && (
+            {!showMyPosts&&(
                 <FeaturedPosts
                     posts={featuredPosts}
                 />
@@ -289,52 +306,49 @@ const Community = () => {
                 hasMore={hasMore}
                 loadingMore={loadingMore}
                 onLoadMore={handleLoadMore}
+                onOpenProfile={handleOpenProfile}
             />
 
             <Accordion
                 disableGutters
                 elevation={1}
                 sx={{
-                    mt: 4,
-                    borderRadius: 3,
-                    overflow: 'hidden',
-                    '&:before': {
-                        display: 'none',
+                    mt:4,
+                    borderRadius:3,
+                    overflow:'hidden',
+                    '&:before':{
+                        display:'none',
                     },
                 }}
             >
                 <AccordionSummary
                     expandIcon={
-                        <ExpandMoreIcon />
+                        <ExpandMoreIcon/>
                     }
                     sx={{
-                        px: 2,
-                        minHeight: 56,
-                        '& .MuiAccordionSummary-content':
-                            {
-                                alignItems:
-                                    'center',
-                            },
+                        px:2,
+                        minHeight:56,
+                        '& .MuiAccordionSummary-content':{
+                            alignItems:'center',
+                        },
                     }}
                 >
                     <InsightsOutlinedIcon
                         sx={{
-                            mr: 1.5,
-                            color: 'success.main',
+                            mr:1.5,
+                            color:'success.main',
                         }}
                     />
 
-                    <Typography
-                        fontWeight={700}
-                    >
+                    <Typography fontWeight={700}>
                         {t('Community Insights')}
                     </Typography>
                 </AccordionSummary>
 
                 <AccordionDetails
                     sx={{
-                        px: 2,
-                        pb: 2,
+                        px:2,
+                        pb:2,
                     }}
                 >
                     <Box mb={3}>
@@ -352,7 +366,7 @@ const Community = () => {
             <Snackbar
                 open={openSnackbar}
                 autoHideDuration={3000}
-                onClose={() =>
+                onClose={()=>
                     setOpenSnackbar(false)
                 }
             >

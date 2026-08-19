@@ -1,16 +1,13 @@
-const express = require('express');
-
-const router = express.Router();
-
-const ensureAuthenticated = require('../middleware/ensureAuthenticated');
-
-const {
+const express=require('express');
+const router=express.Router();
+const ensureAuthenticated=require('../middleware/ensureAuthenticated');
+const{
     getNotifications,
     getUnreadCount,
     markAsRead,
     markAllAsRead,
     deleteNotification
-} = require('../controllers/notificationController');
+}=require('../controllers/notificationController');
 
 router.get(
     '/',
@@ -42,4 +39,4 @@ router.delete(
     deleteNotification
 );
 
-module.exports = router;
+module.exports=router;

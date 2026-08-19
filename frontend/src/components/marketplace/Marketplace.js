@@ -1,146 +1,154 @@
-import React, {
+import React,{
     useEffect,
-    useState,
-} from 'react';
+    useState
+}from'react';
 
-import {
+import{
     useDispatch,
-    useSelector,
-} from 'react-redux';
+    useSelector
+}from'react-redux';
 
-import { useTranslation } from 'react-i18next';
+import{useTranslation}from'react-i18next';
 
-import {
-    Container,
-    Typography,
+import{
+    Alert,
     Box,
     Button,
-    Alert,
     CircularProgress,
+    Container,
     FormControlLabel,
-    Switch,
     Stack,
-} from '@mui/material';
+    Switch,
+    Typography
+}from'@mui/material';
 
-import AddIcon from '@mui/icons-material/Add';
+import AddIcon from'@mui/icons-material/Add';
+import ArrowBackIcon from'@mui/icons-material/ArrowBack';
 
-import {
+import{
     fetchListings,
     createListing,
     updateListing,
-    deleteListing,
-} from '../../redux/actions/marketplaceActions';
+    deleteListing
+}from'../../redux/actions/marketplaceActions';
 
-import MarketplaceGrid from './MarketplaceGrid';
-import MarketplaceDialog from './MarketplaceDialog';
-import DeleteMarketplaceDialog from './DeleteMarketplaceDialog';
-import MarketplaceSearchBar from './MarketplaceSearchBar';
-import CategoryFilter from './CategoryFilter';
-import MarketplaceSummaryCards from './MarketplaceSummaryCards';
-import AvailabilityFilter from './AvailabilityFilter';
+import MarketplaceGrid from'./MarketplaceGrid';
+import MarketplaceDialog from'./MarketplaceDialog';
+import DeleteMarketplaceDialog from'./DeleteMarketplaceDialog';
+import MarketplaceSearchBar from'./MarketplaceSearchBar';
+import CategoryFilter from'./CategoryFilter';
+import MarketplaceSummaryCards from'./MarketplaceSummaryCards';
+import AvailabilityFilter from'./AvailabilityFilter';
+import PublicProfile from'../connections/PublicProfile';
 
-const Marketplace = () => {
-    const { t } = useTranslation();
-    const dispatch = useDispatch();
+const Marketplace=()=>{
+    const{t}=useTranslation();
+    const dispatch=useDispatch();
 
-    const {
+    const{
         listings,
         loading,
         error,
         page,
-        hasMore,
-    } = useSelector(
-        (state) => state.marketplace
+        hasMore
+    }=useSelector(
+        state=>state.marketplace
     );
 
-    const [dialogOpen, setDialogOpen] =
-        useState(false);
+    const[
+        dialogOpen,
+        setDialogOpen
+    ]=useState(false);
 
-    const [selectedListing, setSelectedListing] =
-        useState(null);
+    const[
+        selectedListing,
+        setSelectedListing
+    ]=useState(null);
 
-    const [deleteDialogOpen, setDeleteDialogOpen] =
-        useState(false);
+    const[
+        deleteDialogOpen,
+        setDeleteDialogOpen
+    ]=useState(false);
 
-    const [search, setSearch] =
-        useState('');
+    const[
+        search,
+        setSearch
+    ]=useState('');
 
-    const [selectedCategory, setSelectedCategory] =
-        useState('All');
+    const[
+        selectedCategory,
+        setSelectedCategory
+    ]=useState('All');
 
-    const [showMine, setShowMine] =
-        useState(false);
+    const[
+        showMine,
+        setShowMine
+    ]=useState(false);
 
-    const [availability, setAvailability] =
-        useState('All');
+    const[
+        availability,
+        setAvailability
+    ]=useState('All');
 
-    const [loadingMore, setLoadingMore] =
-        useState(false);
+    const[
+        loadingMore,
+        setLoadingMore
+    ]=useState(false);
 
-    /*
-    |--------------------------------------------------------------------------
-    | Fetch Listings
-    |--------------------------------------------------------------------------
-    */
-    useEffect(() => {
-        const timer = setTimeout(() => {
+    const[
+        profileUserId,
+        setProfileUserId
+    ]=useState(null);
+
+    useEffect(()=>{
+        if(profileUserId){
+            return undefined;
+        }
+
+        const timer=setTimeout(()=>{
             dispatch(
                 fetchListings(
                     {
-                        page: 1,
-                        limit: 20,
-                        search: search.trim(),
+                        page:1,
+                        limit:20,
+                        search:search.trim(),
                         category:
-                            selectedCategory === 'All'
-                                ? ''
-                                : selectedCategory,
+                            selectedCategory==='All'
+                                ?''
+                                :selectedCategory,
                         availability:
-                            availability === 'All'
-                                ? ''
-                                : availability,
-                        mine: showMine,
+                            availability==='All'
+                                ?''
+                                :availability,
+                        mine:showMine
                     },
                     false
                 )
             );
-        }, 350);
+        },350);
 
-        return () => clearTimeout(timer);
-    }, [
+        return()=>clearTimeout(timer);
+    },[
         dispatch,
         search,
         selectedCategory,
         availability,
         showMine,
+        profileUserId
     ]);
 
-    /*
-    |--------------------------------------------------------------------------
-    | Create Listing
-    |--------------------------------------------------------------------------
-    */
-    const handleCreate = () => {
+    const handleCreate=()=>{
         setSelectedListing(null);
         setDialogOpen(true);
     };
 
-    /*
-    |--------------------------------------------------------------------------
-    | Edit Listing
-    |--------------------------------------------------------------------------
-    */
-    const handleEditListing = (listing) => {
+    const handleEditListing=listing=>{
         setSelectedListing(listing);
         setDialogOpen(true);
     };
 
-    /*
-    |--------------------------------------------------------------------------
-    | Close Listing Dialog
-    |--------------------------------------------------------------------------
-    */
-    const handleCloseDialog = () => {
-        if (loading) {
+    const handleCloseDialog=()=>{
+        if(loading){
             return;
         }
 
@@ -148,23 +156,13 @@ const Marketplace = () => {
         setDialogOpen(false);
     };
 
-    /*
-    |--------------------------------------------------------------------------
-    | Delete Listing
-    |--------------------------------------------------------------------------
-    */
-    const handleDeleteListing = (listing) => {
+    const handleDeleteListing=listing=>{
         setSelectedListing(listing);
         setDeleteDialogOpen(true);
     };
 
-    /*
-    |--------------------------------------------------------------------------
-    | Close Delete Dialog
-    |--------------------------------------------------------------------------
-    */
-    const handleCloseDeleteDialog = () => {
-        if (loading) {
+    const handleCloseDeleteDialog=()=>{
+        if(loading){
             return;
         }
 
@@ -172,122 +170,157 @@ const Marketplace = () => {
         setDeleteDialogOpen(false);
     };
 
-    /*
-    |--------------------------------------------------------------------------
-    | Submit / Save Listing
-    |--------------------------------------------------------------------------
-    */
-    const handleSubmit = async (data) => {
+    const handleSubmit=async data=>{
         let result;
 
-        if (selectedListing) {
-            result = await dispatch(
+        if(selectedListing){
+            result=await dispatch(
                 updateListing(
                     selectedListing._id,
                     data
                 )
             );
-        } else {
-            result = await dispatch(
+        }else{
+            result=await dispatch(
                 createListing(data)
             );
         }
 
-        if (result?.success) {
+        if(result?.success){
             handleCloseDialog();
         }
     };
 
-    /*
-    |--------------------------------------------------------------------------
-    | Confirm Delete
-    |--------------------------------------------------------------------------
-    */
-    const handleDelete = async () => {
-        if (!selectedListing) {
+    const handleDelete=async()=>{
+        if(!selectedListing){
             return;
         }
 
-        const result = await dispatch(
+        const result=await dispatch(
             deleteListing(
                 selectedListing._id
             )
         );
 
-        if (result?.success) {
+        if(result?.success){
             handleCloseDeleteDialog();
         }
     };
 
-    /*
-    |--------------------------------------------------------------------------
-    | Toggle Availability
-    |--------------------------------------------------------------------------
-    */
-    const handleToggleAvailability = (
-        listing
-    ) => {
+    const handleToggleAvailability=listing=>{
         dispatch(
             updateListing(
                 listing._id,
                 {
                     available:
-                        !listing.available,
+                        !listing.available
                 }
             )
         );
     };
 
-    /*
-    |--------------------------------------------------------------------------
-    | Load More
-    |--------------------------------------------------------------------------
-    */
-    const handleLoadMore = async () => {
-        if (
-            loadingMore ||
-            loading ||
+    const handleLoadMore=async()=>{
+        if(
+            loadingMore||
+            loading||
             !hasMore
-        ) {
+        ){
             return;
         }
 
         setLoadingMore(true);
 
-        try {
+        try{
             await dispatch(
                 fetchListings(
                     {
-                        page: page + 1,
-                        limit: 20,
-                        search: search.trim(),
+                        page:page+1,
+                        limit:20,
+                        search:search.trim(),
                         category:
-                            selectedCategory === 'All'
-                                ? ''
-                                : selectedCategory,
+                            selectedCategory==='All'
+                                ?''
+                                :selectedCategory,
                         availability:
-                            availability === 'All'
-                                ? ''
-                                : availability,
-                        mine: showMine,
+                            availability==='All'
+                                ?''
+                                :availability,
+                        mine:showMine
                     },
                     true
                 )
             );
-        } finally {
+        }finally{
             setLoadingMore(false);
         }
     };
 
-    return (
+    const handleOpenProfile=userId=>{
+        if(!userId){
+            return;
+        }
+
+        setProfileUserId(
+            String(userId)
+        );
+
+        window.scrollTo({
+            top:0,
+            behavior:'smooth'
+        });
+    };
+
+    const handleBackFromProfile=()=>{
+        setProfileUserId(null);
+    };
+
+    if(profileUserId){
+        return(
+            <Box>
+                <Box
+                    sx={{
+                        maxWidth:'xl',
+                        mx:'auto',
+                        px:{
+                            xs:2,
+                            sm:3
+                        },
+                        pt:2
+                    }}
+                >
+                    <Button
+                        startIcon={
+                            <ArrowBackIcon/>
+                        }
+                        onClick={
+                            handleBackFromProfile
+                        }
+                        sx={{
+                            mb:1
+                        }}
+                    >
+                        {t('Back to Marketplace')}
+                    </Button>
+                </Box>
+
+                <PublicProfile
+                    userId={profileUserId}
+                    onBack={
+                        handleBackFromProfile
+                    }
+                />
+            </Box>
+        );
+    }
+
+    return(
         <Container
             maxWidth="xl"
             sx={{
-                py: 3,
-                pb: 10,
+                py:3,
+                pb:10
             }}
         >
-            {/* Header */}
             <Box
                 display="flex"
                 justifyContent="space-between"
@@ -316,25 +349,23 @@ const Marketplace = () => {
 
                 <Button
                     variant="contained"
-                    startIcon={<AddIcon />}
+                    startIcon={<AddIcon/>}
                     onClick={handleCreate}
                 >
                     {t('Create Listing')}
                 </Button>
             </Box>
 
-            {/* Error */}
-            {error && (
+            {error&&(
                 <Alert
                     severity="error"
-                    sx={{ mb: 3 }}
+                    sx={{mb:3}}
                 >
                     {error}
                 </Alert>
             )}
 
-            {/* Search */}
-            <Box sx={{ mb: 3 }}>
+            <Box sx={{mb:3}}>
                 <MarketplaceSearchBar
                     search={search}
                     onSearchChange={
@@ -343,16 +374,15 @@ const Marketplace = () => {
                 />
             </Box>
 
-            {/* Filters */}
             <Stack
                 direction={{
-                    xs: 'column',
-                    md: 'row',
+                    xs:'column',
+                    md:'row'
                 }}
                 spacing={3}
-                sx={{ mb: 4 }}
+                sx={{mb:4}}
             >
-                <Box sx={{ flex: 1 }}>
+                <Box sx={{flex:1}}>
                     <CategoryFilter
                         selected={
                             selectedCategory
@@ -363,7 +393,7 @@ const Marketplace = () => {
                     />
                 </Box>
 
-                <Box sx={{ flex: 1 }}>
+                <Box sx={{flex:1}}>
                     <AvailabilityFilter
                         value={
                             availability
@@ -375,13 +405,12 @@ const Marketplace = () => {
                 </Box>
             </Stack>
 
-            {/* My Listings Toggle */}
-            <Box sx={{ mb: 3 }}>
+            <Box sx={{mb:3}}>
                 <FormControlLabel
                     control={
                         <Switch
                             checked={showMine}
-                            onChange={(event) =>
+                            onChange={event=>
                                 setShowMine(
                                     event.target.checked
                                 )
@@ -394,24 +423,22 @@ const Marketplace = () => {
                 />
             </Box>
 
-            {/* Summary */}
-            <Box sx={{ mb: 3 }}>
+            <Box sx={{mb:3}}>
                 <MarketplaceSummaryCards
                     listings={
-                        listings || []
+                        listings||[]
                     }
                 />
             </Box>
 
-            {/* Marketplace Listings */}
             <MarketplaceGrid
                 listings={
-                    listings || []
+                    listings||[]
                 }
                 loading={
-                    loading &&
-                    (!listings ||
-                        listings.length === 0)
+                    loading&&
+                    (!listings||
+                        listings.length===0)
                 }
                 error={error}
                 onEdit={
@@ -424,10 +451,12 @@ const Marketplace = () => {
                     handleToggleAvailability
                 }
                 onCreate={handleCreate}
+                onOpenProfile={
+                    handleOpenProfile
+                }
             />
 
-            {/* Load More */}
-            {hasMore && (
+            {hasMore&&(
                 <Box
                     display="flex"
                     justifyContent="center"
@@ -440,25 +469,24 @@ const Marketplace = () => {
                             handleLoadMore
                         }
                         disabled={
-                            loadingMore ||
+                            loadingMore||
                             loading
                         }
                     >
-                        {loadingMore ? (
+                        {loadingMore?(
                             <CircularProgress
                                 size={24}
                             />
-                        ) : (
+                        ):(
                             t('Load More')
                         )}
                     </Button>
                 </Box>
             )}
 
-            {/* End of Listings */}
-            {!hasMore &&
-                listings &&
-                listings.length > 0 && (
+            {!hasMore&&
+                listings&&
+                listings.length>0&&(
                     <Typography
                         variant="body2"
                         color="text.secondary"
@@ -471,7 +499,6 @@ const Marketplace = () => {
                     </Typography>
                 )}
 
-            {/* Create / Edit Dialog */}
             <MarketplaceDialog
                 open={dialogOpen}
                 onClose={
@@ -486,7 +513,6 @@ const Marketplace = () => {
                 }
             />
 
-            {/* Delete Dialog */}
             <DeleteMarketplaceDialog
                 open={
                     deleteDialogOpen
