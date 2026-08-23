@@ -26,6 +26,7 @@ import Settings from './pages/Settings';
 import Notifications from './pages/Notifications';
 import Profile from './pages/Profile';
 import Connections from './components/connections/Connections';
+import AdminReports from './pages/AdminReports';
 
 import Login from './components/auth/Login';
 import Register from './components/auth/Register';
@@ -237,13 +238,21 @@ const AppContent = () => {
                 />
 
                 <Route
+                    path="/admin/reports"
+                    element={
+                        <RoleRoute roles={['admin']}>
+                            <PageLayout>
+                                <AdminReports />
+                            </PageLayout>
+                        </RoleRoute>
+                    }
+                />
+
+                <Route
                     path="/extension/dashboard"
                     element={
                         <RoleRoute
-                            roles={[
-                                'extension_officer',
-                            ]}
-                        >
+                            roles={['extension_officer']}>
                             <PageLayout>
                                 <ExtensionDashboard />
                             </PageLayout>

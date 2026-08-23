@@ -1,6 +1,6 @@
-const{body,param}=require('express-validator');
+const{body}=require('express-validator');
 
-const updateProfileValidator=[
+exports.updateProfileValidator=[
     body('name')
         .optional()
         .trim()
@@ -8,60 +8,132 @@ const updateProfileValidator=[
             min:2,
             max:100
         })
-        .withMessage('Name must be between 2 and 100 characters.'),
+        .withMessage(
+            'Name must be between 2 and 100 characters.'
+        ),
     body('phone')
         .optional()
         .trim()
-        .isLength({max:30})
-        .withMessage('Phone number must not exceed 30 characters.'),
+        .isLength({
+            max:30
+        })
+        .withMessage(
+            'Phone number is too long.'
+        ),
     body('state')
         .optional()
         .trim()
-        .isLength({max:100})
-        .withMessage('State must not exceed 100 characters.'),
-    body('location')
-        .optional()
-        .trim()
-        .isLength({max:150})
-        .withMessage('Location must not exceed 150 characters.'),
+        .isLength({
+            max:100
+        })
+        .withMessage(
+            'State is too long.'
+        ),
     body('lga')
         .optional()
         .trim()
-        .isLength({max:100})
-        .withMessage('LGA must not exceed 100 characters.'),
+        .isLength({
+            max:100
+        })
+        .withMessage(
+            'LGA is too long.'
+        ),
+    body('location')
+        .optional()
+        .trim()
+        .isLength({
+            max:150
+        })
+        .withMessage(
+            'Location is too long.'
+        ),
     body('language')
         .optional()
         .isIn([
             'English',
             'Hausa'
         ])
-        .withMessage('Language must be either English or Hausa.'),
+        .withMessage(
+            'Language must be English or Hausa.'
+        ),
     body('profilePhoto')
         .optional()
         .trim()
-        .isLength({max:500})
-        .withMessage('Profile photo URL must not exceed 500 characters.'),
+        .isLength({
+            max:1000
+        })
+        .withMessage(
+            'Profile photo value is too long.'
+        ),
     body('bio')
         .optional()
         .trim()
-        .isLength({ max: 500 })
-        .withMessage('Bio must not exceed 500 characters.')
+        .isLength({
+            max:500
+        })
+        .withMessage(
+            'Bio cannot exceed 500 characters.'
+        )
 ];
 
-const userIdValidator=[
-    param('userId')
-        .isMongoId()
-        .withMessage('Invalid user ID.')
-];
-
-const searchUsersValidator=[
-    body('search')
+exports.reportUserValidator=[
+    body('reason')
+        .trim()
+        .isIn([
+            'Spam',
+            'Harassment',
+            'Scam',
+            'Fake Account',
+            'Inappropriate Content',
+            'Other'
+        ])
+        .withMessage(
+            'Please select a valid report reason.'
+        ),
+    body('details')
         .optional()
         .trim()
+        .isLength({
+            max:500
+        })
+        .withMessage(
+            'Report details cannot exceed 500 characters.'
+        )
 ];
 
-module.exports={
-    updateProfileValidator,
-    userIdValidator,
-    searchUsersValidator
-};
+exports.suspensionValidator=[
+    body('reason')
+        .optional()
+        .trim()
+        .isLength({
+            max:500
+        })
+        .withMessage(
+            'Suspension reason cannot exceed 500 characters.'
+        ),
+    body('durationDays')
+        .optional({
+            nullable:true
+        })
+        .isInt({
+            min:1,
+            max:3650
+        })
+        .withMessage(
+            'Suspension duration must be between 1 and 3650 days.'
+        )
+];
+
+exports.reportStatusValidator=[
+    body('status')
+        .trim()
+        .isIn([
+            'Pending',
+            'Reviewed',
+            'Dismissed',
+            'Action Taken'
+        ])
+        .withMessage(
+            'Invalid report status.'
+        )
+];

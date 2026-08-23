@@ -1,6 +1,5 @@
 const User=require('../models/User');
 const {OAuth2Client}=require('google-auth-library');
-const crypto=require('crypto');
 const asyncHandler=require('../middleware/asyncHandler');
 const AppError=require('../utils/AppError');
 const generateToken=require('../utils/generateToken');
@@ -8,12 +7,10 @@ const {sendEmail}=require('../utils/email');
 const {createRawToken,hashToken}=require('../utils/authTokens');
 
 const client=new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-
 const frontendUrl=process.env.FRONTEND_URL||'http://localhost:3000';
 
 exports.registerUser=asyncHandler(async(req,res)=>{
     const{name,email,password}=req.body;
-
     const normalizedEmail=email.toLowerCase().trim();
 
     const existingUser=await User.findOne({
@@ -54,7 +51,10 @@ exports.registerUser=asyncHandler(async(req,res)=>{
             });
         }
 
-        throw new AppError('Email already registered.',409);
+        throw new AppError(
+            'Email already registered.',
+            409
+        );
     }
 
     const rawToken=createRawToken();
@@ -101,7 +101,10 @@ exports.verifyEmail=asyncHandler(async(req,res)=>{
     const{token}=req.query;
 
     if(!token){
-        throw new AppError('Email verification token is required.',400);
+        throw new AppError(
+            'Email verification token is required.',
+            400
+        );
     }
 
     const hashedToken=hashToken(token);
@@ -114,7 +117,10 @@ exports.verifyEmail=asyncHandler(async(req,res)=>{
     });
 
     if(!user){
-        throw new AppError('This verification link is invalid or has expired.',400);
+        throw new AppError(
+            'This verification link is invalid or has expired.',
+            400
+        );
     }
 
     user.isVerified=true;
@@ -131,7 +137,6 @@ exports.verifyEmail=asyncHandler(async(req,res)=>{
 
 exports.loginUser=asyncHandler(async(req,res)=>{
     const{email,password}=req.body;
-
     const normalizedEmail=email.toLowerCase().trim();
 
     const user=await User.findOne({
@@ -139,7 +144,28 @@ exports.loginUser=asyncHandler(async(req,res)=>{
     });
 
     if(!user||!(await user.matchPassword(password))){
-        throw new AppError('Invalid email or password.',401);
+        throw new AppError(
+            'Invalid email or password.',
+            401
+        );
+    }
+
+    if(user.accountStatus==='suspended'){
+        if(
+            user.suspendedUntil&&
+            user.suspendedUntil<=new Date()
+        ){
+            user.accountStatus='active';
+            user.suspensionReason='';
+            user.suspendedAt=null;
+            user.suspendedUntil=null;
+            await user.save({validateBeforeSave:false});
+        }else{
+            throw new AppError(
+                'Your RoamAgro account is currently suspended.',
+                403
+            );
+        }
     }
 
     if(!user.isVerified){
@@ -181,10 +207,30 @@ exports.googleAuth=asyncHandler(async(req,res)=>{
             profilePhoto:payload.picture||'',
             isVerified:true
         });
-    }else if(!user.isVerified){
-        user.isVerified=true;
-        user.googleId=user.googleId||payload.sub;
-        await user.save({validateBeforeSave:false});
+    }else{
+        if(user.accountStatus==='suspended'){
+            if(
+                user.suspendedUntil&&
+                user.suspendedUntil<=new Date()
+            ){
+                user.accountStatus='active';
+                user.suspensionReason='';
+                user.suspendedAt=null;
+                user.suspendedUntil=null;
+                await user.save({validateBeforeSave:false});
+            }else{
+                throw new AppError(
+                    'Your RoamAgro account is currently suspended.',
+                    403
+                );
+            }
+        }
+
+        if(!user.isVerified){
+            user.isVerified=true;
+            user.googleId=user.googleId||payload.sub;
+            await user.save({validateBeforeSave:false});
+        }
     }
 
     res.json({
@@ -199,7 +245,6 @@ exports.googleAuth=asyncHandler(async(req,res)=>{
 
 exports.forgotPassword=asyncHandler(async(req,res)=>{
     const{email}=req.body;
-
     const normalizedEmail=email.toLowerCase().trim();
 
     const user=await User.findOne({
@@ -245,7 +290,10 @@ exports.resetPassword=asyncHandler(async(req,res)=>{
     const{token,password}=req.body;
 
     if(!token){
-        throw new AppError('Password reset token is required.',400);
+        throw new AppError(
+            'Password reset token is required.',
+            400
+        );
     }
 
     const hashedToken=hashToken(token);
@@ -258,7 +306,10 @@ exports.resetPassword=asyncHandler(async(req,res)=>{
     });
 
     if(!user){
-        throw new AppError('This password reset link is invalid or has expired.',400);
+        throw new AppError(
+            'This password reset link is invalid or has expired.',
+            400
+        );
     }
 
     user.password=password;

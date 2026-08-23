@@ -1,41 +1,25 @@
-const express=require('express');
-const router=express.Router();
-const ensureAuthenticated=require('../middleware/ensureAuthenticated');
+const express = require("express");
+const router = express.Router();
+const ensureAuthenticated = require("../middleware/ensureAuthenticated");
 
-const{
-getFinancialDashboard,
-getExpenseBreakdown,
-getProjectProfitability,
-getMonthlyCashFlow
-}=require('../controllers/financialController');
+const {
+  getFinancialDashboard,
+  getExpenseBreakdown,
+  getProjectProfitability,
+  getMonthlyCashFlow,
+} = require("../controllers/financialController");
 
 /*
 |--------------------------------------------------------------------------
 | Financial Dashboard
 |--------------------------------------------------------------------------
 */
-router.get(
-'/dashboard',
-ensureAuthenticated,
-getFinancialDashboard
-);
+router.get("/dashboard", ensureAuthenticated, getFinancialDashboard);
 
-router.get(
-'/expenses',
-ensureAuthenticated,
-getExpenseBreakdown
-);
+router.get("/expenses", ensureAuthenticated, getExpenseBreakdown);
 
-router.get(
-'/projects',
-ensureAuthenticated,
-getProjectProfitability
-);
+router.get("/projects", ensureAuthenticated, getProjectProfitability);
 
-router.get(
-'/cashflow',
-ensureAuthenticated,
-getMonthlyCashFlow
-);
+router.get("/cashflow", ensureAuthenticated, getMonthlyCashFlow);
 
-module.exports=router;
+module.exports = router;

@@ -1,4 +1,4 @@
-import api from "../../services/api";
+import api from '../../services/api';
 
 import{
     LOGIN_REQUEST,
@@ -23,14 +23,14 @@ import{
     UPDATE_PROFILE_SUCCESS,
     UPDATE_PROFILE_FAIL,
     LOGOUT
-}from"./types";
+}from'./types';
 
 export const register=userData=>async dispatch=>{
     dispatch({type:REGISTER_REQUEST});
 
     try{
         const res=await api.post(
-            "/auth/register",
+            '/auth/register',
             userData
         );
 
@@ -47,7 +47,7 @@ export const register=userData=>async dispatch=>{
     }catch(error){
         const message=
             error.response?.data?.message||
-            "Registration failed.";
+            'Registration failed.';
 
         dispatch({
             type:REGISTER_FAIL,
@@ -66,18 +66,24 @@ export const login=credentials=>async dispatch=>{
 
     try{
         const res=await api.post(
-            "/auth/login",
+            '/auth/login',
             credentials
         );
 
         const{token,user}=res.data.data;
 
-        localStorage.setItem("token",token);
-        localStorage.setItem("user",JSON.stringify(user));
+        localStorage.setItem('token',token);
+        localStorage.setItem(
+            'user',
+            JSON.stringify(user)
+        );
 
         dispatch({
             type:LOGIN_SUCCESS,
-            payload:{token,user}
+            payload:{
+                token,
+                user
+            }
         });
 
         return{
@@ -86,7 +92,7 @@ export const login=credentials=>async dispatch=>{
     }catch(error){
         const message=
             error.response?.data?.message||
-            "Invalid email or password.";
+            'Invalid email or password.';
 
         dispatch({
             type:LOGIN_FAIL,
@@ -101,29 +107,41 @@ export const login=credentials=>async dispatch=>{
 };
 
 export const googleLogin=googleToken=>async dispatch=>{
-    dispatch({type:GOOGLE_LOGIN_REQUEST});
+    dispatch({
+        type:GOOGLE_LOGIN_REQUEST
+    });
 
     try{
         const res=await api.post(
-            "/auth/google",
-            {token:googleToken}
+            '/auth/google',
+            {
+                token:googleToken
+            }
         );
 
         const{token,user}=res.data.data;
 
-        localStorage.setItem("token",token);
-        localStorage.setItem("user",JSON.stringify(user));
+        localStorage.setItem('token',token);
+        localStorage.setItem(
+            'user',
+            JSON.stringify(user)
+        );
 
         dispatch({
             type:GOOGLE_LOGIN_SUCCESS,
-            payload:{token,user}
+            payload:{
+                token,
+                user
+            }
         });
 
-        return{success:true};
+        return{
+            success:true
+        };
     }catch(error){
         const message=
             error.response?.data?.message||
-            "Google login failed.";
+            'Google login failed.';
 
         dispatch({
             type:GOOGLE_LOGIN_FAIL,
@@ -138,7 +156,9 @@ export const googleLogin=googleToken=>async dispatch=>{
 };
 
 export const verifyEmail=token=>async dispatch=>{
-    dispatch({type:VERIFY_EMAIL_REQUEST});
+    dispatch({
+        type:VERIFY_EMAIL_REQUEST
+    });
 
     try{
         const res=await api.get(
@@ -157,7 +177,7 @@ export const verifyEmail=token=>async dispatch=>{
     }catch(error){
         const message=
             error.response?.data?.message||
-            "Email verification failed.";
+            'Email verification failed.';
 
         dispatch({
             type:VERIFY_EMAIL_FAIL,
@@ -172,12 +192,16 @@ export const verifyEmail=token=>async dispatch=>{
 };
 
 export const forgotPassword=email=>async dispatch=>{
-    dispatch({type:FORGOT_PASSWORD_REQUEST});
+    dispatch({
+        type:FORGOT_PASSWORD_REQUEST
+    });
 
     try{
         const res=await api.post(
-            "/auth/forgot-password",
-            {email}
+            '/auth/forgot-password',
+            {
+                email
+            }
         );
 
         dispatch({
@@ -192,7 +216,7 @@ export const forgotPassword=email=>async dispatch=>{
     }catch(error){
         const message=
             error.response?.data?.message||
-            "Unable to process password recovery.";
+            'Unable to process password recovery.';
 
         dispatch({
             type:FORGOT_PASSWORD_FAIL,
@@ -207,11 +231,13 @@ export const forgotPassword=email=>async dispatch=>{
 };
 
 export const resetPassword=(token,password)=>async dispatch=>{
-    dispatch({type:RESET_PASSWORD_REQUEST});
+    dispatch({
+        type:RESET_PASSWORD_REQUEST
+    });
 
     try{
         const res=await api.post(
-            "/auth/reset-password",
+            '/auth/reset-password',
             {
                 token,
                 password
@@ -230,7 +256,7 @@ export const resetPassword=(token,password)=>async dispatch=>{
     }catch(error){
         const message=
             error.response?.data?.message||
-            "Unable to reset your password.";
+            'Unable to reset your password.';
 
         dispatch({
             type:RESET_PASSWORD_FAIL,
@@ -251,14 +277,14 @@ export const updateProfile=profileData=>async dispatch=>{
 
     try{
         const res=await api.put(
-            "/users/profile",
+            '/users/profile',
             profileData
         );
 
         const user=res.data.data;
 
         localStorage.setItem(
-            "user",
+            'user',
             JSON.stringify(user)
         );
 
@@ -274,7 +300,7 @@ export const updateProfile=profileData=>async dispatch=>{
     }catch(error){
         const message=
             error.response?.data?.message||
-            "Unable to update profile.";
+            'Unable to update profile.';
 
         dispatch({
             type:UPDATE_PROFILE_FAIL,
@@ -288,9 +314,59 @@ export const updateProfile=profileData=>async dispatch=>{
     }
 };
 
+export const deleteAccount=()=>async dispatch=>{
+    try{
+        const res=await api.delete(
+            '/users/account'
+        );
+
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+
+        dispatch({
+            type:LOGOUT
+        });
+
+        return{
+            success:true,
+            message:res.data.message
+        };
+    }catch(error){
+        const message=
+            error.response?.data?.message||
+            'Unable to delete your account.';
+
+        return{
+            success:false,
+            message
+        };
+    }
+};
+
+export const reportUser=(userId,data)=>async()=>{
+    try{
+        const res=await api.post(
+            `/users/${userId}/report`,
+            data
+        );
+
+        return{
+            success:true,
+            message:res.data.message
+        };
+    }catch(error){
+        return{
+            success:false,
+            message:
+                error.response?.data?.message||
+                'Unable to submit report.'
+        };
+    }
+};
+
 export const logout=()=>dispatch=>{
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
 
     dispatch({
         type:LOGOUT

@@ -33,6 +33,13 @@ module.exports = asyncHandler(async (req, res, next) => {
         );
     }
 
+    if (user.isSuspended) {
+        throw new AppError(
+            'Your account has been suspended.',
+            403
+        );
+    }
+
     req.user = user;
     req.userId = user._id;
     next();

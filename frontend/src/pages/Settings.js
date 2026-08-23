@@ -1,4 +1,4 @@
-import React from 'react';
+import React,{useState}from'react';
 import{
     Avatar,
     Box,
@@ -8,7 +8,12 @@ import{
     Chip,
     Divider,
     Stack,
-    Typography
+    Typography,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    Alert
 }from'@mui/material';
 import{
     Brightness4,
@@ -19,14 +24,17 @@ import{
     Edit,
     ArrowForward,
     VerifiedUser,
-    Badge
+    Badge,
+    Security,
+    DeleteForever
 }from'@mui/icons-material';
-import{useSelector}from'react-redux';
+import{useSelector,useDispatch}from'react-redux';
 import{useTranslation}from'react-i18next';
 import{useNavigate}from'react-router-dom';
 import ThemeSwitcher from'../components/ThemeSwitcher';
 import LanguageSwitcher from'../components/LanguageSwitcher';
 import PageLayout from'../components/layout/PageLayout';
+import{deleteAccount}from'../redux/actions/authActions';
 
 const getRoleLabel=role=>{
     const labels={
@@ -42,7 +50,12 @@ const getRoleLabel=role=>{
 const Settings=({darkMode,setDarkMode})=>{
     const{t}=useTranslation();
     const navigate=useNavigate();
+    const dispatch=useDispatch();
     const{user}=useSelector(state=>state.auth);
+
+    const[deleteOpen,setDeleteOpen]=useState(false);
+    const[deleting,setDeleting]=useState(false);
+    const[deleteError,setDeleteError]=useState('');
 
     const initials=user?.name
         ?.split(' ')
@@ -53,6 +66,25 @@ const Settings=({darkMode,setDarkMode})=>{
         'R';
 
     const roleLabel=getRoleLabel(user?.role);
+
+    const handleDeleteAccount=async()=>{
+        setDeleteError('');
+        setDeleting(true);
+
+        const result=await dispatch(
+            deleteAccount()
+        );
+
+        setDeleting(false);
+
+        if(!result.success){
+            setDeleteError(result.message);
+            return;
+        }
+
+        setDeleteOpen(false);
+        navigate('/login',{replace:true});
+    };
 
     return(
         <PageLayout>
@@ -224,9 +256,7 @@ const Settings=({darkMode,setDarkMode})=>{
                                                         <VerifiedUser/>
                                                     }
                                                     label={
-                                                        t(
-                                                            'Verified'
-                                                        )
+                                                        t('Verified')
                                                     }
                                                     size="small"
                                                     color="success"
@@ -259,9 +289,7 @@ const Settings=({darkMode,setDarkMode})=>{
                                             <ArrowForward/>
                                         }
                                         onClick={()=>
-                                            navigate(
-                                                '/profile'
-                                            )
+                                            navigate('/profile')
                                         }
                                         sx={{
                                             borderRadius:2.5,
@@ -293,102 +321,7 @@ const Settings=({darkMode,setDarkMode})=>{
                                 alignItems="center"
                                 mb={2}
                             >
-                                <Brightness4
-                                    color="primary"
-                                />
-
-                                <Box>
-                                    <Typography
-                                        variant="h6"
-                                        fontWeight={800}
-                                    >
-                                        {t('Appearance')}
-                                    </Typography>
-
-                                    <Typography
-                                        variant="body2"
-                                        color="text.secondary"
-                                        sx={{mt:.25}}
-                                    >
-                                        {t(
-                                            'Choose how RoamAgro looks on your device.'
-                                        )}
-                                    </Typography>
-                                </Box>
-                            </Stack>
-
-                            <Divider sx={{mb:2.5}}/>
-
-                            <ThemeSwitcher
-                                darkMode={darkMode}
-                                setDarkMode={setDarkMode}
-                            />
-                        </CardContent>
-                    </Card>
-
-                    <Card
-                        elevation={1}
-                        sx={{borderRadius:4}}
-                    >
-                        <CardContent
-                            sx={{
-                                p:{xs:2,sm:3}
-                            }}
-                        >
-                            <Stack
-                                direction="row"
-                                spacing={1.5}
-                                alignItems="center"
-                                mb={2}
-                            >
-                                <Language
-                                    color="primary"
-                                />
-
-                                <Box>
-                                    <Typography
-                                        variant="h6"
-                                        fontWeight={800}
-                                    >
-                                        {t('Language')}
-                                    </Typography>
-
-                                    <Typography
-                                        variant="body2"
-                                        color="text.secondary"
-                                        sx={{mt:.25}}
-                                    >
-                                        {t(
-                                            'Select your preferred language.'
-                                        )}
-                                    </Typography>
-                                </Box>
-                            </Stack>
-
-                            <Divider sx={{mb:2.5}}/>
-
-                            <LanguageSwitcher/>
-                        </CardContent>
-                    </Card>
-
-                    <Card
-                        elevation={1}
-                        sx={{borderRadius:4}}
-                    >
-                        <CardContent
-                            sx={{
-                                p:{xs:2,sm:3}
-                            }}
-                        >
-                            <Stack
-                                direction="row"
-                                spacing={1.5}
-                                alignItems="center"
-                                mb={2}
-                            >
-                                <Person
-                                    color="primary"
-                                />
+                                <Person color="primary"/>
 
                                 <Box>
                                     <Typography
@@ -453,9 +386,7 @@ const Settings=({darkMode,setDarkMode})=>{
                                             <Edit/>
                                         }
                                         onClick={()=>
-                                            navigate(
-                                                '/profile'
-                                            )
+                                            navigate('/profile')
                                         }
                                         sx={{
                                             borderRadius:2.5,
@@ -487,9 +418,181 @@ const Settings=({darkMode,setDarkMode})=>{
                                 alignItems="center"
                                 mb={2}
                             >
-                                <Info
-                                    color="primary"
-                                />
+                                <Brightness4 color="primary"/>
+
+                                <Box>
+                                    <Typography
+                                        variant="h6"
+                                        fontWeight={800}
+                                    >
+                                        {t('Appearance')}
+                                    </Typography>
+
+                                    <Typography
+                                        variant="body2"
+                                        color="text.secondary"
+                                        sx={{mt:.25}}
+                                    >
+                                        {t(
+                                            'Choose how RoamAgro looks on your device.'
+                                        )}
+                                    </Typography>
+                                </Box>
+                            </Stack>
+
+                            <Divider sx={{mb:2.5}}/>
+
+                            <ThemeSwitcher
+                                darkMode={darkMode}
+                                setDarkMode={setDarkMode}
+                            />
+                        </CardContent>
+                    </Card>
+
+                    <Card
+                        elevation={1}
+                        sx={{borderRadius:4}}
+                    >
+                        <CardContent
+                            sx={{
+                                p:{xs:2,sm:3}
+                            }}
+                        >
+                            <Stack
+                                direction="row"
+                                spacing={1.5}
+                                alignItems="center"
+                                mb={2}
+                            >
+                                <Language color="primary"/>
+
+                                <Box>
+                                    <Typography
+                                        variant="h6"
+                                        fontWeight={800}
+                                    >
+                                        {t('Language')}
+                                    </Typography>
+
+                                    <Typography
+                                        variant="body2"
+                                        color="text.secondary"
+                                        sx={{mt:.25}}
+                                    >
+                                        {t(
+                                            'Select your preferred language.'
+                                        )}
+                                    </Typography>
+                                </Box>
+                            </Stack>
+
+                            <Divider sx={{mb:2.5}}/>
+
+                            <LanguageSwitcher/>
+                        </CardContent>
+                    </Card>
+
+                    <Card
+                        elevation={1}
+                        sx={{borderRadius:4}}
+                    >
+                        <CardContent
+                            sx={{
+                                p:{xs:2,sm:3}
+                            }}
+                        >
+                            <Stack
+                                direction="row"
+                                spacing={1.5}
+                                alignItems="center"
+                                mb={2}
+                            >
+                                <Security color="primary"/>
+
+                                <Box>
+                                    <Typography
+                                        variant="h6"
+                                        fontWeight={800}
+                                    >
+                                        {t('Account Safety')}
+                                    </Typography>
+
+                                    <Typography
+                                        variant="body2"
+                                        color="text.secondary"
+                                        sx={{mt:.25}}
+                                    >
+                                        {t(
+                                            'Manage the safety of your RoamAgro account.'
+                                        )}
+                                    </Typography>
+                                </Box>
+                            </Stack>
+
+                            <Divider sx={{mb:2.5}}/>
+
+                            <Stack spacing={2}>
+                                <Box>
+                                    <Typography
+                                        fontWeight={700}
+                                    >
+                                        {t('Delete Account')}
+                                    </Typography>
+
+                                    <Typography
+                                        variant="body2"
+                                        color="text.secondary"
+                                        sx={{
+                                            mt:.5,
+                                            lineHeight:1.6
+                                        }}
+                                    >
+                                        {t(
+                                            'Permanently delete your account and your RoamAgro data.'
+                                        )}
+                                    </Typography>
+                                </Box>
+
+                                <Button
+                                    color="error"
+                                    variant="outlined"
+                                    startIcon={
+                                        <DeleteForever/>
+                                    }
+                                    onClick={()=>{
+                                        setDeleteError('');
+                                        setDeleteOpen(true);
+                                    }}
+                                    sx={{
+                                        borderRadius:2.5,
+                                        alignSelf:{
+                                            xs:'stretch',
+                                            sm:'flex-start'
+                                        }
+                                    }}
+                                >
+                                    {t('Delete My Account')}
+                                </Button>
+                            </Stack>
+                        </CardContent>
+                    </Card>
+
+                    <Card
+                        elevation={1}
+                        sx={{borderRadius:4}}
+                    >
+                        <CardContent
+                            sx={{
+                                p:{xs:2,sm:3}
+                            }}
+                        >
+                            <Stack
+                                direction="row"
+                                spacing={1.5}
+                                alignItems="center"
+                                mb={2}
+                            >
+                                <Info color="primary"/>
 
                                 <Box>
                                     <Typography
@@ -557,6 +660,79 @@ const Settings=({darkMode,setDarkMode})=>{
                     </Card>
                 </Stack>
             </Box>
+
+            <Dialog
+                open={deleteOpen}
+                onClose={()=>{
+                    if(!deleting){
+                        setDeleteOpen(false);
+                    }
+                }}
+                fullWidth
+                maxWidth="xs"
+            >
+                <DialogTitle>
+                    {t('Delete Account?')}
+                </DialogTitle>
+
+                <DialogContent>
+                    <Stack spacing={2}>
+                        <Alert severity="error">
+                            {t(
+                                'This action cannot be undone.'
+                            )}
+                        </Alert>
+
+                        <Typography
+                            variant="body2"
+                            color="text.secondary"
+                        >
+                            {t(
+                                'Your account, farm projects, community posts and marketplace listings will be permanently deleted.'
+                            )}
+                        </Typography>
+
+                        {deleteError&&(
+                            <Alert severity="error">
+                                {deleteError}
+                            </Alert>
+                        )}
+                    </Stack>
+                </DialogContent>
+
+                <DialogActions
+                    sx={{
+                        p:2,
+                        gap:1,
+                        flexDirection:{
+                            xs:'column-reverse',
+                            sm:'row'
+                        }
+                    }}
+                >
+                    <Button
+                        fullWidth
+                        disabled={deleting}
+                        onClick={()=>
+                            setDeleteOpen(false)
+                        }
+                    >
+                        {t('Cancel')}
+                    </Button>
+
+                    <Button
+                        fullWidth
+                        color="error"
+                        variant="contained"
+                        disabled={deleting}
+                        onClick={handleDeleteAccount}
+                    >
+                        {deleting
+                            ? t('Deleting...')
+                            : t('Delete Account')}
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </PageLayout>
     );
 };

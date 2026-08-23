@@ -41,4 +41,10 @@ api.interceptors.response.use(
     }
 );
 
+api.reportUser=(userId,payload)=>api.post(`/users/${userId}/report`,payload);
+api.getReports=()=>api.get('/users/admin/reports');
+api.updateReportStatus=(reportId,status)=>api.patch(`/users/admin/reports/${reportId}`,{status});
+api.suspendUser=(userId,payload)=>api.patch(`/users/admin/${userId}/suspend`,payload);
+api.restoreUser=userId=>api.patch(`/users/admin/${userId}/restore`);
+
 export default api;

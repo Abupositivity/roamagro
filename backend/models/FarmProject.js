@@ -136,11 +136,12 @@ const HarvestSchema = new mongoose.Schema(
         enum: [
             'kg',
             'g',
-            'tonnes',
+            'baskets',
             'bags',
             'crates',
             'pieces',
             'litres',
+            'tonnes',
             'other',
         ],
         default: 'kg',

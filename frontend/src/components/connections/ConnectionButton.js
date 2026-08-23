@@ -1,38 +1,17 @@
 import React,{useState}from'react';
-import{
-    Button,
-    CircularProgress,
-    Dialog,
-    DialogActions,
-    DialogContent,
-    DialogContentText,
-    DialogTitle,
-    IconButton,
-    Menu,
-    MenuItem,
-    Stack
-}from'@mui/material';
+import{Button,CircularProgress,Dialog,DialogActions,DialogContent,DialogContentText,DialogTitle,IconButton,Menu,MenuItem,Stack}from'@mui/material';
 import PersonAddOutlinedIcon from'@mui/icons-material/PersonAddOutlined';
 import CheckOutlinedIcon from'@mui/icons-material/CheckOutlined';
 import HourglassEmptyOutlinedIcon from'@mui/icons-material/HourglassEmptyOutlined';
 import CloseOutlinedIcon from'@mui/icons-material/CloseOutlined';
 import MoreVertOutlinedIcon from'@mui/icons-material/MoreVertOutlined';
 import DeleteOutlineOutlinedIcon from'@mui/icons-material/DeleteOutlineOutlined';
-import {useDispatch}from'react-redux';
-import {useTranslation}from'react-i18next';
-import{
-    sendConnectionRequest,
-    cancelConnectionRequest,
-    removeConnection
-}from'../../redux/actions/connectionActions';
+import FlagOutlinedIcon from'@mui/icons-material/FlagOutlined';
+import{useDispatch}from'react-redux';
+import{useTranslation}from'react-i18next';
+import{sendConnectionRequest,cancelConnectionRequest,removeConnection}from'../../redux/actions/connectionActions';
 
-const ConnectionButton=({
-    userId,
-    status='none',
-    fullWidth=false,
-    onChange,
-    userName=''
-})=>{
+const ConnectionButton=({userId,status='none',fullWidth=false,onChange,onReport,userName=''})=>{
     const{t}=useTranslation();
     const dispatch=useDispatch();
     const[loading,setLoading]=useState(false);
@@ -42,16 +21,12 @@ const ConnectionButton=({
     const menuOpen=Boolean(menuAnchor);
 
     const handleAction=async action=>{
-        if(loading){
-            return;
-        }
+        if(loading)return;
 
         setLoading(true);
 
         try{
-            const result=await dispatch(
-                action(userId)
-            );
+            const result=await dispatch(action(userId));
 
             if(result?.success&&onChange){
                 onChange(result);
@@ -62,10 +37,7 @@ const ConnectionButton=({
     };
 
     const handleOpenMenu=event=>{
-        if(loading){
-            return;
-        }
-
+        if(loading)return;
         setMenuAnchor(event.currentTarget);
     };
 
@@ -78,25 +50,26 @@ const ConnectionButton=({
         setConfirmOpen(true);
     };
 
-    const handleCloseRemoveConfirmation=()=>{
-        if(loading){
-            return;
-        }
+    const handleReport=()=>{
+        handleCloseMenu();
 
+        if(onReport){
+            onReport();
+        }
+    };
+
+    const handleCloseRemoveConfirmation=()=>{
+        if(loading)return;
         setConfirmOpen(false);
     };
 
     const handleRemoveConnection=async()=>{
-        if(loading){
-            return;
-        }
+        if(loading)return;
 
         setLoading(true);
 
         try{
-            const result=await dispatch(
-                removeConnection(userId)
-            );
+            const result=await dispatch(removeConnection(userId));
 
             if(result?.success){
                 setConfirmOpen(false);
@@ -121,17 +94,13 @@ const ConnectionButton=({
                     direction="row"
                     spacing={1}
                     sx={{
-                        width:fullWidth?
-                            '100%':
-                            'auto'
+                        width:fullWidth?'100%':'auto'
                     }}
                 >
                     <Button
                         variant="outlined"
                         color="success"
-                        startIcon={
-                            <CheckOutlinedIcon/>
-                        }
+                        startIcon={<CheckOutlinedIcon/>}
                         disabled
                         fullWidth={fullWidth}
                         sx={{
@@ -150,15 +119,9 @@ const ConnectionButton=({
                     <IconButton
                         onClick={handleOpenMenu}
                         disabled={loading}
-                        aria-label={
-                            t('Connection options')
-                        }
+                        aria-label={t('Connection options')}
                         aria-haspopup="menu"
-                        aria-expanded={
-                            menuOpen?
-                                'true':
-                                undefined
-                        }
+                        aria-expanded={menuOpen?'true':undefined}
                         sx={{
                             border:1,
                             borderColor:'divider',
@@ -183,9 +146,7 @@ const ConnectionButton=({
                     }}
                 >
                     <MenuItem
-                        onClick={
-                            handleOpenRemoveConfirmation
-                        }
+                        onClick={handleOpenRemoveConfirmation}
                         sx={{
                             color:'error.main'
                         }}
@@ -196,13 +157,24 @@ const ConnectionButton=({
                         />
                         {t('Remove Connection')}
                     </MenuItem>
+
+                    <MenuItem
+                        onClick={handleReport}
+                        sx={{
+                            color:'error.main'
+                        }}
+                    >
+                        <FlagOutlinedIcon
+                            fontSize="small"
+                            sx={{mr:1}}
+                        />
+                        {t('Report User')}
+                    </MenuItem>
                 </Menu>
 
                 <Dialog
                     open={confirmOpen}
-                    onClose={
-                        handleCloseRemoveConfirmation
-                    }
+                    onClose={handleCloseRemoveConfirmation}
                     fullWidth
                     maxWidth="xs"
                 >
@@ -219,9 +191,7 @@ const ConnectionButton=({
                             {userName?
                                 t(
                                     'Are you sure you want to remove {{name}} from your connections?',
-                                    {
-                                        name:userName
-                                    }
+                                    {name:userName}
                                 ):
                                 t(
                                     'Are you sure you want to remove this user from your connections?'
@@ -236,9 +206,7 @@ const ConnectionButton=({
                         }}
                     >
                         <Button
-                            onClick={
-                                handleCloseRemoveConfirmation
-                            }
+                            onClick={handleCloseRemoveConfirmation}
                             disabled={loading}
                             sx={{
                                 borderRadius:2.5
@@ -250,9 +218,7 @@ const ConnectionButton=({
                         <Button
                             variant="contained"
                             color="error"
-                            onClick={
-                                handleRemoveConnection
-                            }
+                            onClick={handleRemoveConnection}
                             disabled={loading}
                             startIcon={
                                 loading?
@@ -286,13 +252,13 @@ const ConnectionButton=({
                         <HourglassEmptyOutlinedIcon/>
                 }
                 onClick={()=>
-                    handleAction(
-                        cancelConnectionRequest
-                    )
+                    handleAction(cancelConnectionRequest)
                 }
                 disabled={loading}
                 fullWidth={fullWidth}
-                sx={{borderRadius:2.5}}
+                sx={{
+                    borderRadius:2.5
+                }}
             >
                 {loading?
                     t('Cancelling...'):
@@ -305,12 +271,12 @@ const ConnectionButton=({
         return(
             <Button
                 variant="outlined"
-                startIcon={
-                    <CloseOutlinedIcon/>
-                }
+                startIcon={<CloseOutlinedIcon/>}
                 disabled
                 fullWidth={fullWidth}
-                sx={{borderRadius:2.5}}
+                sx={{
+                    borderRadius:2.5
+                }}
             >
                 {t('Respond in Connections')}
             </Button>
@@ -329,13 +295,13 @@ const ConnectionButton=({
                     <PersonAddOutlinedIcon/>
             }
             onClick={()=>
-                handleAction(
-                    sendConnectionRequest
-                )
+                handleAction(sendConnectionRequest)
             }
             disabled={loading}
             fullWidth={fullWidth}
-            sx={{borderRadius:2.5}}
+            sx={{
+                borderRadius:2.5
+            }}
         >
             {loading?
                 t('Connecting...'):

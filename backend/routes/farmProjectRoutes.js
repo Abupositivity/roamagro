@@ -1,57 +1,57 @@
-const express=require('express');
-const router=express.Router();
-const ensureAuthenticated=require('../middleware/ensureAuthenticated');
-const validateRequest=require('../middleware/validateRequest');
+const express = require("express");
+const router = express.Router();
+const ensureAuthenticated = require("../middleware/ensureAuthenticated");
+const validateRequest = require("../middleware/validateRequest");
 
-const{
-createFarmProject,
-getFarmProjects,
-getFarmProject,
-updateFarmProject,
-deleteFarmProject,
-getFarmDashboardSummary,
-createActivity,
-updateActivity,
-deleteActivity,
-updateActivityStatus,
-createTask,
-updateTask,
-deleteTask,
-updateTaskStatus,
-createExpense,
-updateExpense,
-deleteExpense,
-createHarvest,
-updateHarvest,
-deleteHarvest,
-createReminder,
-updateReminder,
-deleteReminder,
-toggleReminderCompletion
-}=require('../controllers/farmProjectController');
+const {
+  createFarmProject,
+  getFarmProjects,
+  getFarmProject,
+  updateFarmProject,
+  deleteFarmProject,
+  getFarmDashboardSummary,
+  createActivity,
+  updateActivity,
+  deleteActivity,
+  updateActivityStatus,
+  createTask,
+  updateTask,
+  deleteTask,
+  updateTaskStatus,
+  createExpense,
+  updateExpense,
+  deleteExpense,
+  createHarvest,
+  updateHarvest,
+  deleteHarvest,
+  createReminder,
+  updateReminder,
+  deleteReminder,
+  toggleReminderCompletion,
+} = require("../controllers/farmProjectController");
 
-const{
-createFarmProjectValidator,
-updateFarmProjectValidator,
-projectIdValidator,
-createActivityValidator,
-updateActivityValidator,
-activityIdValidator,
-updateActivityStatusValidator,
-createTaskValidator,
-updateTaskValidator,
-taskIdValidator,
-updateTaskStatusValidator,
-createExpenseValidator,
-updateExpenseValidator,
-expenseIdValidator,
-createHarvestValidator,
-updateHarvestValidator,
-harvestIdValidator,
-createReminderValidator,
-updateReminderValidator,
-reminderIdValidator
-}=require('../validators/farmProjectValidator');
+const {
+  createFarmProjectValidator,
+  updateFarmProjectValidator,
+  projectIdValidator,
+  createActivityValidator,
+  updateActivityValidator,
+  activityIdValidator,
+  updateActivityStatusValidator,
+  createTaskValidator,
+  updateTaskValidator,
+  taskIdValidator,
+  updateTaskStatusValidator,
+  createExpenseValidator,
+  updateExpenseValidator,
+  expenseIdValidator,
+  createHarvestValidator,
+  updateHarvestValidator,
+  harvestIdValidator,
+  createReminderValidator,
+  updateReminderValidator,
+  reminderIdValidator,
+} = require("../validators/farmProjectValidator");
 
 /*
 |--------------------------------------------------------------------------
@@ -59,48 +59,40 @@ reminderIdValidator
 |--------------------------------------------------------------------------
 */
 router.post(
-'/',
-ensureAuthenticated,
-createFarmProjectValidator,
-validateRequest,
-createFarmProject
+  "/",
+  ensureAuthenticated,
+  createFarmProjectValidator,
+  validateRequest,
+  createFarmProject,
 );
 
-router.get(
-'/',
-ensureAuthenticated,
-getFarmProjects
-);
+router.get("/", ensureAuthenticated, getFarmProjects);
+
+router.get("/dashboard/summary", ensureAuthenticated, getFarmDashboardSummary);
 
 router.get(
-'/dashboard/summary',
-ensureAuthenticated,
-getFarmDashboardSummary
-);
-
-router.get(
-'/:id',
-ensureAuthenticated,
-projectIdValidator,
-validateRequest,
-getFarmProject
+  "/:id",
+  ensureAuthenticated,
+  projectIdValidator,
+  validateRequest,
+  getFarmProject,
 );
 
 router.put(
-'/:id',
-ensureAuthenticated,
-projectIdValidator,
-updateFarmProjectValidator,
-validateRequest,
-updateFarmProject
+  "/:id",
+  ensureAuthenticated,
+  projectIdValidator,
+  updateFarmProjectValidator,
+  validateRequest,
+  updateFarmProject,
 );
 
 router.delete(
-'/:id',
-ensureAuthenticated,
-projectIdValidator,
-validateRequest,
-deleteFarmProject
+  "/:id",
+  ensureAuthenticated,
+  projectIdValidator,
+  validateRequest,
+  deleteFarmProject,
 );
 
 /*
@@ -109,35 +101,35 @@ deleteFarmProject
 |--------------------------------------------------------------------------
 */
 router.post(
-'/:id/activities',
-ensureAuthenticated,
-createActivityValidator,
-validateRequest,
-createActivity
+  "/:id/activities",
+  ensureAuthenticated,
+  createActivityValidator,
+  validateRequest,
+  createActivity,
 );
 
 router.put(
-'/:id/activities/:activityId',
-ensureAuthenticated,
-updateActivityValidator,
-validateRequest,
-updateActivity
+  "/:id/activities/:activityId",
+  ensureAuthenticated,
+  updateActivityValidator,
+  validateRequest,
+  updateActivity,
 );
 
 router.patch(
-'/:id/activities/:activityId/status',
-ensureAuthenticated,
-updateActivityStatusValidator,
-validateRequest,
-updateActivityStatus
+  "/:id/activities/:activityId/status",
+  ensureAuthenticated,
+  updateActivityStatusValidator,
+  validateRequest,
+  updateActivityStatus,
 );
 
 router.delete(
-'/:id/activities/:activityId',
-ensureAuthenticated,
-activityIdValidator,
-validateRequest,
-deleteActivity
+  "/:id/activities/:activityId",
+  ensureAuthenticated,
+  activityIdValidator,
+  validateRequest,
+  deleteActivity,
 );
 
 /*
@@ -146,35 +138,35 @@ deleteActivity
 |--------------------------------------------------------------------------
 */
 router.post(
-'/:id/tasks',
-ensureAuthenticated,
-createTaskValidator,
-validateRequest,
-createTask
+  "/:id/tasks",
+  ensureAuthenticated,
+  createTaskValidator,
+  validateRequest,
+  createTask,
 );
 
 router.put(
-'/:id/tasks/:taskId',
-ensureAuthenticated,
-updateTaskValidator,
-validateRequest,
-updateTask
+  "/:id/tasks/:taskId",
+  ensureAuthenticated,
+  updateTaskValidator,
+  validateRequest,
+  updateTask,
 );
 
 router.patch(
-'/:id/tasks/:taskId/status',
-ensureAuthenticated,
-updateTaskStatusValidator,
-validateRequest,
-updateTaskStatus
+  "/:id/tasks/:taskId/status",
+  ensureAuthenticated,
+  updateTaskStatusValidator,
+  validateRequest,
+  updateTaskStatus,
 );
 
 router.delete(
-'/:id/tasks/:taskId',
-ensureAuthenticated,
-taskIdValidator,
-validateRequest,
-deleteTask
+  "/:id/tasks/:taskId",
+  ensureAuthenticated,
+  taskIdValidator,
+  validateRequest,
+  deleteTask,
 );
 
 /*
@@ -183,27 +175,27 @@ deleteTask
 |--------------------------------------------------------------------------
 */
 router.post(
-'/:id/expenses',
-ensureAuthenticated,
-createExpenseValidator,
-validateRequest,
-createExpense
+  "/:id/expenses",
+  ensureAuthenticated,
+  createExpenseValidator,
+  validateRequest,
+  createExpense,
 );
 
 router.put(
-'/:id/expenses/:expenseId',
-ensureAuthenticated,
-updateExpenseValidator,
-validateRequest,
-updateExpense
+  "/:id/expenses/:expenseId",
+  ensureAuthenticated,
+  updateExpenseValidator,
+  validateRequest,
+  updateExpense,
 );
 
 router.delete(
-'/:id/expenses/:expenseId',
-ensureAuthenticated,
-expenseIdValidator,
-validateRequest,
-deleteExpense
+  "/:id/expenses/:expenseId",
+  ensureAuthenticated,
+  expenseIdValidator,
+  validateRequest,
+  deleteExpense,
 );
 
 /*
@@ -212,27 +204,27 @@ deleteExpense
 |--------------------------------------------------------------------------
 */
 router.post(
-'/:id/harvests',
-ensureAuthenticated,
-createHarvestValidator,
-validateRequest,
-createHarvest
+  "/:id/harvests",
+  ensureAuthenticated,
+  createHarvestValidator,
+  validateRequest,
+  createHarvest,
 );
 
 router.put(
-'/:id/harvests/:harvestId',
-ensureAuthenticated,
-updateHarvestValidator,
-validateRequest,
-updateHarvest
+  "/:id/harvests/:harvestId",
+  ensureAuthenticated,
+  updateHarvestValidator,
+  validateRequest,
+  updateHarvest,
 );
 
 router.delete(
-'/:id/harvests/:harvestId',
-ensureAuthenticated,
-harvestIdValidator,
-validateRequest,
-deleteHarvest
+  "/:id/harvests/:harvestId",
+  ensureAuthenticated,
+  harvestIdValidator,
+  validateRequest,
+  deleteHarvest,
 );
 
 /*
@@ -242,35 +234,35 @@ deleteHarvest
 */
 
 router.post(
-'/:id/reminders',
-ensureAuthenticated,
-createReminderValidator,
-validateRequest,
-createReminder
+  "/:id/reminders",
+  ensureAuthenticated,
+  createReminderValidator,
+  validateRequest,
+  createReminder,
 );
 
 router.put(
-'/:id/reminders/:reminderId',
-ensureAuthenticated,
-updateReminderValidator,
-validateRequest,
-updateReminder
+  "/:id/reminders/:reminderId",
+  ensureAuthenticated,
+  updateReminderValidator,
+  validateRequest,
+  updateReminder,
 );
 
 router.patch(
-'/:id/reminders/:reminderId/toggle',
-ensureAuthenticated,
-reminderIdValidator,
-validateRequest,
-toggleReminderCompletion
+  "/:id/reminders/:reminderId/toggle",
+  ensureAuthenticated,
+  reminderIdValidator,
+  validateRequest,
+  toggleReminderCompletion,
 );
 
 router.delete(
-'/:id/reminders/:reminderId',
-ensureAuthenticated,
-reminderIdValidator,
-validateRequest,
-deleteReminder
+  "/:id/reminders/:reminderId",
+  ensureAuthenticated,
+  reminderIdValidator,
+  validateRequest,
+  deleteReminder,
 );
 
-module.exports=router;
+module.exports = router;
