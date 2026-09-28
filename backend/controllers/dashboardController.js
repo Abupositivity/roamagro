@@ -5,71 +5,151 @@ const PriceIndex = require('../models/PriceIndex');
 const CommunityPost = require('../models/CommunityPost');
 const AgriTip = require('../models/AgriTip');
 
-exports.getDashboard = async (req, res, next) => {
-    try {
-        const userId = req.user._id;
+const buildBaseDashboard = async userId => {
+    const [
+        projects,
+        marketplace,
+        prices,
+        feed,
+        communityCount,
+        totalProjects,
+        marketplaceListings,
+    ] = await Promise.all([
+        FarmProject.find({
+            user: userId,
+        })
+            .sort({ createdAt: -1 })
+            .limit(5)
+            .lean(),
 
-        const [
-            projects,
-            marketplace,
-            prices,
-            feed,
-            communityCount,
-        ] = await Promise.all([
-            FarmProject.find({ user: userId })
-                .sort({ createdAt: -1 })
-                .limit(5),
+        MarketplaceItem.find({
+            available: true,
+        })
+            .sort({ createdAt: -1 })
+            .limit(5)
+            .populate('user', 'name profilePhoto')
+            .lean(),
 
-            MarketplaceItem.find({ available: true })
-                .sort({ createdAt: -1 })
-                .limit(5)
-                .populate('user', 'name'),
+        PriceIndex.find()
+            .sort({ createdAt: -1 })
+            .limit(10)
+            .lean(),
 
-            PriceIndex.find()
-                .sort({ createdAt: -1 })
-                .limit(10),
+        AgriTip.find({
+            status: 'Published',
+        })
+            .sort({ createdAt: -1 })
+            .limit(5)
+            .populate('createdBy', 'name profilePhoto')
+            .lean(),
 
-            AgriTip.find({
-                status: 'Published',
-            })
-                .sort({ createdAt: -1 })
-                .limit(5)
-                .populate('createdBy', 'name'),
+        CommunityPost.countDocuments(),
 
-            CommunityPost.countDocuments(),
-        ]);
+        FarmProject.countDocuments({
+            user: userId,
+        }),
 
-        const dashboard = {
-            summary: {
-                totalProjects: await FarmProject.countDocuments({
-                    user: userId,
-                }),
-                marketplaceListings: await MarketplaceItem.countDocuments({
-                    user: userId,
-                }),
-                communityPosts: communityCount,
-                latestPrices: prices.length,
-            },
-            recentProjects: projects,
-            marketplace,
-            priceSummary: prices,
-            feed,
-            notifications: [],
-            weather: null,
-        };
+        MarketplaceItem.countDocuments({
+            user: userId,
+        }),
+    ]);
 
-        res.status(200).json({
-            success: true,
-            message: 'Dashboard loaded successfully.',
-            data: dashboard,
-        });
-    } catch (error) {
-        next(error);
-    }
+    return {
+        summary: {
+            totalProjects,
+            marketplaceListings,
+            communityPosts:
+                communityCount,
+            latestPrices:
+                prices.length,
+        },
+        recentProjects: projects,
+        marketplace,
+        priceSummary: prices,
+        feed,
+        notifications: [],
+        weather: null,
+    };
 };
 
-exports.getAdminDashboard = async (req, res, next) => {
-    try {
+const buildExtensionDashboard =
+    async () => {
+        const [
+            totalFarmers,
+            totalProjects,
+            activeProjects,
+            communityPosts,
+            publishedTips,
+            recentProjects,
+            recentPosts,
+            recentTips,
+        ] = await Promise.all([
+            User.countDocuments({
+                role: 'farmer',
+            }),
+
+            FarmProject.countDocuments(),
+
+            FarmProject.countDocuments({
+                status: 'Active',
+            }),
+
+            CommunityPost.countDocuments(),
+
+            AgriTip.countDocuments({
+                status: 'Published',
+            }),
+
+            FarmProject.find()
+                .populate(
+                    'user',
+                    'name profilePhoto location state lga'
+                )
+                .sort({
+                    createdAt: -1,
+                })
+                .limit(5)
+                .lean(),
+
+            CommunityPost.find()
+                .populate(
+                    'user',
+                    'name profilePhoto'
+                )
+                .sort({
+                    createdAt: -1,
+                })
+                .limit(5)
+                .lean(),
+
+            AgriTip.find()
+                .populate(
+                    'createdBy',
+                    'name profilePhoto'
+                )
+                .sort({
+                    createdAt: -1,
+                })
+                .limit(5)
+                .lean(),
+        ]);
+
+        return {
+            summary: {
+                totalFarmers,
+                totalProjects,
+                activeProjects,
+                communityPosts,
+                publishedTips,
+            },
+            recentProjects,
+            recentPosts,
+            recentTips,
+        };
+    };
+
+const buildAdminDashboard =
+    async () => {
         const [
             totalUsers,
             farmers,
@@ -112,105 +192,116 @@ exports.getAdminDashboard = async (req, res, next) => {
             }),
 
             User.find()
-                .select('name email role profilePhoto createdAt')
-                .sort({ createdAt: -1 })
-                .limit(5),
+                .select(
+                    'name email role profilePhoto createdAt'
+                )
+                .sort({
+                    createdAt: -1,
+                })
+                .limit(5)
+                .lean(),
 
             AgriTip.find()
-                .populate('createdBy', 'name')
-                .sort({ createdAt: -1 })
-                .limit(5),
+                .populate(
+                    'createdBy',
+                    'name profilePhoto'
+                )
+                .sort({
+                    createdAt: -1,
+                })
+                .limit(5)
+                .lean(),
         ]);
 
-        res.status(200).json({
-            success: true,
-            message: 'Admin dashboard loaded successfully.',
-            data: {
-                summary: {
-                    totalUsers,
-                    farmers,
-                    buyers,
-                    extensionOfficers,
-                    totalProjects,
-                    activeProjects,
-                    totalListings,
-                    communityPosts,
-                    publishedTips,
-                },
-                latestUsers,
-                latestTips,
-                notifications: [],
-                weather: null,
+        return {
+            summary: {
+                totalUsers,
+                farmers,
+                buyers,
+                extensionOfficers,
+                totalProjects,
+                activeProjects,
+                totalListings,
+                communityPosts,
+                publishedTips,
             },
-        });
-    } catch (error) {
-        next(error);
-    }
-};
+            latestUsers,
+            latestTips,
+        };
+    };
 
-exports.getExtensionDashboard = async (req, res, next) => {
-    try {
-        const [
-            totalFarmers,
-            totalProjects,
-            activeProjects,
-            communityPosts,
-            publishedTips,
-            recentProjects,
-            recentPosts,
-            recentTips,
-        ] = await Promise.all([
-            User.countDocuments({
-                role: 'farmer',
-            }),
+exports.getDashboard =
+    async (req, res, next) => {
+        try {
+            const dashboard =
+                await buildBaseDashboard(
+                    req.user._id
+                );
 
-            FarmProject.countDocuments(),
+            res.status(200).json({
+                success: true,
+                message:
+                    'Dashboard loaded successfully.',
+                data: dashboard,
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
 
-            FarmProject.countDocuments({
-                status: 'Active',
-            }),
+exports.getExtensionDashboard =
+    async (req, res, next) => {
+        try {
+            const [
+                base,
+                extension,
+            ] = await Promise.all([
+                buildBaseDashboard(
+                    req.user._id
+                ),
+                buildExtensionDashboard(),
+            ]);
 
-            CommunityPost.countDocuments(),
-
-            AgriTip.countDocuments({
-                status: 'Published',
-            }),
-
-            FarmProject.find()
-                .populate('user', 'name profilePhoto location state lga')
-                .sort({ createdAt: -1 })
-                .limit(5),
-
-            CommunityPost.find()
-                .populate('user', 'name profilePhoto')
-                .sort({ createdAt: -1 })
-                .limit(5),
-
-            AgriTip.find()
-                .populate('createdBy', 'name')
-                .sort({ createdAt: -1 })
-                .limit(5),
-        ]);
-
-        res.status(200).json({
-            success: true,
-            message: 'Extension officer dashboard loaded successfully.',
-            data: {
-                summary: {
-                    totalFarmers,
-                    totalProjects,
-                    activeProjects,
-                    communityPosts,
-                    publishedTips,
+            res.status(200).json({
+                success: true,
+                message:
+                    'Extension officer dashboard loaded successfully.',
+                data: {
+                    ...base,
+                    extension,
                 },
-                recentProjects,
-                recentPosts,
-                recentTips,
-                notifications: [],
-                weather: null,
-            },
-        });
-    } catch (error) {
-        next(error);
-    }
-};
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
+
+exports.getAdminDashboard =
+    async (req, res, next) => {
+        try {
+            const [
+                base,
+                extension,
+                admin,
+            ] = await Promise.all([
+                buildBaseDashboard(
+                    req.user._id
+                ),
+                buildExtensionDashboard(),
+                buildAdminDashboard(),
+            ]);
+
+            res.status(200).json({
+                success: true,
+                message:
+                    'Admin dashboard loaded successfully.',
+                data: {
+                    ...base,
+                    extension,
+                    admin,
+                },
+            });
+        } catch (error) {
+            next(error);
+        }
+    };

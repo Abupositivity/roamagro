@@ -31,7 +31,7 @@ const initialState = {
     success: false,
     error: null,
     page: 1,
-    limit: 10,
+    limit: 15,
     total: 0,
     totalPages: 0,
     hasMore: false,
@@ -52,7 +52,7 @@ const communityReducer = (
                 loading:
                     !action.meta?.append,
                 loadingMore:
-                    action.meta?.append || false,
+                    Boolean(action.meta?.append),
                 success: false,
                 error: null,
             };
@@ -75,7 +75,7 @@ const communityReducer = (
             const {
                 data = [],
                 page = 1,
-                limit = 10,
+                limit = 15,
                 total = 0,
                 totalPages = 0,
                 hasMore = false,
@@ -85,18 +85,36 @@ const communityReducer = (
                 append = false,
             } = action.payload;
 
+            let topics = data;
+
+            if (append) {
+                const existingIds = new Set(
+                    state.topics.map(
+                        topic => topic._id
+                    )
+                );
+
+                const newTopics = data.filter(
+                    topic =>
+                        topic?._id &&
+                        !existingIds.has(
+                            topic._id
+                        )
+                );
+
+                topics = [
+                    ...state.topics,
+                    ...newTopics,
+                ];
+            }
+
             return {
                 ...state,
                 loading: false,
                 loadingMore: false,
                 success: true,
                 error: null,
-                topics: append
-                    ? [
-                          ...state.topics,
-                          ...data,
-                      ]
-                    : data,
+                topics,
                 page,
                 limit,
                 total,
@@ -127,7 +145,7 @@ const communityReducer = (
                 loading: false,
                 success: true,
                 topics: state.topics.map(
-                    (topic) =>
+                    topic =>
                         topic._id ===
                         action.payload._id
                             ? action.payload
@@ -142,7 +160,7 @@ const communityReducer = (
                 loading: false,
                 success: true,
                 topics: state.topics.filter(
-                    (topic) =>
+                    topic =>
                         topic._id !==
                         action.payload._id
                 ),
@@ -162,7 +180,7 @@ const communityReducer = (
                 loading: false,
                 success: true,
                 topics: state.topics.map(
-                    (topic) =>
+                    topic =>
                         topic._id ===
                         action.payload._id
                             ? action.payload

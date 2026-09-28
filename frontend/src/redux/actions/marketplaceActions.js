@@ -22,23 +22,72 @@ import {
     DELETE_LISTING_FAIL,
 } from './types';
 
-/*
-|--------------------------------------------------------------------------
-| Fetch Marketplace Listings
-|--------------------------------------------------------------------------
-*/
+const getErrorMessage = (error, fallback) =>
+    error.response?.data?.message ||
+    error.message ||
+    fallback;
+
 export const fetchListings =
     (params = {}, append = false) =>
     async (dispatch) => {
         dispatch({
             type: FETCH_LISTINGS_REQUEST,
+            meta: {
+                append,
+            },
         });
 
         try {
+            const requestParams = {
+                page: params.page || 1,
+                limit: params.limit || 20,
+            };
+
+            if (params.search?.trim()) {
+                requestParams.search =
+                    params.search.trim();
+            }
+
+            if (
+                params.category &&
+                params.category !== 'All'
+            ) {
+                requestParams.category =
+                    params.category;
+            }
+
+            if (
+                params.availability &&
+                params.availability !== 'All'
+            ) {
+                requestParams.availability =
+                    params.availability;
+            }
+
+            if (params.mine) {
+                requestParams.mine = true;
+            }
+
+            if (
+                params.userLatitude !== undefined &&
+                params.userLatitude !== ''
+            ) {
+                requestParams.userLatitude =
+                    params.userLatitude;
+            }
+
+            if (
+                params.userLongitude !== undefined &&
+                params.userLongitude !== ''
+            ) {
+                requestParams.userLongitude =
+                    params.userLongitude;
+            }
+
             const res = await api.get(
                 '/marketplace',
                 {
-                    params,
+                    params: requestParams,
                 }
             );
 
@@ -52,18 +101,21 @@ export const fetchListings =
 
             return {
                 success: true,
-                data: res.data.data,
+                data: res.data.data || [],
                 meta: res.data,
             };
         } catch (error) {
-            const message =
-                error.response?.data?.message ||
-                error.message ||
-                'Failed to load marketplace listings.';
+            const message = getErrorMessage(
+                error,
+                'Failed to load marketplace listings.'
+            );
 
             dispatch({
                 type: FETCH_LISTINGS_FAIL,
                 payload: message,
+                meta: {
+                    append,
+                },
             });
 
             return {
@@ -73,11 +125,6 @@ export const fetchListings =
         }
     };
 
-/*
-|--------------------------------------------------------------------------
-| Create Listing
-|--------------------------------------------------------------------------
-*/
 export const createListing =
     (listing) => async (dispatch) => {
         dispatch({
@@ -100,10 +147,10 @@ export const createListing =
                 data: res.data.data,
             };
         } catch (error) {
-            const message =
-                error.response?.data?.message ||
-                error.message ||
-                'Failed to create listing.';
+            const message = getErrorMessage(
+                error,
+                'Failed to create listing.'
+            );
 
             dispatch({
                 type: CREATE_LISTING_FAIL,
@@ -117,11 +164,6 @@ export const createListing =
         }
     };
 
-/*
-|--------------------------------------------------------------------------
-| Get Single Listing
-|--------------------------------------------------------------------------
-*/
 export const getListing =
     (id) => async (dispatch) => {
         dispatch({
@@ -143,10 +185,10 @@ export const getListing =
                 data: res.data.data,
             };
         } catch (error) {
-            const message =
-                error.response?.data?.message ||
-                error.message ||
-                'Failed to load listing.';
+            const message = getErrorMessage(
+                error,
+                'Failed to load listing.'
+            );
 
             dispatch({
                 type: GET_LISTING_FAIL,
@@ -160,11 +202,6 @@ export const getListing =
         }
     };
 
-/*
-|--------------------------------------------------------------------------
-| Update Listing
-|--------------------------------------------------------------------------
-*/
 export const updateListing =
     (id, data) => async (dispatch) => {
         dispatch({
@@ -187,10 +224,10 @@ export const updateListing =
                 data: res.data.data,
             };
         } catch (error) {
-            const message =
-                error.response?.data?.message ||
-                error.message ||
-                'Failed to update listing.';
+            const message = getErrorMessage(
+                error,
+                'Failed to update listing.'
+            );
 
             dispatch({
                 type: UPDATE_LISTING_FAIL,
@@ -204,11 +241,6 @@ export const updateListing =
         }
     };
 
-/*
-|--------------------------------------------------------------------------
-| Delete Listing
-|--------------------------------------------------------------------------
-*/
 export const deleteListing =
     (id) => async (dispatch) => {
         dispatch({
@@ -229,10 +261,10 @@ export const deleteListing =
                 success: true,
             };
         } catch (error) {
-            const message =
-                error.response?.data?.message ||
-                error.message ||
-                'Failed to delete listing.';
+            const message = getErrorMessage(
+                error,
+                'Failed to delete listing.'
+            );
 
             dispatch({
                 type: DELETE_LISTING_FAIL,

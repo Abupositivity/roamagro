@@ -230,9 +230,7 @@ const AppContent = () => {
                     path="/admin/dashboard"
                     element={
                         <RoleRoute roles={['admin']}>
-                            <PageLayout>
                                 <AdminDashboard />
-                            </PageLayout>
                         </RoleRoute>
                     }
                 />
@@ -251,11 +249,8 @@ const AppContent = () => {
                 <Route
                     path="/extension/dashboard"
                     element={
-                        <RoleRoute
-                            roles={['extension_officer']}>
-                            <PageLayout>
+                        <RoleRoute roles={['extension_officer']}>
                                 <ExtensionDashboard />
-                            </PageLayout>
                         </RoleRoute>
                     }
                 />

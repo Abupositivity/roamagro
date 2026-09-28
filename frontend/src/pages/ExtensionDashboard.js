@@ -1,4 +1,10 @@
-import React, { useEffect } from 'react';
+import React, {
+    useCallback,
+    useEffect,
+    useRef,
+    useState,
+} from "react";
+
 import {
     Alert,
     Box,
@@ -8,16 +14,33 @@ import {
     Grid,
     Stack,
     Typography,
-} from '@mui/material';
-import AgricultureOutlinedIcon from '@mui/icons-material/AgricultureOutlined';
-import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
-import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined';
-import ForumOutlinedIcon from '@mui/icons-material/ForumOutlined';
-import { useDispatch, useSelector } from 'react-redux';
-import { useTranslation } from 'react-i18next';
+} from "@mui/material";
 
-import PageLayout from '../components/layout/PageLayout';
-import { fetchDashboard } from '../redux/actions/dashboardActions';
+import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
+import LightbulbOutlinedIcon from "@mui/icons-material/LightbulbOutlined";
+import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
+
+import { useDispatch, useSelector } from "react-redux";
+import { useTranslation } from "react-i18next";
+
+import PageLayout from "../components/layout/PageLayout";
+
+import DashboardHeader from "../components/dashboard/DashboardHeader";
+import SummaryCards from "../components/dashboard/SummaryCards";
+import QuickActions from "../components/dashboard/QuickActions";
+import RecentProjects from "../components/dashboard/RecentProjects";
+import MarketplacePreview from "../components/dashboard/MarketplacePreview";
+import PriceTicker from "../components/dashboard/PriceTicker";
+
+import AgriFeed from "../components/community/AgriFeed";
+import ExtensionTipForm from "../components/community/ExtensionTipForm";
+
+import {
+    refreshDashboard,
+} from "../redux/actions/dashboardActions";
+
+const REFRESH_INTERVAL = 60 * 1000;
+const STALE_TIME = 30 * 1000;
 
 const ExtensionDashboard = () => {
     const { t } = useTranslation();
@@ -27,13 +50,152 @@ const ExtensionDashboard = () => {
         loading,
         error,
         dashboard,
-    } = useSelector((state) => state.dashboard);
+        lastUpdated,
+    } = useSelector(
+        (state) => state.dashboard
+    );
+
+    const refreshInProgress = useRef(false);
+    const mountedRef = useRef(true);
+
+    const [
+        feedRefreshKey,
+        setFeedRefreshKey,
+    ] = useState(0);
+
+    const refresh = useCallback(
+        async (silent = true) => {
+            if (
+                refreshInProgress.current ||
+                document.visibilityState !== "visible"
+            ) {
+                return;
+            }
+
+            refreshInProgress.current = true;
+
+            try {
+                await dispatch(
+                    refreshDashboard({
+                        type: "/extension",
+                        silent,
+                    })
+                );
+            } finally {
+                if (mountedRef.current) {
+                    refreshInProgress.current = false;
+                }
+            }
+        },
+        [dispatch]
+    );
 
     useEffect(() => {
-        dispatch(fetchDashboard('/extension'));
+        mountedRef.current = true;
+
+        const loadDashboard = async () => {
+            if (refreshInProgress.current) {
+                return;
+            }
+
+            refreshInProgress.current = true;
+
+            try {
+                await dispatch(
+                    refreshDashboard({
+                        type: "/extension",
+                        silent: false,
+                    })
+                );
+            } finally {
+                if (mountedRef.current) {
+                    refreshInProgress.current = false;
+                }
+            }
+        };
+
+        loadDashboard();
+
+        return () => {
+            mountedRef.current = false;
+        };
     }, [dispatch]);
 
-    if (loading) {
+    useEffect(() => {
+        const interval = window.setInterval(() => {
+            refresh(true);
+        }, REFRESH_INTERVAL);
+
+        return () => {
+            window.clearInterval(interval);
+        };
+    }, [refresh]);
+
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (
+                document.visibilityState !== "visible"
+            ) {
+                return;
+            }
+
+            const updatedAt = lastUpdated || 0;
+
+            if (
+                !updatedAt ||
+                Date.now() - updatedAt >= STALE_TIME
+            ) {
+                refresh(true);
+            }
+        };
+
+        document.addEventListener(
+            "visibilitychange",
+            handleVisibilityChange
+        );
+
+        return () => {
+            document.removeEventListener(
+                "visibilitychange",
+                handleVisibilityChange
+            );
+        };
+    }, [lastUpdated, refresh]);
+
+    useEffect(() => {
+        const handleRefresh = (event) => {
+            if (
+                event.detail?.route !==
+                "/extension/dashboard"
+            ) {
+                return;
+            }
+
+            refresh(true);
+        };
+
+        window.addEventListener(
+            "roamagro:refresh-page",
+            handleRefresh
+        );
+
+        return () => {
+            window.removeEventListener(
+                "roamagro:refresh-page",
+                handleRefresh
+            );
+        };
+    }, [refresh]);
+
+    const handleTipPublished = async () => {
+        setFeedRefreshKey(
+            (previous) => previous + 1
+        );
+
+        await refresh(true);
+    };
+
+    if (loading && !dashboard) {
         return (
             <PageLayout>
                 <Box
@@ -48,7 +210,7 @@ const ExtensionDashboard = () => {
         );
     }
 
-    if (error) {
+    if (error && !dashboard) {
         return (
             <PageLayout>
                 <Alert severity="error">
@@ -58,45 +220,64 @@ const ExtensionDashboard = () => {
         );
     }
 
-    const summary = dashboard?.summary || {};
+    const summary =
+        dashboard?.extension?.summary ||
+        dashboard?.summary ||
+        {};
 
     const cards = [
         {
-            title: t('Total Farmers'),
-            value: summary.totalFarmers || 0,
-            icon: <GroupsOutlinedIcon />,
+            title: t("Total Farmers"),
+            value:
+                summary.totalFarmers ||
+                0,
+            icon: (
+                <GroupsOutlinedIcon />
+            ),
         },
         {
-            title: t('Farm Projects'),
-            value: summary.totalProjects || 0,
-            icon: <AgricultureOutlinedIcon />,
+            title: t("Community Posts"),
+            value:
+                summary.communityPosts ||
+                0,
+            icon: (
+                <ForumOutlinedIcon />
+            ),
         },
         {
-            title: t('Active Projects'),
-            value: summary.activeProjects || 0,
-            icon: <AgricultureOutlinedIcon />,
-        },
-        {
-            title: t('Community Posts'),
-            value: summary.communityPosts || 0,
-            icon: <ForumOutlinedIcon />,
-        },
-        {
-            title: t('Published Tips'),
-            value: summary.publishedTips || 0,
-            icon: <LightbulbOutlinedIcon />,
+            title: t("Published Tips"),
+            value:
+                summary.publishedTips ||
+                0,
+            icon: (
+                <LightbulbOutlinedIcon />
+            ),
         },
     ];
 
     return (
         <PageLayout>
             <Stack spacing={3}>
+                <DashboardHeader />
+
+                <SummaryCards />
+
+                <QuickActions />
+
+                <RecentProjects />
+
+                <MarketplacePreview />
+
+                <PriceTicker />
+
                 <Box>
                     <Typography
-                        variant="h4"
+                        variant="h5"
                         fontWeight={700}
                     >
-                        {t('Extension Officer Dashboard')}
+                        {t(
+                            "Extension Officer Dashboard"
+                        )}
                     </Typography>
 
                     <Typography
@@ -104,11 +285,16 @@ const ExtensionDashboard = () => {
                         color="text.secondary"
                         mt={1}
                     >
-                        {t('Support farmers and monitor agricultural activities.')}
+                        {t(
+                            "Support farmers, share agricultural knowledge, and monitor activities."
+                        )}
                     </Typography>
                 </Box>
 
-                <Grid container spacing={2}>
+                <Grid
+                    container
+                    spacing={2}
+                >
                     {cards.map((card) => (
                         <Grid
                             item
@@ -120,7 +306,7 @@ const ExtensionDashboard = () => {
                             <Card
                                 elevation={2}
                                 sx={{
-                                    height: '100%',
+                                    height: "100%",
                                     borderRadius: 3,
                                 }}
                             >
@@ -132,14 +318,19 @@ const ExtensionDashboard = () => {
                                     >
                                         <Box
                                             sx={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
+                                                display:
+                                                    "flex",
+                                                alignItems:
+                                                    "center",
+                                                justifyContent:
+                                                    "center",
                                                 width: 45,
                                                 height: 45,
                                                 borderRadius: 2,
-                                                bgcolor: 'primary.main',
-                                                color: 'white',
+                                                bgcolor:
+                                                    "primary.main",
+                                                color:
+                                                    "white",
                                             }}
                                         >
                                             {card.icon}
@@ -150,14 +341,18 @@ const ExtensionDashboard = () => {
                                                 variant="body2"
                                                 color="text.secondary"
                                             >
-                                                {card.title}
+                                                {
+                                                    card.title
+                                                }
                                             </Typography>
 
                                             <Typography
                                                 variant="h5"
                                                 fontWeight={700}
                                             >
-                                                {card.value}
+                                                {
+                                                    card.value
+                                                }
                                             </Typography>
                                         </Box>
                                     </Stack>
@@ -167,125 +362,37 @@ const ExtensionDashboard = () => {
                     ))}
                 </Grid>
 
-                <Card
-                    elevation={2}
-                    sx={{
-                        borderRadius: 3,
-                    }}
-                >
-                    <CardContent>
-                        <Typography
-                            variant="h6"
-                            fontWeight={700}
-                            gutterBottom
-                        >
-                            {t('Recent Farm Projects')}
-                        </Typography>
+                <ExtensionTipForm
+                    onPublished={
+                        handleTipPublished
+                    }
+                />
 
-                        <Stack spacing={2}>
-                            {dashboard?.recentProjects?.length ? (
-                                dashboard.recentProjects.map((project) => (
-                                    <Box key={project._id}>
-                                        <Typography fontWeight={600}>
-                                            {project.name}
-                                        </Typography>
+                <Box>
+                    <Typography
+                        variant="h6"
+                        fontWeight={700}
+                        gutterBottom
+                    >
+                        {t("Agri-Feed")}🌱
+                    </Typography>
 
-                                        <Typography
-                                            variant="body2"
-                                            color="text.secondary"
-                                        >
-                                            {project.user?.name || t('Farmer')}
-                                        </Typography>
-                                    </Box>
-                                ))
-                            ) : (
-                                <Typography color="text.secondary">
-                                    {t('No farm projects available.')}
-                                </Typography>
-                            )}
-                        </Stack>
-                    </CardContent>
-                </Card>
+                    <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        mb={3}
+                    >
+                        {t(
+                            "Daily agricultural tips and best practices shared by agricultural experts."
+                        )}
+                    </Typography>
 
-                <Card
-                    elevation={2}
-                    sx={{
-                        borderRadius: 3,
-                    }}
-                >
-                    <CardContent>
-                        <Typography
-                            variant="h6"
-                            fontWeight={700}
-                            gutterBottom
-                        >
-                            {t('Recent Community Posts')}
-                        </Typography>
-
-                        <Stack spacing={2}>
-                            {dashboard?.recentPosts?.length ? (
-                                dashboard.recentPosts.map((post) => (
-                                    <Box key={post._id}>
-                                        <Typography fontWeight={600}>
-                                            {post.title}
-                                        </Typography>
-
-                                        <Typography
-                                            variant="body2"
-                                            color="text.secondary"
-                                        >
-                                            {post.user?.name || t('Farmer')}
-                                        </Typography>
-                                    </Box>
-                                ))
-                            ) : (
-                                <Typography color="text.secondary">
-                                    {t('No community posts available.')}
-                                </Typography>
-                            )}
-                        </Stack>
-                    </CardContent>
-                </Card>
-
-                <Card
-                    elevation={2}
-                    sx={{
-                        borderRadius: 3,
-                    }}
-                >
-                    <CardContent>
-                        <Typography
-                            variant="h6"
-                            fontWeight={700}
-                            gutterBottom
-                        >
-                            {t('Recent Agricultural Tips')}
-                        </Typography>
-
-                        <Stack spacing={2}>
-                            {dashboard?.recentTips?.length ? (
-                                dashboard.recentTips.map((tip) => (
-                                    <Box key={tip._id}>
-                                        <Typography fontWeight={600}>
-                                            {tip.title}
-                                        </Typography>
-
-                                        <Typography
-                                            variant="body2"
-                                            color="text.secondary"
-                                        >
-                                            {tip.category}
-                                        </Typography>
-                                    </Box>
-                                ))
-                            ) : (
-                                <Typography color="text.secondary">
-                                    {t('No agricultural tips available.')}
-                                </Typography>
-                            )}
-                        </Stack>
-                    </CardContent>
-                </Card>
+                    <AgriFeed
+                        refreshKey={
+                            feedRefreshKey
+                        }
+                    />
+                </Box>
             </Stack>
         </PageLayout>
     );

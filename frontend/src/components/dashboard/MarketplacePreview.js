@@ -46,7 +46,7 @@ const MarketplacePreview = () => {
                     variant="h6"
                     fontWeight={700}
                 >
-                    {t("Marketplace")}
+                    {t("Recent Listings")}
                 </Typography>
 
                 <Button

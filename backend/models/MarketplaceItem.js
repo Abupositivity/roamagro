@@ -1,75 +1,83 @@
+
 const mongoose = require('mongoose');
 
-const MarketplaceItemSchema =
-    new mongoose.Schema(
-        {
-            title: {
-                type: String,
-                required: true,
-                trim: true,
-                maxlength: 150,
-            },
-
-            description: {
-                type: String,
-                required: true,
-                trim: true,
-            },
-
-            category: {
-                type: String,
-                required: true,
-                trim: true,
-            },
-
-            price: {
+const MarketplaceItemSchema = new mongoose.Schema(
+    {
+        title: {
+            type: String,
+            required: true,
+            trim: true,
+            maxlength: 150,
+        },
+        description: {
+            type: String,
+            required: true,
+            trim: true,
+        },
+        category: {
+            type: String,
+            required: true,
+            trim: true,
+        },
+        price: {
+            type: Number,
+            required: true,
+            min: 1,
+        },
+        quantity: {
+            type: Number,
+            default: 1,
+            min: 1,
+        },
+        unit: {
+            type: String,
+            default: 'Bag(s)',
+            trim: true,
+        },
+        location: {
+            type: String,
+            default: '',
+            trim: true,
+        },
+        coordinates: {
+            latitude: {
                 type: Number,
-                required: true,
-                min: 1,
+                min: -90,
+                max: 90,
             },
-
-            quantity: {
+            longitude: {
                 type: Number,
-                default: 1,
-                min: 1,
-            },
-
-            unit: {
-                type: String,
-                default: 'Bag(s)',
-                trim: true,
-            },
-
-            location: {
-                type: String,
-                default: '',
-                trim: true,
-            },
-
-            images: [
-                {
-                    type: String,
-                },
-            ],
-
-            available: {
-                type: Boolean,
-                default: true,
-            },
-
-            user: {
-                type: mongoose.Schema.Types.ObjectId,
-                ref: 'User',
-                required: true,
+                min: -180,
+                max: 180,
             },
         },
-        {
-            timestamps: true,
-        }
-    );
+        images: [
+            {
+                type: String,
+            },
+        ],
+        available: {
+            type: Boolean,
+            default: true,
+        },
+        user: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+            required: true,
+        },
+    },
+    {
+        timestamps: true,
+    }
+);
 
-module.exports =
-    mongoose.model(
-        'MarketplaceItem',
-        MarketplaceItemSchema
-    );
+MarketplaceItemSchema.index({
+    available: 1,
+    category: 1,
+    createdAt: -1,
+});
+
+module.exports = mongoose.model(
+    'MarketplaceItem',
+    MarketplaceItemSchema
+);

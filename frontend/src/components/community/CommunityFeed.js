@@ -2,7 +2,6 @@ import React from'react';
 import{
     Alert,
     Box,
-    Button,
     CircularProgress,
     Stack,
     Typography,
@@ -12,10 +11,7 @@ import AgriPostCard from'./AgriPostCard';
 
 const CommunityFeed=({
     loading=false,
-    loadingMore=false,
     posts=[],
-    hasMore=false,
-    onLoadMore,
     onOpenProfile,
 })=>{
     const{t}=useTranslation();
@@ -68,36 +64,6 @@ const CommunityFeed=({
                     />
                 ))}
             </Stack>
-
-            {hasMore&&(
-                <Box
-                    display="flex"
-                    justifyContent="center"
-                    mt={4}
-                >
-                    <Button
-                        variant="outlined"
-                        size="large"
-                        onClick={onLoadMore}
-                        disabled={loadingMore}
-                        startIcon={
-                            loadingMore?(
-                                <CircularProgress
-                                    size={20}
-                                />
-                            ):null
-                        }
-                        sx={{
-                            minWidth:180,
-                            borderRadius:2,
-                        }}
-                    >
-                        {loadingMore
-                            ?t('Loading...')
-                            :t('Load More')}
-                    </Button>
-                </Box>
-            )}
         </>
     );
 };

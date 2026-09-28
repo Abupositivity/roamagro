@@ -49,6 +49,12 @@ const CommunityPostSchema = new mongoose.Schema(
             default: 0,
             min: 0,
         },
+        sharedBy: [
+            {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'User',
+            },
+        ],
         status: {
             type: String,
             enum: ['Active', 'Archived'],
@@ -59,6 +65,12 @@ const CommunityPostSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: 'User',
             required: true,
+            index: true,
+        },
+        agriTip: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'AgriTip',
+            default: null,
             index: true,
         },
         comments: [CommentSchema],
@@ -86,8 +98,12 @@ CommunityPostSchema.index({
     createdAt: -1,
 });
 
-module.exports =
-    mongoose.model(
-        'CommunityPost',
-        CommunityPostSchema
-    );
+CommunityPostSchema.index({
+    agriTip: 1,
+    user: 1,
+});
+
+module.exports = mongoose.model(
+    'CommunityPost',
+    CommunityPostSchema
+);

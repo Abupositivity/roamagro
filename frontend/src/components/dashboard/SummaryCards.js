@@ -36,7 +36,7 @@ const SummaryCards = () => {
         },
 
         {
-            title: t("Marketplace"),
+            title: t("Marketplace Listings"),
             value: marketplace?.length || 0,
             icon: <StorefrontIcon color="primary" />
         },
@@ -57,7 +57,16 @@ const SummaryCards = () => {
 
     return (
 
-        <Grid container spacing={2}>
+        <>
+            <Typography
+                variant="h6"
+                fontWeight={700}
+            >
+                {t("Summary")}
+            </Typography>
+            
+
+            <Grid container spacing={2}>
 
             {cards.map((card) => (
 
@@ -103,7 +112,8 @@ const SummaryCards = () => {
 
             ))}
 
-        </Grid>
+            </Grid>
+        </>
 
     );
 

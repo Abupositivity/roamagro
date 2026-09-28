@@ -29,6 +29,7 @@ const initialState={
 
 const notificationReducer=(state=initialState,action)=>{
     switch(action.type){
+
         case FETCH_NOTIFICATIONS_REQUEST:
             return{
                 ...state,
@@ -56,7 +57,9 @@ const notificationReducer=(state=initialState,action)=>{
             return{
                 ...state,
                 loading:false,
-                error:action.payload||'Unable to load notifications.'
+                error:
+                    action.payload||
+                    'Unable to load notifications.'
             };
 
         case FETCH_UNREAD_COUNT_REQUEST:
@@ -68,7 +71,10 @@ const notificationReducer=(state=initialState,action)=>{
         case FETCH_UNREAD_COUNT_SUCCESS:
             return{
                 ...state,
-                unreadCount:Number(action.payload)||0,
+                unreadCount:Math.max(
+                    Number(action.payload)||0,
+                    0
+                ),
                 countLoading:false
             };
 
@@ -115,7 +121,10 @@ const notificationReducer=(state=initialState,action)=>{
                             :notification
                 ),
                 unreadCount:wasUnread
-                    ?Math.max(state.unreadCount-1,0)
+                    ?Math.max(
+                        state.unreadCount-1,
+                        0
+                    )
                     :state.unreadCount,
                 actionLoading:false,
                 actionId:null,
@@ -176,26 +185,31 @@ const notificationReducer=(state=initialState,action)=>{
             };
 
         case DELETE_NOTIFICATION_SUCCESS:{
-            const deletedNotification=state.notifications.find(
-                notification=>
-                    String(notification._id)===
-                    String(action.payload)
-            );
+            const deletedNotification=
+                state.notifications.find(
+                    notification=>
+                        String(notification._id)===
+                        String(action.payload)
+                );
 
             const wasUnread=Boolean(
-                deletedNotification &&
+                deletedNotification&&
                 !deletedNotification.read
             );
 
             return{
                 ...state,
-                notifications:state.notifications.filter(
-                    notification=>
-                        String(notification._id)!==
-                        String(action.payload)
-                ),
+                notifications:
+                    state.notifications.filter(
+                        notification=>
+                            String(notification._id)!==
+                            String(action.payload)
+                    ),
                 unreadCount:wasUnread
-                    ?Math.max(state.unreadCount-1,0)
+                    ?Math.max(
+                        state.unreadCount-1,
+                        0
+                    )
                     :state.unreadCount,
                 actionLoading:false,
                 actionId:null,

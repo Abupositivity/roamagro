@@ -26,13 +26,13 @@ const QuickActions = () => {
     const actions = [
 
         {
-            title: t("New Farm"),
+            title: t("New Farm Project"),
             icon: <AgricultureIcon fontSize="large" color="success" />,
             route: "/farm-projects"
         },
 
         {
-            title: t("Sell Produce"),
+            title: t("Sell/Buy Produce"),
             icon: <StorefrontIcon fontSize="large" color="primary" />,
             route: "/marketplace"
         },
@@ -44,7 +44,7 @@ const QuickActions = () => {
         },
 
         {
-            title: t("Community"),
+            title: t("Community Discussions"),
             icon: <ForumIcon fontSize="large" color="secondary" />,
             route: "/community"
         }
@@ -59,7 +59,7 @@ const QuickActions = () => {
                 variant="h6"
                 fontWeight={700}
             >
-                {t("Quick Actions")}
+                {t("Shortcuts")}
             </Typography>
 
             <Grid

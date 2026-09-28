@@ -1,78 +1,95 @@
-import React, { useEffect, useState } from 'react';
+import React, {
+    useEffect,
+    useState,
+} from 'react';
+
 import {
     Alert,
     Box,
-    Card,
-    CardContent,
-    CardMedia,
-    Chip,
     CircularProgress,
     Stack,
     Typography,
 } from '@mui/material';
 
-import AgricultureIcon from '@mui/icons-material/Agriculture';
-import PriorityHighIcon from '@mui/icons-material/PriorityHigh';
-
-import { useTranslation } from 'react-i18next';
+import {
+    useTranslation,
+} from 'react-i18next';
 
 import api from '../../services/api';
+import AgriTipCard from './AgriTipCard';
 
-const FeaturedTips = () => {
-
+const FeaturedTips = ({
+    refreshKey = 0,
+}) => {
     const { t } = useTranslation();
 
-    const [tips, setTips] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+    const [
+        tips,
+        setTips,
+    ] = useState([]);
+
+    const [
+        loading,
+        setLoading,
+    ] = useState(true);
+
+    const [
+        refreshing,
+        setRefreshing,
+    ] = useState(false);
+
+    const [
+        error,
+        setError,
+    ] = useState(null);
 
     useEffect(() => {
+        let active = true;
 
         const loadFeaturedTips = async () => {
+            const silent = refreshKey > 0;
+
+            if (silent) {
+                setRefreshing(true);
+            } else {
+                setLoading(true);
+            }
 
             try {
-
                 const res = await api.get(
                     '/feed/featured'
                 );
 
+                if (!active) return;
+
                 setTips(res.data.data || []);
-
+                setError(null);
             } catch (error) {
+                if (!active) return;
 
-                setError(
+                const message =
                     error.response?.data?.message ||
-                    t('Unable to load featured tips.')
-                );
+                    t('Unable to load featured tips.');
 
+                if (!silent || tips.length === 0) {
+                    setError(message);
+                }
             } finally {
+                if (!active) return;
 
                 setLoading(false);
-
+                setRefreshing(false);
             }
-
         };
 
         loadFeaturedTips();
 
-    }, [t]);
+        return () => {
+            active = false;
+        };
+    }, [refreshKey, t, tips.length]);
 
-    const getPriorityColor = (priority) => {
-
-        if (priority === 'Urgent') {
-            return 'error';
-        }
-
-        if (priority === 'Important') {
-            return 'warning';
-        }
-
-        return 'success';
-
-    };
-
-    if (loading) {
-
+    if (loading && tips.length === 0) {
         return (
             <Box
                 display="flex"
@@ -82,11 +99,9 @@ const FeaturedTips = () => {
                 <CircularProgress />
             </Box>
         );
-
     }
 
-    if (error) {
-
+    if (error && tips.length === 0) {
         return (
             <Alert
                 severity="error"
@@ -95,19 +110,14 @@ const FeaturedTips = () => {
                 {error}
             </Alert>
         );
-
     }
 
     if (tips.length === 0) {
-
         return null;
-
     }
 
     return (
-
         <Box mb={4}>
-
             <Typography
                 variant="h5"
                 fontWeight={700}
@@ -126,133 +136,27 @@ const FeaturedTips = () => {
                 )}
             </Typography>
 
+            {refreshing && (
+                <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    display="block"
+                    mb={2}
+                >
+                    {t('Updating featured tips...')}
+                </Typography>
+            )}
+
             <Stack spacing={2}>
-
                 {tips.map((tip) => (
-
-                    <Card
+                    <AgriTipCard
                         key={tip._id}
-                        elevation={2}
-                        sx={{
-                            borderRadius: 3,
-                        }}
-                    >
-
-                        {tip.image && (
-
-                            <CardMedia
-                                component="img"
-                                height="200"
-                                image={tip.image}
-                                alt={tip.title}
-                            />
-
-                        )}
-
-                        <CardContent>
-
-                            <Stack
-                                direction="row"
-                                justifyContent="space-between"
-                                alignItems="flex-start"
-                                spacing={2}
-                                mb={2}
-                            >
-
-                                <Typography
-                                    variant="h6"
-                                    fontWeight={700}
-                                >
-                                    {tip.title}
-                                </Typography>
-
-                                <Chip
-                                    icon={
-                                        <PriorityHighIcon />
-                                    }
-                                    label={tip.priority}
-                                    color={getPriorityColor(
-                                        tip.priority
-                                    )}
-                                    size="small"
-                                />
-
-                            </Stack>
-
-                            <Stack
-                                direction="row"
-                                spacing={1}
-                                flexWrap="wrap"
-                                useFlexGap
-                                mb={2}
-                            >
-
-                                <Chip
-                                    icon={
-                                        <AgricultureIcon />
-                                    }
-                                    label={tip.category}
-                                    color="success"
-                                    size="small"
-                                    variant="outlined"
-                                />
-
-                                {tip.language && (
-
-                                    <Chip
-                                        label={tip.language}
-                                        size="small"
-                                        variant="outlined"
-                                    />
-
-                                )}
-
-                                {tip.region && (
-
-                                    <Chip
-                                        label={tip.region}
-                                        size="small"
-                                        variant="outlined"
-                                    />
-
-                                )}
-
-                            </Stack>
-
-                            <Typography
-                                variant="body1"
-                                sx={{
-                                    whiteSpace: 'pre-line',
-                                }}
-                            >
-                                {tip.content}
-                            </Typography>
-
-                            {tip.createdBy?.name && (
-
-                                <Typography
-                                    variant="body2"
-                                    color="text.secondary"
-                                    mt={2}
-                                >
-                                    {t('Shared by')}:{' '}
-                                    {tip.createdBy.name}
-                                </Typography>
-
-                            )}
-
-                        </CardContent>
-
-                    </Card>
-
+                        tip={tip}
+                    />
                 ))}
-
             </Stack>
-
         </Box>
-
     );
-
 };
 
 export default FeaturedTips;

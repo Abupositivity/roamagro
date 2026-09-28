@@ -18,6 +18,17 @@ import{
     DELETE_NOTIFICATION_FAIL
 }from './notificationTypes';
 
+let unreadCountCache=null;
+let unreadCountCacheTime=0;
+let unreadCountRequest=null;
+
+const UNREAD_COUNT_CACHE_MS=10000;
+
+const clearUnreadCountCache=()=>{
+    unreadCountCache=null;
+    unreadCountCacheTime=0;
+};
+
 export const fetchNotifications=()=>async dispatch=>{
     dispatch({
         type:FETCH_NOTIFICATIONS_REQUEST
@@ -25,6 +36,7 @@ export const fetchNotifications=()=>async dispatch=>{
 
     try{
         const res=await notificationService.getNotifications();
+
         const data=Array.isArray(res.data?.data)
             ?res.data.data
             :[];
@@ -33,6 +45,13 @@ export const fetchNotifications=()=>async dispatch=>{
             type:FETCH_NOTIFICATIONS_SUCCESS,
             payload:data
         });
+
+        const unreadCount=data.filter(
+            notification=>!notification.read
+        ).length;
+
+        unreadCountCache=unreadCount;
+        unreadCountCacheTime=Date.now();
 
         return{
             success:true,
@@ -57,39 +76,74 @@ export const fetchNotifications=()=>async dispatch=>{
 };
 
 export const fetchUnreadCount=()=>async dispatch=>{
-    dispatch({
-        type:FETCH_UNREAD_COUNT_REQUEST
-    });
+    const now=Date.now();
 
-    try{
-        const res=await notificationService.getUnreadCount();
-        const count=Number(res.data?.count)||0;
-
+    if(
+        unreadCountCache!==null&&
+        now-unreadCountCacheTime<UNREAD_COUNT_CACHE_MS
+    ){
         dispatch({
             type:FETCH_UNREAD_COUNT_SUCCESS,
-            payload:count
+            payload:unreadCountCache
         });
 
         return{
             success:true,
-            count
-        };
-    }catch(error){
-        const message=
-            error.response?.data?.message||
-            error.message||
-            'Unable to load notification count.';
-
-        dispatch({
-            type:FETCH_UNREAD_COUNT_FAIL,
-            payload:message
-        });
-
-        return{
-            success:false,
-            error:message
+            count:unreadCountCache,
+            cached:true
         };
     }
+
+    if(unreadCountRequest){
+        return unreadCountRequest;
+    }
+
+    dispatch({
+        type:FETCH_UNREAD_COUNT_REQUEST
+    });
+
+    unreadCountRequest=(async()=>{
+        try{
+            const res=await notificationService.getUnreadCount();
+
+            const count=Math.max(
+                Number(res.data?.count)||0,
+                0
+            );
+
+            unreadCountCache=count;
+            unreadCountCacheTime=Date.now();
+
+            dispatch({
+                type:FETCH_UNREAD_COUNT_SUCCESS,
+                payload:count
+            });
+
+            return{
+                success:true,
+                count
+            };
+        }catch(error){
+            const message=
+                error.response?.data?.message||
+                error.message||
+                'Unable to load notification count.';
+
+            dispatch({
+                type:FETCH_UNREAD_COUNT_FAIL,
+                payload:message
+            });
+
+            return{
+                success:false,
+                error:message
+            };
+        }finally{
+            unreadCountRequest=null;
+        }
+    })();
+
+    return unreadCountRequest;
 };
 
 export const markNotificationAsRead=id=>async dispatch=>{
@@ -107,6 +161,8 @@ export const markNotificationAsRead=id=>async dispatch=>{
 
     try{
         const res=await notificationService.markAsRead(id);
+
+        clearUnreadCountCache();
 
         dispatch({
             type:MARK_NOTIFICATION_READ_SUCCESS,
@@ -145,6 +201,8 @@ export const markAllNotificationsAsRead=()=>async dispatch=>{
 
     try{
         const res=await notificationService.markAllAsRead();
+
+        clearUnreadCountCache();
 
         dispatch({
             type:MARK_ALL_NOTIFICATIONS_READ_SUCCESS,
@@ -187,6 +245,8 @@ export const deleteNotification=id=>async dispatch=>{
 
     try{
         await notificationService.deleteNotification(id);
+
+        clearUnreadCountCache();
 
         dispatch({
             type:DELETE_NOTIFICATION_SUCCESS,

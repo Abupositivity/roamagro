@@ -1,4 +1,4 @@
-import React,{useEffect,useState}from"react";
+import React,{useCallback,useEffect,useState}from"react";
 import{
     Avatar,
     Box,
@@ -16,6 +16,9 @@ import {useSelector}from"react-redux";
 import {useTranslation}from"react-i18next";
 import weatherService from"../../services/weatherService";
 
+const WEATHER_REFRESH_INTERVAL=15*60*1000;
+const WEATHER_STALE_TIME=5*60*1000;
+
 const DashboardHeader=()=>{
     const{t}=useTranslation();
 
@@ -26,6 +29,8 @@ const DashboardHeader=()=>{
     const[weather,setWeather]=useState(null);
     const[weatherLoading,setWeatherLoading]=
         useState(true);
+    const[lastWeatherUpdate,setLastWeatherUpdate]=
+        useState(null);
 
     const hour=new Date().getHours();
 
@@ -55,12 +60,9 @@ const DashboardHeader=()=>{
             .join("")
         ||"R";
 
-    useEffect(()=>{
-        let mounted=true;
-
-        const loadWeather=async()=>{
+    const loadWeather=useCallback(
+        async()=>{
             setWeatherLoading(true);
-            setWeather(null);
 
             try{
                 const data=
@@ -73,34 +75,79 @@ const DashboardHeader=()=>{
                         }
                     );
 
-                if(mounted){
-                    setWeather(data);
-                }
+                setWeather(data);
+                setLastWeatherUpdate(
+                    Date.now()
+                );
             }catch(error){
-                if(mounted){
-                    setWeather(null);
-                }
+                setWeather(null);
 
                 console.warn(
                     "Weather unavailable:",
                     error?.message
                 );
             }finally{
-                if(mounted){
-                    setWeatherLoading(false);
+                setWeatherLoading(false);
+            }
+        },
+        [
+            user?.lga,
+            user?.state,
+            user?.location
+        ]
+    );
+
+    useEffect(()=>{
+        loadWeather();
+    },[loadWeather]);
+
+    useEffect(()=>{
+        const interval=
+            window.setInterval(()=>{
+                if(
+                    document.visibilityState===
+                    "visible"
+                ){
+                    loadWeather();
                 }
+            },WEATHER_REFRESH_INTERVAL);
+
+        return()=>{
+            window.clearInterval(interval);
+        };
+    },[loadWeather]);
+
+    useEffect(()=>{
+        const handleVisibilityChange=()=>{
+            if(
+                document.visibilityState!=="visible"
+            ){
+                return;
+            }
+
+            if(
+                !lastWeatherUpdate||
+                Date.now()-lastWeatherUpdate>=
+                    WEATHER_STALE_TIME
+            ){
+                loadWeather();
             }
         };
 
-        loadWeather();
+        document.addEventListener(
+            "visibilitychange",
+            handleVisibilityChange
+        );
 
         return()=>{
-            mounted=false;
+            document.removeEventListener(
+                "visibilitychange",
+                handleVisibilityChange
+            );
         };
     },[
-        user?.lga,
-        user?.state,
-        user?.location
+        lastWeatherUpdate,
+        loadWeather
     ]);
 
     return(

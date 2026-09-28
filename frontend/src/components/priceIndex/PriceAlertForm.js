@@ -1,5 +1,4 @@
-import React, { useState } from 'react';
-
+import React, { useEffect, useState } from 'react';
 import {
     Dialog,
     DialogTitle,
@@ -10,9 +9,16 @@ import {
     MenuItem,
     Button,
     CircularProgress,
+    Alert,
 } from '@mui/material';
-
 import { useTranslation } from 'react-i18next';
+
+const INITIAL_FORM = {
+    product: '',
+    location: '',
+    targetPrice: '',
+    alertType: 'Above',
+};
 
 const PriceAlertForm = ({
     open = false,
@@ -22,31 +28,66 @@ const PriceAlertForm = ({
 }) => {
     const { t } = useTranslation();
 
-    const [form, setForm] = useState({
-        product: '',
-        location: '',
-        targetPrice: '',
-        alertType: 'Above',
-    });
+    const [form, setForm] = useState(INITIAL_FORM);
+    const [error, setError] = useState('');
+
+    useEffect(() => {
+        if (open) {
+            setError('');
+        }
+    }, [open]);
 
     const handleChange = (e) => {
+        const { name, value } = e.target;
+
         setForm((prev) => ({
             ...prev,
-            [e.target.name]: e.target.value,
+            [name]: value,
         }));
+
+        if (error) {
+            setError('');
+        }
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
 
-        if (
-            !form.product.trim() ||
-            !form.targetPrice
-        ) {
+        const product = form.product.trim();
+        const location = form.location.trim();
+        const targetPrice = Number(form.targetPrice);
+
+        if (!product) {
+            setError(t('Product is required.'));
             return;
         }
 
-        onSubmit(form);
+        if (!Number.isFinite(targetPrice) || targetPrice <= 0) {
+            setError(
+                t('Target price must be greater than zero.')
+            );
+            return;
+        }
+
+        if (!['Above', 'Below'].includes(form.alertType)) {
+            setError(t('Please select a valid alert type.'));
+            return;
+        }
+
+        const result = await onSubmit({
+            product,
+            location,
+            targetPrice,
+            alertType: form.alertType,
+        });
+
+        if (result?.success === false) {
+            setError(
+                result.error ||
+                result.message ||
+                t('Unable to create price alert.')
+            );
+        }
     };
 
     const handleClose = () => {
@@ -54,13 +95,8 @@ const PriceAlertForm = ({
             return;
         }
 
-        setForm({
-            product: '',
-            location: '',
-            targetPrice: '',
-            alertType: 'Above',
-        });
-
+        setForm(INITIAL_FORM);
+        setError('');
         onClose();
     };
 
@@ -81,6 +117,12 @@ const PriceAlertForm = ({
             >
                 <DialogContent>
                     <Stack spacing={2}>
+                        {error && (
+                            <Alert severity="error">
+                                {error}
+                            </Alert>
+                        )}
+
                         <TextField
                             label={t('Product')}
                             name="product"
@@ -89,6 +131,7 @@ const PriceAlertForm = ({
                             fullWidth
                             required
                             autoFocus
+                            disabled={loading}
                         />
 
                         <TextField
@@ -97,9 +140,8 @@ const PriceAlertForm = ({
                             value={form.location}
                             onChange={handleChange}
                             fullWidth
-                            placeholder={t(
-                                'e.g. Kaduna'
-                            )}
+                            placeholder={t('e.g. Kaduna')}
+                            disabled={loading}
                         />
 
                         <TextField
@@ -110,8 +152,10 @@ const PriceAlertForm = ({
                             onChange={handleChange}
                             fullWidth
                             required
+                            disabled={loading}
                             inputProps={{
                                 min: 1,
+                                step: 1,
                             }}
                         />
 
@@ -122,17 +166,14 @@ const PriceAlertForm = ({
                             value={form.alertType}
                             onChange={handleChange}
                             fullWidth
+                            disabled={loading}
                         >
                             <MenuItem value="Above">
-                                {t(
-                                    'When price is Above'
-                                )}
+                                {t('When price is Above')}
                             </MenuItem>
 
                             <MenuItem value="Below">
-                                {t(
-                                    'When price is Below'
-                                )}
+                                {t('When price is Below')}
                             </MenuItem>
                         </TextField>
                     </Stack>

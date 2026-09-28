@@ -101,6 +101,28 @@ const FarmProject = () => {
 
     }, [dispatch]);
 
+    useEffect(() => {
+    const handleRefresh = event => {
+        if (event.detail?.route !== '/farm-projects') {
+            return;
+        }
+
+        dispatch(fetchFarmProjects());
+    };
+
+    window.addEventListener(
+        'roamagro:refresh-page',
+        handleRefresh
+    );
+
+    return () => {
+        window.removeEventListener(
+            'roamagro:refresh-page',
+            handleRefresh
+        );
+    };
+    }, [dispatch]);
+
 
     // ============================================================
     // SNACKBAR

@@ -1,9 +1,5 @@
-import React, {
-    useRef,
-    useState,
-} from 'react';
-
-import {
+import React,{useRef,useState}from'react';
+import{
     Box,
     Button,
     Card,
@@ -13,14 +9,12 @@ import {
     TextField,
     Typography,
     MenuItem,
-} from '@mui/material';
+}from'@mui/material';
+import CameraAltIcon from'@mui/icons-material/CameraAlt';
+import DeleteIcon from'@mui/icons-material/Delete';
+import {useTranslation}from'react-i18next';
 
-import CameraAltIcon from '@mui/icons-material/CameraAlt';
-import DeleteIcon from '@mui/icons-material/Delete';
-
-import { useTranslation } from 'react-i18next';
-
-const categories = [
+const categories=[
     'Crop Production',
     'Livestock',
     'Poultry',
@@ -38,77 +32,44 @@ const categories = [
     'General',
 ];
 
-const MAX_IMAGE_SIZE = 1200;
-const IMAGE_QUALITY = 0.75;
+const MAX_IMAGE_SIZE=1200;
+const IMAGE_QUALITY=0.75;
 
-const compressImage = (file) =>
-    new Promise((resolve, reject) => {
-        if (
-            !file?.type?.startsWith(
-                'image/'
-            )
-        ) {
-            reject(
-                new Error(
-                    'Please select an image file.'
-                )
-            );
+const compressImage=file=>
+    new Promise((resolve,reject)=>{
+        if(!file?.type?.startsWith('image/')){
+            reject(new Error('Please select an image file.'));
             return;
         }
 
-        const reader =
-            new FileReader();
+        const reader=new FileReader();
 
-        reader.onload = (event) => {
-            const image = new Image();
+        reader.onload=event=>{
+            const image=new Image();
 
-            image.onload = () => {
-                let width = image.width;
-                let height = image.height;
+            image.onload=()=>{
+                let width=image.width;
+                let height=image.height;
 
-                if (
-                    width >
-                        MAX_IMAGE_SIZE ||
-                    height >
-                        MAX_IMAGE_SIZE
-                ) {
-                    if (width > height) {
-                        height =
-                            (height / width) *
-                            MAX_IMAGE_SIZE;
-                        width =
-                            MAX_IMAGE_SIZE;
-                    } else {
-                        width =
-                            (width / height) *
-                            MAX_IMAGE_SIZE;
-                        height =
-                            MAX_IMAGE_SIZE;
+                if(width>MAX_IMAGE_SIZE||height>MAX_IMAGE_SIZE){
+                    if(width>height){
+                        height=(height/width)*MAX_IMAGE_SIZE;
+                        width=MAX_IMAGE_SIZE;
+                    }else{
+                        width=(width/height)*MAX_IMAGE_SIZE;
+                        height=MAX_IMAGE_SIZE;
                     }
                 }
 
-                const canvas =
-                    document.createElement(
-                        'canvas'
-                    );
+                const canvas=document.createElement('canvas');
 
-                canvas.width =
-                    Math.round(width);
+                canvas.width=Math.round(width);
+                canvas.height=Math.round(height);
 
-                canvas.height =
-                    Math.round(height);
+                const context=canvas.getContext('2d');
 
-                const context =
-                    canvas.getContext(
-                        '2d'
-                    );
-
-                if (!context) {
-                    reject(
-                        new Error(
-                            'Unable to process image.'
-                        )
-                    );
+                if(!context){
+                    reject(new Error('Unable to process image.'));
                     return;
                 }
 
@@ -120,14 +81,14 @@ const compressImage = (file) =>
                     canvas.height
                 );
 
-                try {
+                try{
                     resolve(
                         canvas.toDataURL(
                             'image/jpeg',
                             IMAGE_QUALITY
                         )
                     );
-                } catch {
+                }catch{
                     reject(
                         new Error(
                             'Unable to compress image.'
@@ -136,7 +97,7 @@ const compressImage = (file) =>
                 }
             };
 
-            image.onerror = () => {
+            image.onerror=()=>{
                 reject(
                     new Error(
                         'Unable to process image.'
@@ -144,11 +105,10 @@ const compressImage = (file) =>
                 );
             };
 
-            image.src =
-                event.target.result;
+            image.src=event.target.result;
         };
 
-        reader.onerror = () => {
+        reader.onerror=()=>{
             reject(
                 new Error(
                     'Unable to read image.'
@@ -159,73 +119,75 @@ const compressImage = (file) =>
         reader.readAsDataURL(file);
     });
 
-const PostComposer = ({
+const PostComposer=({
     formData,
     loading,
+    posting,
     onChange,
     onSubmit,
-}) => {
-    const { t } = useTranslation();
+    error,
+})=>{
+    const{t}=useTranslation();
 
-    const fileInputRef =
-        useRef(null);
+    const fileInputRef=useRef(null);
 
-    const [imageError, setImageError] =
-        useState('');
+    const[imageError,setImageError]=useState('');
 
-    const handleImageSelect = async (
-        event
-    ) => {
-        const file =
-            event.target.files?.[0];
+    const handleImageSelect=async event=>{
+        const file=event.target.files?.[0];
 
-        if (!file) {
+        if(!file){
             return;
         }
 
         setImageError('');
 
-        try {
-            const image =
-                await compressImage(
-                    file
-                );
+        try{
+            const image=await compressImage(file);
 
             onChange({
-                target: {
-                    name: 'image',
-                    value: image,
+                target:{
+                    name:'image',
+                    value:image,
                 },
             });
-        } catch (error) {
+        }catch(error){
             setImageError(
-                error.message ||
-                    t(
-                        'Unable to add image.'
-                    )
+                error.message||
+                t('Unable to add image.')
             );
         }
 
-        event.target.value = '';
+        event.target.value='';
     };
 
-    const handleRemoveImage = () => {
+    const handleRemoveImage=()=>{
         onChange({
-            target: {
-                name: 'image',
-                value: '',
+            target:{
+                name:'image',
+                value:'',
             },
         });
 
         setImageError('');
     };
 
-    return (
+    const handleSubmit=event=>{
+        event.preventDefault();
+
+        if(posting){
+            return;
+        }
+
+        onSubmit();
+    };
+
+    return(
         <Card
             elevation={2}
             sx={{
-                borderRadius: 3,
-                mb: 4,
+                borderRadius:3,
+                mb:4,
             }}
         >
             <CardContent>
@@ -233,204 +195,178 @@ const PostComposer = ({
                     variant="h6"
                     gutterBottom
                 >
-                    {t(
-                        'Share with the Community'
-                    )}
+                    {t('Share with the Community')}
                 </Typography>
 
-                <Stack spacing={2}>
-                    <TextField
-                        fullWidth
-                        label={t('Title')}
-                        name="title"
-                        value={
-                            formData.title
-                        }
-                        onChange={onChange}
-                    />
-
-                    <TextField
-                        fullWidth
-                        multiline
-                        rows={4}
-                        label={t(
-                            'What would you like to share?'
-                        )}
-                        name="content"
-                        value={
-                            formData.content
-                        }
-                        onChange={onChange}
-                    />
-
-                    <TextField
-                        select
-                        fullWidth
-                        label={t('Category')}
-                        name="category"
-                        value={
-                            formData.category
-                        }
-                        onChange={onChange}
-                    >
-                        {categories.map(
-                            (category) => (
-                                <MenuItem
-                                    key={
-                                        category
-                                    }
-                                    value={
-                                        category
-                                    }
-                                >
-                                    {t(
-                                        category
-                                    )}
-                                </MenuItem>
-                            )
-                        )}
-                    </TextField>
-
-                    <Box>
-                        <Typography
-                            variant="subtitle2"
-                            fontWeight={600}
-                            mb={0.5}
-                        >
-                            {t(
-                                'Photo (optional)'
-                            )}
-                        </Typography>
-
-                        <Typography
-                            variant="body2"
-                            color="text.secondary"
-                            mb={1.5}
-                        >
-                            {t(
-                                'Add a photo or capture one with your camera.'
-                            )}
-                        </Typography>
-
-                        <input
-                            ref={
-                                fileInputRef
-                            }
-                            type="file"
-                            accept="image/*"
-                            capture="environment"
-                            hidden
-                            onChange={
-                                handleImageSelect
-                            }
+                <Box
+                    component="form"
+                    onSubmit={handleSubmit}
+                >
+                    <Stack spacing={2}>
+                        <TextField
+                            fullWidth
+                            label={t('Title')}
+                            name="title"
+                            value={formData.title}
+                            onChange={onChange}
+                            disabled={posting}
+                            error={Boolean(error?.title)}
+                            helperText={error?.title||''}
                         />
 
-                        {!formData.image && (
-                            <Button
-                                variant="outlined"
-                                startIcon={
-                                    <CameraAltIcon />
-                                }
-                                onClick={() =>
-                                    fileInputRef.current?.click()
-                                }
-                                disabled={
-                                    loading
-                                }
+                        <TextField
+                            fullWidth
+                            multiline
+                            rows={4}
+                            label={t(
+                                'What would you like to share?'
+                            )}
+                            name="content"
+                            value={formData.content}
+                            onChange={onChange}
+                            disabled={posting}
+                            error={Boolean(error?.content)}
+                            helperText={error?.content||''}
+                        />
+
+                        <TextField
+                            select
+                            fullWidth
+                            label={t('Category')}
+                            name="category"
+                            value={formData.category}
+                            onChange={onChange}
+                            disabled={posting}
+                        >
+                            {categories.map(category=>(
+                                <MenuItem
+                                    key={category}
+                                    value={category}
+                                >
+                                    {t(category)}
+                                </MenuItem>
+                            ))}
+                        </TextField>
+
+                        <Box>
+                            <Typography
+                                variant="subtitle2"
+                                fontWeight={600}
+                                mb={0.5}
+                            >
+                                {t('Photo (optional)')}
+                            </Typography>
+
+                            <Typography
+                                variant="body2"
+                                color="text.secondary"
+                                mb={1.5}
                             >
                                 {t(
-                                    'Add Photo'
+                                    'Add a photo or capture one with your camera.'
                                 )}
-                            </Button>
-                        )}
+                            </Typography>
 
-                        {imageError && (
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/*"
+                                capture="environment"
+                                hidden
+                                onChange={handleImageSelect}
+                            />
+
+                            {!formData.image&&(
+                                <Button
+                                    variant="outlined"
+                                    startIcon={<CameraAltIcon/>}
+                                    onClick={()=>
+                                        fileInputRef.current?.click()
+                                    }
+                                    disabled={posting}
+                                >
+                                    {t('Add Photo')}
+                                </Button>
+                            )}
+
+                            {imageError&&(
+                                <Typography
+                                    variant="body2"
+                                    color="error"
+                                    mt={1}
+                                >
+                                    {imageError}
+                                </Typography>
+                            )}
+
+                            {formData.image&&(
+                                <Box
+                                    sx={{
+                                        position:'relative',
+                                        mt:2,
+                                        width:'100%',
+                                        maxWidth:400,
+                                        borderRadius:2,
+                                        overflow:'hidden',
+                                    }}
+                                >
+                                    <Box
+                                        component="img"
+                                        src={formData.image}
+                                        alt={t('Community post')}
+                                        sx={{
+                                            width:'100%',
+                                            maxHeight:250,
+                                            objectFit:'cover',
+                                            display:'block',
+                                        }}
+                                    />
+
+                                    <IconButton
+                                        size="small"
+                                        onClick={handleRemoveImage}
+                                        disabled={posting}
+                                        aria-label={t(
+                                            'Remove photo'
+                                        )}
+                                        sx={{
+                                            position:'absolute',
+                                            top:8,
+                                            right:8,
+                                            backgroundColor:
+                                                'rgba(255,255,255,0.9)',
+                                            '&:hover':{
+                                                backgroundColor:'white',
+                                            },
+                                        }}
+                                    >
+                                        <DeleteIcon fontSize="small"/>
+                                    </IconButton>
+                                </Box>
+                            )}
+                        </Box>
+
+                        {error?.general&&(
                             <Typography
                                 variant="body2"
                                 color="error"
-                                mt={1}
                             >
-                                {
-                                    imageError
-                                }
+                                {error.general}
                             </Typography>
                         )}
 
-                        {formData.image && (
-                            <Box
-                                sx={{
-                                    position:
-                                        'relative',
-                                    mt: 2,
-                                    width:
-                                        '100%',
-                                    maxWidth: 400,
-                                    borderRadius: 2,
-                                    overflow:
-                                        'hidden',
-                                }}
-                            >
-                                <Box
-                                    component="img"
-                                    src={
-                                        formData.image
-                                    }
-                                    alt={t(
-                                        'Community post'
-                                    )}
-                                    sx={{
-                                        width:
-                                            '100%',
-                                        maxHeight: 250,
-                                        objectFit:
-                                            'cover',
-                                        display:
-                                            'block',
-                                    }}
-                                />
-
-                                <IconButton
-                                    size="small"
-                                    onClick={
-                                        handleRemoveImage
-                                    }
-                                    disabled={
-                                        loading
-                                    }
-                                    aria-label={t(
-                                        'Remove photo'
-                                    )}
-                                    sx={{
-                                        position:
-                                            'absolute',
-                                        top: 8,
-                                        right: 8,
-                                        backgroundColor:
-                                            'rgba(255,255,255,0.9)',
-                                        '&:hover':
-                                            {
-                                                backgroundColor:
-                                                    'white',
-                                            },
-                                    }}
-                                >
-                                    <DeleteIcon fontSize="small" />
-                                </IconButton>
-                            </Box>
-                        )}
-                    </Box>
-
-                    <Button
-                        variant="contained"
-                        size="large"
-                        onClick={onSubmit}
-                        disabled={loading}
-                    >
-                        {loading
-                            ? t('Posting...')
-                            : t('Post')}
-                    </Button>
-                </Stack>
+                        <Button
+                            variant="contained"
+                            size="large"
+                            type="submit"
+                            disabled={posting}
+                        >
+                            {posting
+                                ? t('Posting...')
+                                : t('Post')}
+                        </Button>
+                    </Stack>
+                </Box>
             </CardContent>
         </Card>
     );

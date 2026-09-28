@@ -651,12 +651,12 @@ const ActivityPanel=({
                                         }
                                         post={item}
                                         t={t}
-                                        onClick={()=>
-                                            navigate(
-                                                item.link||
-                                                `/community/${item._id}`
-                                            )
-                                        }
+//                                        onClick={()=>
+//                                            navigate(
+//                                               item.link||
+//                                                `/community/${item._id}`
+//                                            )
+//                                      }
                                     />
                                 ):(
                                     <ListingCard
@@ -666,12 +666,12 @@ const ActivityPanel=({
                                         }
                                         listing={item}
                                         t={t}
-                                        onClick={()=>
-                                            navigate(
-                                                item.link||
-                                                `/marketplace/${item._id}`
-                                            )
-                                        }
+//                                        onClick={()=>
+//                                            navigate(
+//                                                item.link||
+//                                                `/marketplace/${item._id}`
+//                                           )
+//                                        }
                                     />
                                 )
                         )}
@@ -1740,7 +1740,7 @@ const Profile=()=>{
                             color="text.secondary"
                         >
                             {t(
-                                'Keep your profile information updated so other RoamAgro users can identify and contact you when appropriate.'
+                                'Keep your profile information updated so other RoamAgro users can identify, connect and contact you.'
                             )}
                         </Typography>
 

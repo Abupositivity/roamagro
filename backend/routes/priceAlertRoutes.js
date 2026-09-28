@@ -11,7 +11,7 @@ const {
     createPriceAlert,
     getPriceAlerts,
     deletePriceAlert,
-} = require('../controllers/priceAlertController');
+} = require('../controllers/PriceAlertController');
 
 const {
     createPriceAlertValidator,

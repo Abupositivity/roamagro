@@ -32,7 +32,7 @@ const PriceTicker = () => {
                 fontWeight={700}
                 mb={2}
             >
-                {t("Today's Prices")}
+                {t("Recent Prices")}
             </Typography>
 
             <Stack

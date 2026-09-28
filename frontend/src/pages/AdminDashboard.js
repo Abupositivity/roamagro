@@ -1,5 +1,11 @@
-import React,{useEffect}from'react';
-import{
+import React, {
+    useCallback,
+    useEffect,
+    useRef,
+    useState,
+} from "react";
+
+import {
     Alert,
     Box,
     Button,
@@ -8,42 +14,185 @@ import{
     CircularProgress,
     Grid,
     Stack,
-    Typography
-}from'@mui/material';
-import PeopleOutlinedIcon from'@mui/icons-material/PeopleOutlined';
-import AgricultureOutlinedIcon from'@mui/icons-material/AgricultureOutlined';
-import StorefrontOutlinedIcon from'@mui/icons-material/StorefrontOutlined';
-import GroupsOutlinedIcon from'@mui/icons-material/GroupsOutlined';
-import LightbulbOutlinedIcon from'@mui/icons-material/LightbulbOutlined';
-import ReportProblemOutlinedIcon from'@mui/icons-material/ReportProblemOutlined';
-import ArrowForwardIosIcon from'@mui/icons-material/ArrowForwardIos';
-import{useDispatch,useSelector}from'react-redux';
-import{useTranslation}from'react-i18next';
-import{useNavigate}from'react-router-dom';
-import PageLayout from'../components/layout/PageLayout';
-import{fetchDashboard}from'../redux/actions/dashboardActions';
+    Typography,
+} from "@mui/material";
 
-const AdminDashboard=()=>{
-    const{t}=useTranslation();
-    const dispatch=useDispatch();
-    const navigate=useNavigate();
+import PeopleOutlinedIcon from "@mui/icons-material/PeopleOutlined";
+import AgricultureOutlinedIcon from "@mui/icons-material/AgricultureOutlined";
+import StorefrontOutlinedIcon from "@mui/icons-material/StorefrontOutlined";
+import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
+import LightbulbOutlinedIcon from "@mui/icons-material/LightbulbOutlined";
+import ReportProblemOutlinedIcon from "@mui/icons-material/ReportProblemOutlined";
+import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 
-    const{
+import {
+    useDispatch,
+    useSelector,
+} from "react-redux";
+
+import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
+
+import PageLayout from "../components/layout/PageLayout";
+
+import DashboardHeader from "../components/dashboard/DashboardHeader";
+import SummaryCards from "../components/dashboard/SummaryCards";
+import QuickActions from "../components/dashboard/QuickActions";
+import RecentProjects from "../components/dashboard/RecentProjects";
+import MarketplacePreview from "../components/dashboard/MarketplacePreview";
+import PriceTicker from "../components/dashboard/PriceTicker";
+
+import AgriFeed from "../components/community/AgriFeed";
+import ExtensionTipForm from "../components/community/ExtensionTipForm";
+
+import { refreshDashboard } from "../redux/actions/dashboardActions";
+
+const REFRESH_INTERVAL = 60 * 1000;
+const STALE_TIME = 30 * 1000;
+
+const AdminDashboard = () => {
+    const { t } = useTranslation();
+    const dispatch = useDispatch();
+    const navigate = useNavigate();
+
+    const {
         loading,
         error,
-        dashboard
-    }=useSelector(
-        state=>state.dashboard
+        dashboard,
+        lastUpdated,
+    } = useSelector((state) => state.dashboard);
+
+    const refreshInProgress = useRef(false);
+    const mountedRef = useRef(true);
+
+    const [feedRefreshKey, setFeedRefreshKey] = useState(0);
+
+    const refresh = useCallback(
+        async (silent = true) => {
+            if (
+                refreshInProgress.current ||
+                document.visibilityState !== "visible"
+            ) {
+                return;
+            }
+
+            refreshInProgress.current = true;
+
+            try {
+                await dispatch(
+                    refreshDashboard({
+                        type: "/admin",
+                        silent,
+                    })
+                );
+            } finally {
+                if (mountedRef.current) {
+                    refreshInProgress.current = false;
+                }
+            }
+        },
+        [dispatch]
     );
 
-    useEffect(()=>{
-        dispatch(
-            fetchDashboard('/admin')
-        );
-    },[dispatch]);
+    useEffect(() => {
+        mountedRef.current = true;
 
-    if(loading){
-        return(
+        const loadDashboard = async () => {
+            if (refreshInProgress.current) {
+                return;
+            }
+
+            refreshInProgress.current = true;
+
+            try {
+                await dispatch(
+                    refreshDashboard({
+                        type: "/admin",
+                        silent: false,
+                    })
+                );
+            } finally {
+                if (mountedRef.current) {
+                    refreshInProgress.current = false;
+                }
+            }
+        };
+
+        loadDashboard();
+
+        return () => {
+            mountedRef.current = false;
+        };
+    }, [dispatch]);
+
+    useEffect(() => {
+        const interval = window.setInterval(() => {
+            refresh(true);
+        }, REFRESH_INTERVAL);
+
+        return () => {
+            window.clearInterval(interval);
+        };
+    }, [refresh]);
+
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.visibilityState !== "visible") {
+                return;
+            }
+
+            const updatedAt = lastUpdated || 0;
+
+            if (
+                !updatedAt ||
+                Date.now() - updatedAt >= STALE_TIME
+            ) {
+                refresh(true);
+            }
+        };
+
+        document.addEventListener(
+            "visibilitychange",
+            handleVisibilityChange
+        );
+
+        return () => {
+            document.removeEventListener(
+                "visibilitychange",
+                handleVisibilityChange
+            );
+        };
+    }, [lastUpdated, refresh]);
+
+    useEffect(() => {
+        const handleRefresh = (event) => {
+            if (event.detail?.route !== "/admin/dashboard") {
+                return;
+            }
+
+            refresh(true);
+        };
+
+        window.addEventListener(
+            "roamagro:refresh-page",
+            handleRefresh
+        );
+
+        return () => {
+            window.removeEventListener(
+                "roamagro:refresh-page",
+                handleRefresh
+            );
+        };
+    }, [refresh]);
+
+    const handleTipPublished = async () => {
+        setFeedRefreshKey((previous) => previous + 1);
+        await refresh(true);
+    };
+
+    if (loading && !dashboard) {
+        return (
             <PageLayout>
                 <Box
                     display="flex"
@@ -51,14 +200,14 @@ const AdminDashboard=()=>{
                     alignItems="center"
                     minHeight="60vh"
                 >
-                    <CircularProgress/>
+                    <CircularProgress />
                 </Box>
             </PageLayout>
         );
     }
 
-    if(error){
-        return(
+    if (error && !dashboard) {
+        return (
             <PageLayout>
                 <Alert severity="error">
                     {error}
@@ -67,51 +216,70 @@ const AdminDashboard=()=>{
         );
     }
 
-    const summary=
-        dashboard?.summary||{};
+    const summary =
+        dashboard?.admin?.summary ||
+        dashboard?.summary ||
+        {};
 
-    const cards=[
+    const cards = [
         {
-            title:t('Total Users'),
-            value:summary.totalUsers||0,
-            icon:<PeopleOutlinedIcon/>
+            title: t("Total Users"),
+            value: summary.totalUsers || 0,
+            icon: <PeopleOutlinedIcon />,
         },
         {
-            title:t('Farmers'),
-            value:summary.farmers||0,
-            icon:<AgricultureOutlinedIcon/>
+            title: t("Farmers"),
+            value: summary.farmers || 0,
+            icon: <AgricultureOutlinedIcon />,
         },
         {
-            title:t('Farm Projects'),
-            value:summary.totalProjects||0,
-            icon:<AgricultureOutlinedIcon/>
+            title: t("Extension Officers"),
+            value: summary.extensionOfficers || 0,
+            icon: <GroupsOutlinedIcon />,
         },
         {
-            title:t('Marketplace Listings'),
-            value:summary.totalListings||0,
-            icon:<StorefrontOutlinedIcon/>
+            title: t("Farm Projects"),
+            value: summary.totalProjects || 0,
+            icon: <AgricultureOutlinedIcon />,
         },
         {
-            title:t('Community Posts'),
-            value:summary.communityPosts||0,
-            icon:<GroupsOutlinedIcon/>
+            title: t("Marketplace Listings"),
+            value: summary.totalListings || 0,
+            icon: <StorefrontOutlinedIcon />,
         },
         {
-            title:t('Published Tips'),
-            value:summary.publishedTips||0,
-            icon:<LightbulbOutlinedIcon/>
-        }
+            title: t("Community Posts"),
+            value: summary.communityPosts || 0,
+            icon: <GroupsOutlinedIcon />,
+        },
+        {
+            title: t("Published Tips"),
+            value: summary.publishedTips || 0,
+            icon: <LightbulbOutlinedIcon />,
+        },
     ];
 
-    return(
+    return (
         <PageLayout>
             <Stack spacing={3}>
+                <DashboardHeader />
+
+                <SummaryCards />
+
+                <QuickActions />
+
+                <RecentProjects />
+
+                <MarketplacePreview />
+
+                <PriceTicker />
+
                 <Box>
                     <Typography
                         variant="h4"
                         fontWeight={700}
                     >
-                        {t('Admin Dashboard')}
+                        {t("Admin Dashboard")}
                     </Typography>
 
                     <Typography
@@ -119,17 +287,12 @@ const AdminDashboard=()=>{
                         color="text.secondary"
                         mt={1}
                     >
-                        {t(
-                            'Manage and monitor RoamAgro activity.'
-                        )}
+                        {t("Manage and monitor RoamAgro activity.")}
                     </Typography>
                 </Box>
 
-                <Grid
-                    container
-                    spacing={2}
-                >
-                    {cards.map(card=>(
+                <Grid container spacing={2}>
+                    {cards.map((card) => (
                         <Grid
                             item
                             xs={12}
@@ -140,8 +303,8 @@ const AdminDashboard=()=>{
                             <Card
                                 elevation={2}
                                 sx={{
-                                    height:'100%',
-                                    borderRadius:3
+                                    height: "100%",
+                                    borderRadius: 3,
                                 }}
                             >
                                 <CardContent>
@@ -152,14 +315,14 @@ const AdminDashboard=()=>{
                                     >
                                         <Box
                                             sx={{
-                                                display:'flex',
-                                                alignItems:'center',
-                                                justifyContent:'center',
-                                                width:45,
-                                                height:45,
-                                                borderRadius:2,
-                                                bgcolor:'primary.main',
-                                                color:'white'
+                                                display: "flex",
+                                                alignItems: "center",
+                                                justifyContent: "center",
+                                                width: 45,
+                                                height: 45,
+                                                borderRadius: 2,
+                                                bgcolor: "primary.main",
+                                                color: "white",
                                             }}
                                         >
                                             {card.icon}
@@ -190,22 +353,22 @@ const AdminDashboard=()=>{
                 <Card
                     elevation={2}
                     sx={{
-                        borderRadius:3,
-                        borderLeft:'5px solid',
-                        borderColor:'warning.main'
+                        borderRadius: 3,
+                        borderLeft: "5px solid",
+                        borderColor: "warning.main",
                     }}
                 >
                     <CardContent>
                         <Stack
                             direction={{
-                                xs:'column',
-                                sm:'row'
+                                xs: "column",
+                                sm: "row",
                             }}
                             spacing={2}
                             justifyContent="space-between"
                             alignItems={{
-                                xs:'stretch',
-                                sm:'center'
+                                xs: "stretch",
+                                sm: "center",
                             }}
                         >
                             <Stack
@@ -215,18 +378,18 @@ const AdminDashboard=()=>{
                             >
                                 <Box
                                     sx={{
-                                        display:'flex',
-                                        alignItems:'center',
-                                        justifyContent:'center',
-                                        width:48,
-                                        height:48,
-                                        borderRadius:2,
-                                        bgcolor:'warning.light',
-                                        color:'warning.dark',
-                                        flexShrink:0
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        width: 48,
+                                        height: 48,
+                                        borderRadius: 2,
+                                        bgcolor: "warning.light",
+                                        color: "warning.dark",
+                                        flexShrink: 0,
                                     }}
                                 >
-                                    <ReportProblemOutlinedIcon/>
+                                    <ReportProblemOutlinedIcon />
                                 </Box>
 
                                 <Box>
@@ -234,18 +397,16 @@ const AdminDashboard=()=>{
                                         variant="h6"
                                         fontWeight={800}
                                     >
-                                        {t(
-                                            'User Reports'
-                                        )}
+                                        {t("User Reports")}
                                     </Typography>
 
                                     <Typography
                                         variant="body2"
                                         color="text.secondary"
-                                        sx={{mt:.25}}
+                                        sx={{ mt: 0.25 }}
                                     >
                                         {t(
-                                            'Review reports, add admin notes and manage reported accounts.'
+                                            "Review reports, add admin notes and manage reported accounts."
                                         )}
                                     </Typography>
                                 </Box>
@@ -256,37 +417,28 @@ const AdminDashboard=()=>{
                                 endIcon={
                                     <ArrowForwardIosIcon
                                         sx={{
-                                            fontSize:
-                                                '12px!important'
+                                            fontSize: "12px!important",
                                         }}
                                     />
                                 }
-                                onClick={()=>
-                                    navigate(
-                                        '/admin/reports'
-                                    )
-                                }
+                                onClick={() => navigate("/admin/reports")}
                                 sx={{
-                                    borderRadius:2.5,
-                                    alignSelf:{
-                                        xs:'flex-start',
-                                        sm:'auto'
-                                    }
+                                    borderRadius: 2.5,
+                                    alignSelf: {
+                                        xs: "flex-start",
+                                        sm: "auto",
+                                    },
                                 }}
                             >
-                                {t(
-                                    'Manage Reports'
-                                )}
+                                {t("Manage Reports")}
                             </Button>
                         </Stack>
                     </CardContent>
                 </Card>
-
+                
                 <Card
                     elevation={2}
-                    sx={{
-                        borderRadius:3
-                    }}
+                    sx={{ borderRadius: 3 }}
                 >
                     <CardContent>
                         <Typography
@@ -294,107 +446,71 @@ const AdminDashboard=()=>{
                             fontWeight={700}
                             gutterBottom
                         >
-                            {t('Recent Users')}
+                            {t("Recent Users")}
                         </Typography>
 
                         <Stack spacing={2}>
-                            {dashboard?.latestUsers?.length?(
-                                dashboard.latestUsers.map(
-                                    user=>(
-                                        <Box
-                                            key={user._id}
-                                            display="flex"
-                                            justifyContent="space-between"
-                                            alignItems="center"
-                                        >
-                                            <Box>
-                                                <Typography
-                                                    fontWeight={600}
-                                                >
-                                                    {user.name}
-                                                </Typography>
-
-                                                <Typography
-                                                    variant="body2"
-                                                    color="text.secondary"
-                                                >
-                                                    {user.email}
-                                                </Typography>
-                                            </Box>
-
-                                            <Typography
-                                                variant="body2"
-                                                color="text.secondary"
-                                            >
-                                                {user.role}
-                                            </Typography>
-                                        </Box>
-                                    )
-                                )
-                            ):(
-                                <Typography
-                                    color="text.secondary"
-                                >
-                                    {t(
-                                        'No users available.'
-                                    )}
-                                </Typography>
-                            )}
-                        </Stack>
-                    </CardContent>
-                </Card>
-
-                <Card
-                    elevation={2}
-                    sx={{
-                        borderRadius:3
-                    }}
-                >
-                    <CardContent>
-                        <Typography
-                            variant="h6"
-                            fontWeight={700}
-                            gutterBottom
-                        >
-                            {t(
-                                'Recent Agricultural Tips'
-                            )}
-                        </Typography>
-
-                        <Stack spacing={2}>
-                            {dashboard?.latestTips?.length?(
-                                dashboard.latestTips.map(
-                                    tip=>(
-                                        <Box
-                                            key={tip._id}
-                                        >
-                                            <Typography
-                                                fontWeight={600}
-                                            >
-                                                {tip.title}
+                            {dashboard?.admin?.latestUsers?.length ? (
+                                dashboard.admin.latestUsers.map((user) => (
+                                    <Box
+                                        key={user._id}
+                                        display="flex"
+                                        justifyContent="space-between"
+                                        alignItems="center"
+                                    >
+                                        <Box>
+                                            <Typography fontWeight={600}>
+                                                {user.name}
                                             </Typography>
 
                                             <Typography
                                                 variant="body2"
                                                 color="text.secondary"
                                             >
-                                                {tip.category}
+                                                {user.email}
                                             </Typography>
                                         </Box>
-                                    )
-                                )
-                            ):(
-                                <Typography
-                                    color="text.secondary"
-                                >
-                                    {t(
-                                        'No agricultural tips available.'
-                                    )}
+
+                                        <Typography
+                                            variant="body2"
+                                            color="text.secondary"
+                                        >
+                                            {user.role}
+                                        </Typography>
+                                    </Box>
+                                ))
+                            ) : (
+                                <Typography color="text.secondary">
+                                    {t("No users available.")}
                                 </Typography>
                             )}
                         </Stack>
                     </CardContent>
                 </Card>
+
+                <ExtensionTipForm onPublished={handleTipPublished} />
+
+                <Box>
+                    <Typography
+                        variant="h6"
+                        fontWeight={700}
+                        gutterBottom
+                    >
+                        {t("Agri-Feed")}🌱
+                    </Typography>
+
+                    <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        mb={3}
+                    >
+                        {t(
+                            "Daily agricultural tips and best practices shared by agricultural experts."
+                        )}
+                    </Typography>
+
+                    <AgriFeed refreshKey={feedRefreshKey} />
+                </Box>
             </Stack>
         </PageLayout>
     );

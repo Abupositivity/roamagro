@@ -4,11 +4,9 @@ import {
     GET_PRICE_ALERTS_REQUEST,
     GET_PRICE_ALERTS_SUCCESS,
     GET_PRICE_ALERTS_FAIL,
-
     CREATE_PRICE_ALERT_REQUEST,
     CREATE_PRICE_ALERT_SUCCESS,
     CREATE_PRICE_ALERT_FAIL,
-
     DELETE_PRICE_ALERT_REQUEST,
     DELETE_PRICE_ALERT_SUCCESS,
     DELETE_PRICE_ALERT_FAIL,
@@ -21,17 +19,20 @@ export const fetchPriceAlerts =
         });
 
         try {
-            const res =
-                await api.get('/price-alerts');
+            const res = await api.get(
+                '/price-alerts'
+            );
+
+            const alerts = res.data?.data || [];
 
             dispatch({
                 type: GET_PRICE_ALERTS_SUCCESS,
-                payload: res.data.data,
+                payload: alerts,
             });
 
             return {
                 success: true,
-                data: res.data.data,
+                data: alerts,
             };
         } catch (error) {
             const message =
@@ -58,21 +59,21 @@ export const createPriceAlert =
         });
 
         try {
-            const res =
-                await api.post(
-                    '/price-alerts',
-                    data
-                );
+            const res = await api.post(
+                '/price-alerts',
+                data
+            );
+
+            const alert = res.data?.data;
 
             dispatch({
-                type:
-                    CREATE_PRICE_ALERT_SUCCESS,
-                payload: res.data.data,
+                type: CREATE_PRICE_ALERT_SUCCESS,
+                payload: alert,
             });
 
             return {
                 success: true,
-                data: res.data.data,
+                data: alert,
             };
         } catch (error) {
             const message =
@@ -81,8 +82,7 @@ export const createPriceAlert =
                 'Failed to create price alert.';
 
             dispatch({
-                type:
-                    CREATE_PRICE_ALERT_FAIL,
+                type: CREATE_PRICE_ALERT_FAIL,
                 payload: message,
             });
 
@@ -95,9 +95,15 @@ export const createPriceAlert =
 
 export const deletePriceAlert =
     (id) => async (dispatch) => {
+        if (!id) {
+            return {
+                success: false,
+                error: 'Invalid price alert.',
+            };
+        }
+
         dispatch({
-            type:
-                DELETE_PRICE_ALERT_REQUEST,
+            type: DELETE_PRICE_ALERT_REQUEST,
         });
 
         try {
@@ -106,8 +112,7 @@ export const deletePriceAlert =
             );
 
             dispatch({
-                type:
-                    DELETE_PRICE_ALERT_SUCCESS,
+                type: DELETE_PRICE_ALERT_SUCCESS,
                 payload: id,
             });
 
@@ -121,8 +126,7 @@ export const deletePriceAlert =
                 'Failed to delete price alert.';
 
             dispatch({
-                type:
-                    DELETE_PRICE_ALERT_FAIL,
+                type: DELETE_PRICE_ALERT_FAIL,
                 payload: message,
             });
 

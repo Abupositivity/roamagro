@@ -45,12 +45,6 @@ import PriceInsights from './PriceInsights';
 
 const PRICE_PAGE_SIZE = 12;
 
-/*
- * Fixed category options.
- *
- * These are no longer generated from the
- * currently loaded price records.
- */
 const PRICE_CATEGORIES = [
     'Cereals',
     'Legumes',
@@ -63,12 +57,6 @@ const PRICE_CATEGORIES = [
     'Other',
 ];
 
-/*
- * Fixed Nigerian state options.
- *
- * These are available even when there are
- * no price records loaded for that state.
- */
 const NIGERIAN_STATES = [
     'Abia',
     'Adamawa',
@@ -111,7 +99,6 @@ const NIGERIAN_STATES = [
 
 const PriceIndex = () => {
     const { t } = useTranslation();
-
     const dispatch = useDispatch();
 
     const {
@@ -128,6 +115,8 @@ const PriceIndex = () => {
     const {
         alerts,
         loading: alertsLoading,
+        creating: alertsCreating,
+        deleting: alertsDeleting,
         error: alertsError,
     } = useSelector(
         (state) => state.priceAlerts
@@ -137,55 +126,35 @@ const PriceIndex = () => {
         (state) => state.auth?.user
     );
 
-    const [search, setSearch] =
-        useState('');
+    const [search, setSearch] = useState('');
+    const [selectedCategory, setSelectedCategory] =
+        useState('All');
+    const [selectedLocation, setSelectedLocation] =
+        useState('All');
+    const [showMyPrices, setShowMyPrices] =
+        useState(false);
 
-    const [
-        selectedCategory,
-        setSelectedCategory,
-    ] = useState('All');
+    const [priceDialogOpen, setPriceDialogOpen] =
+        useState(false);
 
-    const [
-        selectedLocation,
-        setSelectedLocation,
-    ] = useState('All');
+    const [alertDialogOpen, setAlertDialogOpen] =
+        useState(false);
 
-    const [
-        showMyPrices,
-        setShowMyPrices,
-    ] = useState(false);
+    const [deletingPriceId, setDeletingPriceId] =
+        useState(null);
 
-    const [
-        priceDialogOpen,
-        setPriceDialogOpen,
-    ] = useState(false);
+    const [deletingAlertId, setDeletingAlertId] =
+        useState(null);
 
-    const [
-        alertDialogOpen,
-        setAlertDialogOpen,
-    ] = useState(false);
+    const [newPrice, setNewPrice] = useState({
+        product: '',
+        category: '',
+        price: '',
+        unit: 'Bag',
+        location: '',
+        market: '',
+    });
 
-    const [
-        deletingPriceId,
-        setDeletingPriceId,
-    ] = useState(null);
-
-    const [newPrice, setNewPrice] =
-        useState({
-            product: '',
-            category: '',
-            price: '',
-            unit: 'Bag',
-            location: '',
-            market: '',
-        });
-
-    /*
-     * Fetch prices from the server.
-     *
-     * Search, category, location and
-     * "my prices" are handled server-side.
-     */
     useEffect(() => {
         const timer = setTimeout(() => {
             dispatch(
@@ -193,18 +162,15 @@ const PriceIndex = () => {
                     page: 1,
                     limit: PRICE_PAGE_SIZE,
                     search,
-                    category:
-                        selectedCategory,
-                    location:
-                        selectedLocation,
+                    category: selectedCategory,
+                    location: selectedLocation,
                     mine: showMyPrices,
                     append: false,
                 })
             );
         }, 300);
 
-        return () =>
-            clearTimeout(timer);
+        return () => clearTimeout(timer);
     }, [
         dispatch,
         search,
@@ -213,18 +179,53 @@ const PriceIndex = () => {
         showMyPrices,
     ]);
 
-    /*
-     * Load price alerts once.
-     */
     useEffect(() => {
-        dispatch(fetchPriceAlerts());
-    }, [dispatch]);
+        const handleRefresh = event => {
+            if (event.detail?.route !== '/price-index') {
+                return;
+            }
+    
+            dispatch(fetchPriceIndex({
+                    page: 1,
+                    limit: PRICE_PAGE_SIZE,
+                    search,
+                    category: selectedCategory,
+                    location: selectedLocation,
+                    mine: showMyPrices,
+                    append: false,
+                }));
+        };
+    
+        window.addEventListener(
+            'roamagro:refresh-page',
+            handleRefresh
+        );
+    
+        return () => {
+            window.removeEventListener(
+                'roamagro:refresh-page',
+                handleRefresh
+            );
+        };
+        }, [
+            dispatch,
+            search,
+            selectedCategory,
+            selectedLocation,
+            showMyPrices,
+        ]);
+    
+
+    useEffect(() => {
+        if (!alerts?.length) {
+            dispatch(fetchPriceAlerts());
+        }
+    }, [dispatch, alerts?.length]);
 
     const handleChange = (e) => {
         setNewPrice((prev) => ({
             ...prev,
-            [e.target.name]:
-                e.target.value,
+            [e.target.name]: e.target.value,
         }));
     };
 
@@ -251,28 +252,21 @@ const PriceIndex = () => {
             return;
         }
 
-        const result =
-            await dispatch(
-                submitPrice(newPrice)
-            );
+        const result = await dispatch(
+            submitPrice(newPrice)
+        );
 
         if (result?.success) {
             resetPriceForm();
             setPriceDialogOpen(false);
 
-            /*
-             * Refresh page 1 after creating
-             * a new price.
-             */
             dispatch(
                 fetchPriceIndex({
                     page: 1,
                     limit: PRICE_PAGE_SIZE,
                     search,
-                    category:
-                        selectedCategory,
-                    location:
-                        selectedLocation,
+                    category: selectedCategory,
+                    location: selectedLocation,
                     mine: showMyPrices,
                     append: false,
                 })
@@ -280,66 +274,62 @@ const PriceIndex = () => {
         }
     };
 
-    const handleCreateAlert =
-        async (data) => {
-            const result =
-                await dispatch(
-                    createPriceAlert(data)
-                );
+    const handleCreateAlert = async (data) => {
+        const result = await dispatch(
+            createPriceAlert(data)
+        );
 
-            if (result?.success) {
-                setAlertDialogOpen(false);
+        if (result?.success) {
+            setAlertDialogOpen(false);
+        }
 
-                dispatch(
-                    fetchPriceAlerts()
-                );
-            }
-        };
+        return result;
+    };
 
-    const handleDeleteAlert =
-        async (id) => {
-            const result =
-                await dispatch(
-                    deletePriceAlert(id)
-                );
+    const handleDeleteAlert = async (id) => {
+        const confirmed = window.confirm(
+            t(
+                'Are you sure you want to delete this price alert?'
+            )
+        );
 
-            if (result?.success) {
-                dispatch(
-                    fetchPriceAlerts()
-                );
-            }
-        };
+        if (!confirmed) {
+            return;
+        }
 
-    const handleDeletePrice =
-        async (id) => {
-            const confirmed =
-                window.confirm(
-                    t(
-                        'Are you sure you want to delete this price submission?'
-                    )
-                );
+        setDeletingAlertId(id);
 
-            if (!confirmed) {
-                return;
-            }
+        await dispatch(
+            deletePriceAlert(id)
+        );
 
-            setDeletingPriceId(id);
+        setDeletingAlertId(null);
+    };
 
-            const result =
-                await dispatch(
-                    deletePrice(id)
-                );
+    const handleDeletePrice = async (id) => {
+        const confirmed = window.confirm(
+            t(
+                'Are you sure you want to delete this price submission?'
+            )
+        );
 
-            setDeletingPriceId(null);
+        if (!confirmed) {
+            return;
+        }
 
-            if (!result?.success) {
-                return;
-            }
-        };
+        setDeletingPriceId(id);
 
-    /*
-     * Load the next server-side page.
-     */
+        const result = await dispatch(
+            deletePrice(id)
+        );
+
+        setDeletingPriceId(null);
+
+        if (!result?.success) {
+            return;
+        }
+    };
+
     const handleLoadMore = () => {
         if (
             loadingMore ||
@@ -353,37 +343,15 @@ const PriceIndex = () => {
                 page: page + 1,
                 limit: PRICE_PAGE_SIZE,
                 search,
-                category:
-                    selectedCategory,
-                location:
-                    selectedLocation,
+                category: selectedCategory,
+                location: selectedLocation,
                 mine: showMyPrices,
                 append: true,
             })
         );
     };
 
-    /*
-     * IMPORTANT:
-     *
-     * These filter options are NOT generated
-     * from priceIndex anymore.
-     *
-     * Therefore a category/state will still
-     * appear even when it does not occur in
-     * the currently loaded 12 records.
-     */
-    const categories =
-        PRICE_CATEGORIES;
-
-    const locations =
-        NIGERIAN_STATES;
-
-    /*
-     * Filtering is handled by the backend.
-     */
-    const filteredPrices =
-        priceIndex;
+    const filteredPrices = priceIndex;
 
     return (
         <Container
@@ -398,9 +366,7 @@ const PriceIndex = () => {
                 fontWeight={700}
                 gutterBottom
             >
-                {t(
-                    'Local Price Index'
-                )}
+                {t('Local Price Index')}
             </Typography>
 
             <Typography
@@ -431,7 +397,6 @@ const PriceIndex = () => {
                 </Alert>
             )}
 
-            {/* Price Actions */}
             <Box sx={{ mb: 4 }}>
                 <Stack
                     direction={{
@@ -444,65 +409,46 @@ const PriceIndex = () => {
                         variant="contained"
                         size="large"
                         onClick={() =>
-                            setPriceDialogOpen(
-                                true
-                            )
+                            setPriceDialogOpen(true)
                         }
-                        sx={{
-                            flex: 1,
-                        }}
+                        sx={{ flex: 1 }}
                     >
-                        {t(
-                            'Update Price'
-                        )}
+                        {t('Update Price')}
                     </Button>
 
                     <Button
                         variant="outlined"
                         size="large"
                         onClick={() =>
-                            setAlertDialogOpen(
-                                true
-                            )
+                            setAlertDialogOpen(true)
                         }
-                        sx={{
-                            flex: 1,
-                        }}
+                        disabled={alertsCreating}
+                        sx={{ flex: 1 }}
                     >
-                        {t(
-                            'Create Price Alert'
-                        )}
+                        {t('Create Price Alert')}
                     </Button>
                 </Stack>
             </Box>
 
             <Box my={3}>
                 <PriceSummaryCards
-                    prices={
-                        filteredPrices
-                    }
+                    prices={filteredPrices}
                 />
             </Box>
 
             <Box my={3}>
                 <PriceTrendSummary
-                    prices={
-                        filteredPrices
-                    }
+                    prices={filteredPrices}
                 />
             </Box>
 
-            {/* Server-side Search */}
             <Box my={3}>
                 <PriceSearchBar
                     search={search}
-                    onSearchChange={
-                        setSearch
-                    }
+                    onSearchChange={setSearch}
                 />
             </Box>
 
-            {/* Server-side Category + Location */}
             <Box my={3}>
                 <Stack
                     direction={{
@@ -514,7 +460,7 @@ const PriceIndex = () => {
                     <Box sx={{ flex: 1 }}>
                         <CategoryFilter
                             categories={
-                                categories
+                                PRICE_CATEGORIES
                             }
                             value={
                                 selectedCategory
@@ -528,7 +474,7 @@ const PriceIndex = () => {
                     <Box sx={{ flex: 1 }}>
                         <LocationFilter
                             locations={
-                                locations
+                                NIGERIAN_STATES
                             }
                             value={
                                 selectedLocation
@@ -543,27 +489,22 @@ const PriceIndex = () => {
 
             <Box my={3}>
                 <PriceAlertList
-                    alerts={
-                        alerts || []
-                    }
+                    alerts={alerts || []}
                     onDelete={
                         handleDeleteAlert
+                    }
+                    deletingId={
+                        deletingAlertId
                     }
                 />
             </Box>
 
             <Box my={3}>
                 <RecentPrices
-                    prices={
-                        filteredPrices
-                    }
+                    prices={filteredPrices}
                     loading={loading}
-                    loadingMore={
-                        loadingMore
-                    }
-                    currentUser={
-                        currentUser
-                    }
+                    loadingMore={loadingMore}
+                    currentUser={currentUser}
                     onDelete={
                         handleDeletePrice
                     }
@@ -585,52 +526,36 @@ const PriceIndex = () => {
 
             <Box my={3}>
                 <MarketComparison
-                    prices={
-                        filteredPrices
-                    }
+                    prices={filteredPrices}
                 />
             </Box>
 
             <Box my={3}>
                 <PriceInsights
-                    prices={
-                        filteredPrices
-                    }
+                    prices={filteredPrices}
                 />
             </Box>
 
-            {/* Update Price Dialog */}
             <PriceForm
-                open={
-                    priceDialogOpen
-                }
+                open={priceDialogOpen}
                 onClose={() =>
-                    setPriceDialogOpen(
-                        false
-                    )
+                    setPriceDialogOpen(false)
                 }
                 newPrice={newPrice}
                 loading={loading}
-                onChange={
-                    handleChange
-                }
-                onSubmit={
-                    handleSubmit
-                }
+                onChange={handleChange}
+                onSubmit={handleSubmit}
                 prices={priceIndex}
             />
 
-            {/* Price Alert Dialog */}
             <PriceAlertForm
-                open={
-                    alertDialogOpen
-                }
+                open={alertDialogOpen}
                 onClose={() =>
-                    setAlertDialogOpen(
-                        false
-                    )
+                    setAlertDialogOpen(false)
                 }
                 loading={
+                    alertsCreating ||
+                    alertsDeleting ||
                     alertsLoading
                 }
                 onSubmit={

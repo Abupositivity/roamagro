@@ -7,37 +7,28 @@ const {
     getFeaturedTips,
     updateTip,
     deleteTip,
+    toggleLike,
+    addComment,
+    deleteComment,
+    shareTip,
+    unshareTip,
 } = require('../controllers/agriFeedController');
 
 const ensureAuthenticated = require('../middleware/ensureAuthenticated');
+const authorizeRoles = require('../middleware/authorizeRoles');
+const validateRequest = require('../middleware/validateRequest');
 
-// Uncomment after Commit 6 (Role Based Authorization)
-// const authorizeRoles = require('../middleware/authorizeRoles');
-
-// Validation
 const {
     createTipValidation,
 } = require('../validators/agriFeedValidator');
 
-const validateRequest = require('../middleware/validateRequest');
-
-/*
-|--------------------------------------------------------------------------
-| Public Routes
-|--------------------------------------------------------------------------
-*/
 router.get('/', getTips);
 router.get('/featured', getFeaturedTips);
 
-/*
-|--------------------------------------------------------------------------
-| Protected Routes
-|--------------------------------------------------------------------------
-*/
 router.post(
     '/',
     ensureAuthenticated,
-    // authorizeRoles('admin', 'extension_officer'),
+    authorizeRoles('admin', 'extension_officer'),
     createTipValidation,
     validateRequest,
     createTip
@@ -46,7 +37,7 @@ router.post(
 router.put(
     '/:id',
     ensureAuthenticated,
-    // authorizeRoles('admin', 'extension_officer'),
+    authorizeRoles('admin', 'extension_officer'),
     createTipValidation,
     validateRequest,
     updateTip
@@ -55,8 +46,38 @@ router.put(
 router.delete(
     '/:id',
     ensureAuthenticated,
-    // authorizeRoles('admin', 'extension_officer'),
+    authorizeRoles('admin', 'extension_officer'),
     deleteTip
+);
+
+router.post(
+    '/:id/like',
+    ensureAuthenticated,
+    toggleLike
+);
+
+router.post(
+    '/:id/comments',
+    ensureAuthenticated,
+    addComment
+);
+
+router.delete(
+    '/:tipId/comments/:commentId',
+    ensureAuthenticated,
+    deleteComment
+);
+
+router.post(
+    '/:id/share',
+    ensureAuthenticated,
+    shareTip
+);
+
+router.delete(
+    '/:id/share',
+    ensureAuthenticated,
+    unshareTip
 );
 
 module.exports = router;

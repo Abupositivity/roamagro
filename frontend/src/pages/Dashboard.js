@@ -1,5 +1,11 @@
-import React, { useEffect } from "react";
-import { Box, Stack, Typography, CircularProgress, Alert } from "@mui/material";
+import React, { useCallback, useEffect, useRef } from "react";
+import {
+    Box,
+    Stack,
+    Typography,
+    CircularProgress,
+    Alert,
+} from "@mui/material";
 import { useTranslation } from "react-i18next";
 import { useDispatch, useSelector } from "react-redux";
 
@@ -14,7 +20,12 @@ import PriceTicker from "../components/dashboard/PriceTicker";
 
 import AgriFeed from "../components/community/AgriFeed";
 
-import { fetchDashboard } from "../redux/actions/dashboardActions";
+import {
+    refreshDashboard,
+} from "../redux/actions/dashboardActions";
+
+const REFRESH_INTERVAL = 60 * 1000;
+const STALE_TIME = 30 * 1000;
 
 const Dashboard = () => {
     const { t } = useTranslation();
@@ -23,13 +34,137 @@ const Dashboard = () => {
     const {
         loading,
         error,
-    } = useSelector((state) => state.dashboard);
+        dashboard,
+        lastUpdated,
+    } = useSelector(
+        (state) => state.dashboard
+    );
+
+    const refreshInProgress = useRef(false);
+    const mountedRef = useRef(true);
+
+    const refresh = useCallback(
+        async (silent = true) => {
+            if (
+                refreshInProgress.current ||
+                document.visibilityState !== "visible"
+            ) {
+                return;
+            }
+
+            refreshInProgress.current = true;
+
+            try {
+                await dispatch(
+                    refreshDashboard({
+                        silent,
+                    })
+                );
+            } finally {
+                if (mountedRef.current) {
+                    refreshInProgress.current = false;
+                }
+            }
+        },
+        [dispatch]
+    );
 
     useEffect(() => {
-        dispatch(fetchDashboard());
+        mountedRef.current = true;
+
+        const loadDashboard = async () => {
+            if (refreshInProgress.current) {
+                return;
+            }
+
+            refreshInProgress.current = true;
+
+            try {
+                await dispatch(
+                    refreshDashboard({
+                        silent: false,
+                    })
+                );
+            } finally {
+                if (mountedRef.current) {
+                    refreshInProgress.current = false;
+                }
+            }
+        };
+
+        loadDashboard();
+
+        return () => {
+            mountedRef.current = false;
+        };
     }, [dispatch]);
 
-    if (loading) {
+    useEffect(() => {
+        const interval = window.setInterval(() => {
+            refresh(true);
+        }, REFRESH_INTERVAL);
+
+        return () => {
+            window.clearInterval(interval);
+        };
+    }, [refresh]);
+
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (
+                document.visibilityState !== "visible"
+            ) {
+                return;
+            }
+
+            const updatedAt = lastUpdated || 0;
+
+            if (
+                !updatedAt ||
+                Date.now() - updatedAt >= STALE_TIME
+            ) {
+                refresh(true);
+            }
+        };
+
+        document.addEventListener(
+            "visibilitychange",
+            handleVisibilityChange
+        );
+
+        return () => {
+            document.removeEventListener(
+                "visibilitychange",
+                handleVisibilityChange
+            );
+        };
+    }, [lastUpdated, refresh]);
+
+    useEffect(() => {
+        const handleRefresh = (event) => {
+            if (
+                event.detail?.route !== "/dashboard"
+            ) {
+                return;
+            }
+
+            refresh(true);
+        };
+
+        window.addEventListener(
+            "roamagro:refresh-page",
+            handleRefresh
+        );
+
+        return () => {
+            window.removeEventListener(
+                "roamagro:refresh-page",
+                handleRefresh
+            );
+        };
+    }, [refresh]);
+
+    if (loading && !dashboard) {
         return (
             <PageLayout>
                 <Box
@@ -38,13 +173,15 @@ const Dashboard = () => {
                     alignItems="center"
                     minHeight="60vh"
                 >
-                    <CircularProgress color="primary" />
+                    <CircularProgress
+                        color="primary"
+                    />
                 </Box>
             </PageLayout>
         );
     }
 
-    if (error) {
+    if (error && !dashboard) {
         return (
             <PageLayout>
                 <Alert severity="error">
@@ -57,26 +194,18 @@ const Dashboard = () => {
     return (
         <PageLayout>
             <Stack spacing={3}>
-
-                {/* Dashboard Header */}
                 <DashboardHeader />
 
-                {/* Summary Cards */}
                 <SummaryCards />
 
-                {/* Quick Actions */}
                 <QuickActions />
 
-                {/* Recent Farm Projects */}
                 <RecentProjects />
 
-                {/* Marketplace Preview */}
                 <MarketplacePreview />
 
-                {/* Latest Price Updates */}
                 <PriceTicker />
 
-                {/* Community Feed */}
                 <Box>
                     <Typography
                         variant="h6"
@@ -85,16 +214,19 @@ const Dashboard = () => {
                     >
                         {t("Agri-Feed")}🌱
                     </Typography>
+
                     <Typography
                         variant="body2"
                         color="text.secondary"
                         mb={3}
                     >
-                        {t('Daily agricultural tips and best practices shared by agricultural experts.')}
+                        {t(
+                            "Daily agricultural tips and best practices shared by agricultural experts."
+                        )}
                     </Typography>
+
                     <AgriFeed />
                 </Box>
-
             </Stack>
         </PageLayout>
     );

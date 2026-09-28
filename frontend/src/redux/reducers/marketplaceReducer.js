@@ -25,11 +25,12 @@ const initialState = {
     selectedListing: null,
 
     loading: false,
+    loadingMore: false,
     success: false,
     error: null,
 
     page: 1,
-    limit: 12,
+    limit: 20,
     total: 0,
     totalPages: 0,
     hasMore: false,
@@ -40,12 +41,19 @@ const marketplaceReducer = (
     action
 ) => {
     switch (action.type) {
-        /*
-        |--------------------------------------------------------------------------
-        | Requests
-        |--------------------------------------------------------------------------
-        */
-        case FETCH_LISTINGS_REQUEST:
+        case FETCH_LISTINGS_REQUEST: {
+            const append =
+                action.meta?.append === true;
+
+            return {
+                ...state,
+                loading: !append,
+                loadingMore: append,
+                success: false,
+                error: null,
+            };
+        }
+
         case CREATE_LISTING_REQUEST:
         case GET_LISTING_REQUEST:
         case UPDATE_LISTING_REQUEST:
@@ -57,29 +65,50 @@ const marketplaceReducer = (
                 error: null,
             };
 
-        /*
-        |--------------------------------------------------------------------------
-        | Fetch Listings
-        |--------------------------------------------------------------------------
-        */
         case FETCH_LISTINGS_SUCCESS: {
-            const payload = action.payload;
+            const payload =
+                action.payload || {};
+
             const incomingListings =
                 payload.data || [];
+
+            const append =
+                payload.append === true;
+
+            let listings = incomingListings;
+
+            if (append) {
+                const existingIds =
+                    new Set(
+                        state.listings.map(
+                            (listing) =>
+                                listing._id
+                        )
+                    );
+
+                const newListings =
+                    incomingListings.filter(
+                        (listing) =>
+                            listing?._id &&
+                            !existingIds.has(
+                                listing._id
+                            )
+                    );
+
+                listings = [
+                    ...state.listings,
+                    ...newListings,
+                ];
+            }
 
             return {
                 ...state,
                 loading: false,
+                loadingMore: false,
                 success: true,
                 error: null,
 
-                listings:
-                    payload.append
-                        ? [
-                              ...state.listings,
-                              ...incomingListings,
-                          ]
-                        : incomingListings,
+                listings,
 
                 page:
                     payload.page ||
@@ -87,11 +116,10 @@ const marketplaceReducer = (
 
                 limit:
                     payload.limit ||
-                    12,
+                    20,
 
                 total:
-                    payload.total ||
-                    0,
+                    payload.total || 0,
 
                 totalPages:
                     payload.totalPages ||
@@ -104,11 +132,6 @@ const marketplaceReducer = (
             };
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Get Single Listing
-        |--------------------------------------------------------------------------
-        */
         case GET_LISTING_SUCCESS:
             return {
                 ...state,
@@ -119,11 +142,6 @@ const marketplaceReducer = (
                 error: null,
             };
 
-        /*
-        |--------------------------------------------------------------------------
-        | Create Listing
-        |--------------------------------------------------------------------------
-        */
         case CREATE_LISTING_SUCCESS:
             return {
                 ...state,
@@ -131,17 +149,16 @@ const marketplaceReducer = (
                 success: true,
                 listings: [
                     action.payload,
-                    ...state.listings,
+                    ...state.listings.filter(
+                        (listing) =>
+                            listing._id !==
+                            action.payload._id
+                    ),
                 ],
                 total: state.total + 1,
                 error: null,
             };
 
-        /*
-        |--------------------------------------------------------------------------
-        | Update Listing
-        |--------------------------------------------------------------------------
-        */
         case UPDATE_LISTING_SUCCESS:
             return {
                 ...state,
@@ -160,11 +177,6 @@ const marketplaceReducer = (
                 error: null,
             };
 
-        /*
-        |--------------------------------------------------------------------------
-        | Delete Listing
-        |--------------------------------------------------------------------------
-        */
         case DELETE_LISTING_SUCCESS:
             return {
                 ...state,
@@ -193,12 +205,15 @@ const marketplaceReducer = (
                 error: null,
             };
 
-        /*
-        |--------------------------------------------------------------------------
-        | Failures
-        |--------------------------------------------------------------------------
-        */
         case FETCH_LISTINGS_FAIL:
+            return {
+                ...state,
+                loading: false,
+                loadingMore: false,
+                success: false,
+                error: action.payload,
+            };
+
         case CREATE_LISTING_FAIL:
         case GET_LISTING_FAIL:
         case UPDATE_LISTING_FAIL:

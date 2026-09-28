@@ -3,6 +3,29 @@ const {
     param,
 } = require('express-validator');
 
+const coordinatesValidation = [
+    body('coordinates')
+        .optional()
+        .isObject()
+        .withMessage(
+            'Coordinates must be a valid object.'
+        ),
+
+    body('coordinates.latitude')
+        .optional()
+        .isFloat({ min: -90, max: 90 })
+        .withMessage(
+            'Latitude must be between -90 and 90.'
+        ),
+
+    body('coordinates.longitude')
+        .optional()
+        .isFloat({ min: -180, max: 180 })
+        .withMessage(
+            'Longitude must be between -180 and 180.'
+        ),
+];
+
 exports.createMarketplaceValidator = [
     body('title')
         .trim()
@@ -68,6 +91,8 @@ exports.createMarketplaceValidator = [
         .optional()
         .trim()
         .escape(),
+
+    ...coordinatesValidation,
 
     body('images')
         .optional()
@@ -141,6 +166,8 @@ exports.updateMarketplaceValidator = [
     body('location')
         .optional()
         .trim(),
+
+    ...coordinatesValidation,
 
     body('available')
         .optional()

@@ -1,4 +1,4 @@
-import React,{useEffect,useState}from'react';
+import React,{useCallback,useEffect,useRef,useState}from'react';
 import{
     Accordion,
     AccordionDetails,
@@ -47,21 +47,16 @@ const Community=()=>{
         state=>state.community
     );
 
-    const[openSnackbar,setOpenSnackbar]=
-        useState(false);
+    const loadMoreRef=useRef(null);
 
+    const[openSnackbar,setOpenSnackbar]=useState(false);
+    const[openErrorSnackbar,setOpenErrorSnackbar]=useState(false);
+    const[postError,setPostError]=useState(null);
+    const[posting,setPosting]=useState(false);
     const[search,setSearch]=useState('');
-
-    const[
-        selectedCategory,
-        setSelectedCategory,
-    ]=useState('All');
-
-    const[showMyPosts,setShowMyPosts]=
-        useState(false);
-
-    const[selectedProfileId,setSelectedProfileId]=
-        useState(null);
+    const[selectedCategory,setSelectedCategory]=useState('All');
+    const[showMyPosts,setShowMyPosts]=useState(false);
+    const[selectedProfileId,setSelectedProfileId]=useState(null);
 
     const[formData,setFormData]=useState({
         title:'',
@@ -92,35 +87,160 @@ const Community=()=>{
         limit,
     ]);
 
+    useEffect(()=>{
+        const handleRefresh=event=>{
+            if(event.detail?.route!=='/community'){
+                return;
+            }
+
+            dispatch(
+                fetchTopics({
+                    page:1,
+                    limit,
+                    search,
+                    category:selectedCategory,
+                    mine:showMyPosts,
+                })
+            );
+        };
+
+        window.addEventListener(
+            'roamagro:refresh-page',
+            handleRefresh
+        );
+
+        return()=>{
+            window.removeEventListener(
+                'roamagro:refresh-page',
+                handleRefresh
+            );
+        };
+    },[
+        dispatch,
+        limit,
+        search,
+        selectedCategory,
+        showMyPosts,
+    ]);
+
     const handleChange=e=>{
+        const{name,value}=e.target;
+
         setFormData(previous=>({
             ...previous,
-            [e.target.name]:
-                e.target.value,
+            [name]:value,
         }));
+
+        if(postError){
+            setPostError(previous=>{
+                if(!previous){
+                    return null;
+                }
+
+                const updated={...previous};
+
+                delete updated[name];
+
+                if(
+                    !updated.title&&
+                    !updated.content&&
+                    !updated.general
+                ){
+                    return null;
+                }
+
+                return updated;
+            });
+        }
     };
 
     const handleSubmit=async()=>{
-        if(
-            !formData.title.trim()||
-            !formData.content.trim()
-        ){
+        if(posting){
             return;
         }
 
-        const result=await dispatch(
-            createTopic(formData)
-        );
+        const title=formData.title.trim();
+        const content=formData.content.trim();
 
-        if(result?.success){
-            setFormData({
-                title:'',
-                content:'',
-                category:'General',
-                image:'',
+        const validationError={};
+
+        if(!title){
+            validationError.title=t(
+                'Post title is required.'
+            );
+        }
+
+        if(!content){
+            validationError.content=t(
+                'Post content is required.'
+            );
+        }
+
+        if(Object.keys(validationError).length){
+            setPostError(validationError);
+            setOpenErrorSnackbar(true);
+            return;
+        }
+
+        setPosting(true);
+        setPostError(null);
+
+        try{
+            const result=await dispatch(
+                createTopic({
+                    ...formData,
+                    title,
+                    content,
+                })
+            );
+
+            if(result?.success){
+                setFormData({
+                    title:'',
+                    content:'',
+                    category:'General',
+                    image:'',
+                });
+
+                setOpenSnackbar(true);
+
+                dispatch(
+                    fetchTopics({
+                        page:1,
+                        limit,
+                        search,
+                        category:selectedCategory,
+                        mine:showMyPosts,
+                    })
+                );
+            }else{
+                const message=
+                    result?.message||
+                    t(
+                        'Unable to create your post. Please try again.'
+                    );
+
+                setPostError({
+                    general:message,
+                });
+
+                setOpenErrorSnackbar(true);
+            }
+        }catch(error){
+            const message=
+                error?.response?.data?.message||
+                error?.message||
+                t(
+                    'Unable to create your post. Please check your connection and try again.'
+                );
+
+            setPostError({
+                general:message,
             });
 
-            setOpenSnackbar(true);
+            setOpenErrorSnackbar(true);
+        }finally{
+            setPosting(false);
         }
     };
 
@@ -132,8 +252,8 @@ const Community=()=>{
         post=>!post.featured
     );
 
-    const handleLoadMore=()=>{
-        if(!hasMore||loadingMore){
+    const handleLoadMore=useCallback(()=>{
+        if(!hasMore||loadingMore||loading){
             return;
         }
 
@@ -147,7 +267,41 @@ const Community=()=>{
                 append:true,
             })
         );
-    };
+    },[
+        dispatch,
+        hasMore,
+        loadingMore,
+        loading,
+        page,
+        limit,
+        search,
+        selectedCategory,
+        showMyPosts,
+    ]);
+        useEffect(()=>{
+        const target=loadMoreRef.current;
+
+        if(!target){
+            return;
+        }
+
+        const observer=new IntersectionObserver(
+            entries=>{
+                if(entries[0].isIntersecting){
+                    handleLoadMore();
+                }
+            },
+            {
+                rootMargin:'0px 0px 500px 0px',
+            }
+        );
+
+        observer.observe(target);
+
+        return()=>{
+            observer.disconnect();
+        };
+    },[handleLoadMore]);
 
     const handleToggleMyPosts=()=>{
         setShowMyPosts(previous=>!previous);
@@ -219,6 +373,8 @@ const Community=()=>{
             <PostComposer
                 formData={formData}
                 loading={loading}
+                posting={posting}
+                error={postError}
                 onChange={handleChange}
                 onSubmit={handleSubmit}
             />
@@ -238,9 +394,7 @@ const Community=()=>{
                 <Grid item xs={12} sm={5}>
                     <CommunityCategoryFilter
                         value={selectedCategory}
-                        onChange={
-                            setSelectedCategory
-                        }
+                        onChange={setSelectedCategory}
                     />
                 </Grid>
             </Grid>
@@ -275,9 +429,7 @@ const Community=()=>{
                             ?'contained'
                             :'outlined'
                     }
-                    startIcon={
-                        <ArticleOutlinedIcon/>
-                    }
+                    startIcon={<ArticleOutlinedIcon/>}
                     onClick={()=>{
                         if(!showMyPosts){
                             handleToggleMyPosts();
@@ -303,11 +455,52 @@ const Community=()=>{
             <CommunityFeed
                 loading={loading}
                 posts={communityFeed}
-                hasMore={hasMore}
-                loadingMore={loadingMore}
-                onLoadMore={handleLoadMore}
                 onOpenProfile={handleOpenProfile}
             />
+
+            <Box
+                ref={loadMoreRef}
+                sx={{
+                    minHeight:hasMore?80:24,
+                    display:'flex',
+                    alignItems:'center',
+                    justifyContent:'center',
+                    py:2,
+                }}
+            >
+                {hasMore&&loadingMore&&(
+                    <Typography
+                        variant="body2"
+                        color="text.secondary"
+                    >
+                        {t('Loading more posts...')}
+                    </Typography>
+                )}
+
+                {hasMore&&!loadingMore&&!loading&&(
+                    <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{
+                            opacity:0.7,
+                        }}
+                    >
+                        {t('Scroll for more posts')}
+                    </Typography>
+                )}
+
+                {!hasMore&&topics.length>0&&(
+                    <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{
+                            opacity:0.7,
+                        }}
+                    >
+                        {t('You have reached the end of the community feed.')}
+                    </Typography>
+                )}
+            </Box>
 
             <Accordion
                 disableGutters
@@ -322,9 +515,7 @@ const Community=()=>{
                 }}
             >
                 <AccordionSummary
-                    expandIcon={
-                        <ExpandMoreIcon/>
-                    }
+                    expandIcon={<ExpandMoreIcon/>}
                     sx={{
                         px:2,
                         minHeight:56,
@@ -377,6 +568,27 @@ const Community=()=>{
                     {t(
                         'Community post created successfully!'
                     )}
+                </Alert>
+            </Snackbar>
+
+            <Snackbar
+                open={openErrorSnackbar}
+                autoHideDuration={5000}
+                onClose={()=>
+                    setOpenErrorSnackbar(false)
+                }
+            >
+                <Alert
+                    severity="error"
+                    variant="filled"
+                    onClose={()=>
+                        setOpenErrorSnackbar(false)
+                    }
+                >
+                    {postError?.general||
+                        postError?.title||
+                        postError?.content||
+                        t('Unable to create your post.')}
                 </Alert>
             </Snackbar>
         </Container>

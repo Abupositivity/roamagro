@@ -7,11 +7,13 @@ const NotificationSchema=new mongoose.Schema({
         required:true,
         index:true
     },
+
     sender:{
         type:mongoose.Schema.Types.ObjectId,
         ref:'User',
         required:true
     },
+
     type:{
         type:String,
         enum:[
@@ -29,24 +31,28 @@ const NotificationSchema=new mongoose.Schema({
         required:true,
         index:true
     },
+
     title:{
         type:String,
         required:true,
         trim:true,
         maxlength:150
     },
+
     message:{
         type:String,
         required:true,
         trim:true,
         maxlength:500
     },
+
     link:{
         type:String,
         default:'',
         trim:true,
         maxlength:500
     },
+
     read:{
         type:Boolean,
         default:false,
@@ -58,14 +64,21 @@ const NotificationSchema=new mongoose.Schema({
 
 NotificationSchema.index({
     recipient:1,
-    read:1,
+    read:1
+});
+
+NotificationSchema.index({
+    recipient:1,
     createdAt:-1
 });
 
 NotificationSchema.index({
     recipient:1,
-    type:1,
+    read:1,
     createdAt:-1
 });
 
-module.exports=mongoose.model('Notification',NotificationSchema);
+module.exports=mongoose.model(
+    'Notification',
+    NotificationSchema
+);

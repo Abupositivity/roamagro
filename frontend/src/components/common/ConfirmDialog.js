@@ -1,79 +1,42 @@
-import React from 'react';
+import React from "react";
 
 import {
-
-Dialog,
-DialogTitle,
-DialogContent,
-DialogContentText,
-DialogActions,
-Button,
-
-} from '@mui/material';
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  Button,
+} from "@mui/material";
 
 const ConfirmDialog = ({
+  open,
 
-open,
+  title,
 
-title,
+  message,
 
-message,
+  onConfirm,
 
-onConfirm,
-
-onClose,
-
+  onClose,
 }) => {
+  return (
+    <Dialog open={open} onClose={onClose}>
+      <DialogTitle>{title}</DialogTitle>
 
-return (
+      <DialogContent>
+        <DialogContentText>{message}</DialogContentText>
+      </DialogContent>
 
-<Dialog
-open={open}
-onClose={onClose}
->
+      <DialogActions>
+        <Button onClick={onClose}>Cancel</Button>
 
-<DialogTitle>
-
-{title}
-
-</DialogTitle>
-
-<DialogContent>
-
-<DialogContentText>
-
-{message}
-
-</DialogContentText>
-
-</DialogContent>
-
-<DialogActions>
-
-<Button
-onClick={onClose}
->
-
-Cancel
-
-</Button>
-
-<Button
-variant="contained"
-color="error"
-onClick={onConfirm}
->
-
-Confirm
-
-</Button>
-
-</DialogActions>
-
-</Dialog>
-
-);
-
+        <Button variant="contained" color="error" onClick={onConfirm}>
+          Confirm
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
 };
 
 export default ConfirmDialog;
