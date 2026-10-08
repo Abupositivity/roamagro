@@ -1,8 +1,11 @@
+const mongoose=require('mongoose');
+
 const User=require('../models/User');
 const UserReport=require('../models/UserReport');
 const CommunityPost=require('../models/CommunityPost');
 const MarketplaceItem=require('../models/MarketplaceItem');
 const FarmProject=require('../models/FarmProject');
+
 const asyncHandler=require('../middleware/asyncHandler');
 const AppError=require('../utils/AppError');
 
@@ -278,6 +281,58 @@ exports.searchUsers=asyncHandler(async(req,res)=>{
     });
 });
 
+exports.searchAdminUsers=asyncHandler(async(req,res)=>{
+    const search=String(
+        req.query.search||''
+    ).trim();
+
+    if(!search){
+        return res.status(200).json({
+            success:true,
+            data:[]
+        });
+    }
+
+    if(search.length<2){
+        throw new AppError(
+            'Search must contain at least 2 characters.',
+            400
+        );
+    }
+
+    const regex=new RegExp(
+        search.replace(
+            /[.*+?^${}()|[\]\\]/g,
+            '\\$&'
+        ),
+        'i'
+    );
+
+    const users=await User.find({
+        $or:[
+            {
+                name:regex
+            },
+            {
+                email:regex
+            }
+        ]
+    })
+        .select(
+            'name email profilePhoto role isVerified accountStatus createdAt'
+        )
+        .sort({
+            name:1
+        })
+        .limit(25)
+        .lean();
+
+    res.status(200).json({
+        success:true,
+        data:users
+    });
+});
+
 exports.getUserById=asyncHandler(async(req,res)=>{
     const user=await User.findOne({
         _id:req.params.userId,
@@ -468,6 +523,78 @@ exports.updateReport=asyncHandler(async(req,res)=>{
         success:true,
         message:'Report updated successfully.',
         data:report
+    });
+});
+
+exports.updateUserRole=asyncHandler(async(req,res)=>{
+    const userId=req.params.userId;
+    const{role}=req.body;
+
+    const allowedRoles=[
+        'farmer',
+        'buyer',
+        'extension_officer',
+        'admin'
+    ];
+
+    if(!mongoose.Types.ObjectId.isValid(userId)){
+        throw new AppError(
+            'Invalid user ID.',
+            400
+        );
+    }
+
+    if(!allowedRoles.includes(role)){
+        throw new AppError(
+            'Invalid user role.',
+            400
+        );
+    }
+
+    if(String(userId)===String(req.user._id)){
+        throw new AppError(
+            'You cannot change your own role.',
+            400
+        );
+    }
+
+    const user=await User.findById(userId);
+
+    if(!user){
+        throw new AppError(
+            'User not found.',
+            404
+        );
+    }
+
+    if(user.role===role){
+        return res.status(200).json({
+            success:true,
+            message:'User already has this role.',
+            data:{
+                _id:user._id,
+                name:user.name,
+                email:user.email,
+                role:user.role,
+                accountStatus:user.accountStatus
+            }
+        });
+    }
+
+    user.role=role;
+
+    await user.save();
+
+    res.status(200).json({
+        success:true,
+        message:'User role updated successfully.',
+        data:{
+            _id:user._id,
+            name:user.name,
+            email:user.email,
+            role:user.role,
+            accountStatus:user.accountStatus
+        }
     });
 });
 

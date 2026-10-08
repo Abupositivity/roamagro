@@ -1,5 +1,3 @@
-import React from 'react';
-
 import {
     Grid,
 } from '@mui/material';
@@ -10,6 +8,7 @@ import CommentIcon from '@mui/icons-material/Comment';
 import CategoryIcon from '@mui/icons-material/Category';
 
 import CommunityStatsCard from './CommunityStatsCard';
+import { useTranslation } from 'react-i18next';
 
 const CommunitySummaryCards = ({
     posts = [],
@@ -49,6 +48,9 @@ const CommunitySummaryCards = ({
 
         ).size;
 
+    const { t } = useTranslation();
+    
+
     return (
 
         <Grid
@@ -64,7 +66,7 @@ const CommunitySummaryCards = ({
             >
 
                 <CommunityStatsCard
-                    title="Posts"
+                    title={t('Posts')}
                     value={totalPosts}
                     icon={<ForumIcon color="main"/>}
                 />
@@ -78,7 +80,7 @@ const CommunitySummaryCards = ({
             >
 
                 <CommunityStatsCard
-                    title="Comments"
+                    title={t('Comments')}
                     value={totalComments}
                     icon={<CommentIcon color="success"/>}
                 />
@@ -92,7 +94,7 @@ const CommunitySummaryCards = ({
             >
 
                 <CommunityStatsCard
-                    title="Likes"
+                    title={t('Likes')}
                     value={totalLikes}
                     icon={<FavoriteIcon color="error"/>}
                 />
@@ -106,7 +108,7 @@ const CommunitySummaryCards = ({
             >
 
                 <CommunityStatsCard
-                    title="Categories"
+                    title={t('Categories')}
                     value={totalCategories}
                     icon={<CategoryIcon color="warning"/>}
                 />

@@ -625,7 +625,7 @@ const Settings=({darkMode,setDarkMode})=>{
                                 }}
                             >
                                 {t(
-                                    'RoamAgro is a digital agribusiness platform helping farmers manage projects, monitor market prices, connect with buyers and build thriving agricultural communities.'
+                                    'RoamAgro is an agricultural platform helping farmers manage projects, monitor market prices, buy and sell produce, connect with other farmers, and grow profitable agribusinesses.'
                                 )}
                             </Typography>
 

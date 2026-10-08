@@ -1,5 +1,5 @@
-
 import axios from "axios";
+import i18n from "../i18n";
 
 const geocodingApi = axios.create({
     baseURL: "https://geocoding-api.open-meteo.com/v1",
@@ -46,25 +46,30 @@ const weatherDescriptions = {
 
 const getWeatherDescription = (code) => {
     if (code === undefined || code === null) {
-        return "Weather conditions unavailable";
+        return i18n.t("Weather conditions unavailable");
     }
 
-    return weatherDescriptions[code] || "Weather conditions unavailable";
+    return i18n.t(
+        weatherDescriptions[code] || "Weather conditions unavailable"
+    );
 };
 
 const getCoordinatesFromLocation = async (location, options = {}) => {
     if (typeof location !== "string" || !location.trim()) {
-        throw new Error("Location is not available.");
+        throw new Error(i18n.t("Location is not available."));
     }
 
     const normalizedLocation = location.trim();
+
     const countryCode =
         typeof options.countryCode === "string" &&
         /^[a-z]{2}$/i.test(options.countryCode.trim())
             ? options.countryCode.trim().toUpperCase()
             : null;
 
-    const cacheKey = `${normalizedLocation.toLowerCase()}|${countryCode || ""}`;
+    const cacheKey = `${normalizedLocation.toLowerCase()}|${
+        countryCode || ""
+    }`;
 
     if (geocodingCache.has(cacheKey)) {
         return geocodingCache.get(cacheKey);
@@ -88,7 +93,12 @@ const getCoordinatesFromLocation = async (location, options = {}) => {
 
             if (!results.length) {
                 throw new Error(
-                    `Unable to find weather location for ${normalizedLocation}.`
+                    i18n.t(
+                        "Unable to find weather location for {{location}}.",
+                        {
+                            location: normalizedLocation,
+                        }
+                    )
                 );
             }
 
@@ -128,7 +138,9 @@ const getCoordinatesFromBrowser = () =>
         ) {
             reject(
                 new Error(
-                    "Location services are not supported by your browser."
+                    i18n.t(
+                        "Location services are not supported by your browser."
+                    )
                 )
             );
             return;
@@ -139,7 +151,7 @@ const getCoordinatesFromBrowser = () =>
                 resolve({
                     latitude: position.coords.latitude,
                     longitude: position.coords.longitude,
-                    name: "Current location",
+                    name: i18n.t("Current location"),
                     country: null,
                     countryCode: null,
                     admin1: null,
@@ -148,15 +160,19 @@ const getCoordinatesFromBrowser = () =>
             },
             (error) => {
                 const messages = {
-                    1: "Location permission was denied.",
-                    2: "Your current location could not be determined.",
-                    3: "Location request timed out.",
+                    1: i18n.t("Location permission was denied."),
+                    2: i18n.t(
+                        "Your current location could not be determined."
+                    ),
+                    3: i18n.t("Location request timed out."),
                 };
 
                 reject(
                     new Error(
                         messages[error?.code] ||
-                            "Unable to access your current location."
+                            i18n.t(
+                                "Unable to access your current location."
+                            )
                     )
                 );
             },
@@ -181,7 +197,8 @@ const buildLocationCandidates = (location, fallbacks = {}) => {
         if (
             !candidates.some(
                 (candidate) =>
-                    candidate.toLowerCase() === normalized.toLowerCase()
+                    candidate.toLowerCase() ===
+                    normalized.toLowerCase()
             )
         ) {
             candidates.push(normalized);
@@ -206,7 +223,10 @@ const getCoordinatesFromFallbackLocations = async (
 
     for (const candidate of candidates) {
         try {
-            return await getCoordinatesFromLocation(candidate, fallbacks);
+            return await getCoordinatesFromLocation(
+                candidate,
+                fallbacks
+            );
         } catch (error) {
             lastError = error;
         }
@@ -214,7 +234,9 @@ const getCoordinatesFromFallbackLocations = async (
 
     throw (
         lastError ||
-        new Error("Unable to determine your weather location.")
+        new Error(
+            i18n.t("Unable to determine your weather location.")
+        )
     );
 };
 
@@ -257,7 +279,9 @@ const getForecast = async (coordinates) => {
     const forecast = (daily.time || []).map((date, index) => ({
         date,
         weatherCode: daily.weather_code?.[index],
-        condition: getWeatherDescription(daily.weather_code?.[index]),
+        condition: getWeatherDescription(
+            daily.weather_code?.[index]
+        ),
         maxTemperature: daily.temperature_2m_max?.[index],
         minTemperature: daily.temperature_2m_min?.[index],
         precipitation: daily.precipitation_sum?.[index],
@@ -301,7 +325,9 @@ const getWeather = async (location, fallbacks = {}) => {
             coordinates = await getCoordinatesFromBrowser();
         } catch (browserError) {
             throw new Error(
-                "Weather is currently unavailable for your location."
+                i18n.t(
+                    "Weather is currently unavailable for your location."
+                )
             );
         }
     }

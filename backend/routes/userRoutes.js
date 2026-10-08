@@ -10,13 +10,15 @@ const{
     getProfile,
     updateProfile,
     searchUsers,
+    searchAdminUsers,
     getUserById,
     reportUser,
     deleteAccount,
     getReports,
     updateReport,
     suspendUser,
-    restoreUser
+    restoreUser,
+    updateUserRole
 }=require('../controllers/userController');
 
 const{
@@ -53,6 +55,13 @@ router.get(
     getReports
 );
 
+router.get(
+    '/admin/search',
+    ensureAuthenticated,
+    ensureAdmin,
+    searchAdminUsers
+);
+
 router.patch(
     '/admin/reports/:reportId',
     ensureAuthenticated,
@@ -60,6 +69,13 @@ router.patch(
     reportStatusValidator,
     validateRequest,
     updateReport
+);
+
+router.patch(
+    '/admin/:userId/role',
+    ensureAuthenticated,
+    ensureAdmin,
+    updateUserRole
 );
 
 router.patch(
