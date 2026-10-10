@@ -115,9 +115,7 @@ const UserDashboardRoute = () => {
     }
 
     return (
-        <PageLayout>
             <Dashboard />
-        </PageLayout>
     );
 };
 
@@ -314,12 +312,10 @@ const AppContent = () => {
                     path="/settings"
                     element={
                         <ProtectedRoute>
-                            <PageLayout>
                                 <Settings
                                     darkMode={darkMode}
                                     setDarkMode={setDarkMode}
                                 />
-                            </PageLayout>
                         </ProtectedRoute>
                     }
                 />

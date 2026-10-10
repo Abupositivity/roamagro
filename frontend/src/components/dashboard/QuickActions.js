@@ -1,5 +1,4 @@
-import React from "react";
-
+import React, { useMemo } from "react";
 import {
     Grid,
     Card,
@@ -8,53 +7,45 @@ import {
     Typography,
     Stack,
 } from "@mui/material";
-
 import AgricultureIcon from "@mui/icons-material/Agriculture";
 import StorefrontIcon from "@mui/icons-material/Storefront";
 import PriceCheckIcon from "@mui/icons-material/PriceCheck";
 import ForumIcon from "@mui/icons-material/Forum";
-
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 const QuickActions = () => {
-
     const navigate = useNavigate();
-
     const { t } = useTranslation();
 
-    const actions = [
-
-        {
-            title: t("New Farm Project"),
-            icon: <AgricultureIcon fontSize="large" color="success" />,
-            route: "/farm-projects"
-        },
-
-        {
-            title: t("Sell/Buy Produce"),
-            icon: <StorefrontIcon fontSize="large" color="primary" />,
-            route: "/marketplace"
-        },
-
-        {
-            title: t("Update Price"),
-            icon: <PriceCheckIcon fontSize="large" color="warning" />,
-            route: "/price-index"
-        },
-
-        {
-            title: t("Community Discussions"),
-            icon: <ForumIcon fontSize="large" color="secondary" />,
-            route: "/community"
-        }
-
-    ];
+    const actions = useMemo(
+        () => [
+            {
+                title: t("New Farm Project"),
+                icon: <AgricultureIcon fontSize="large" color="success" />,
+                route: "/farm-projects"
+            },
+            {
+                title: t("Sell/Buy Produce"),
+                icon: <StorefrontIcon fontSize="large" color="primary" />,
+                route: "/marketplace"
+            },
+            {
+                title: t("Update Price"),
+                icon: <PriceCheckIcon fontSize="large" color="warning" />,
+                route: "/price-index"
+            },
+            {
+                title: t("Community Discussions"),
+                icon: <ForumIcon fontSize="large" color="secondary" />,
+                route: "/community"
+            }
+        ],
+        [t]
+    );
 
     return (
-
         <>
-
             <Typography
                 variant="h6"
                 fontWeight={700}
@@ -62,40 +53,28 @@ const QuickActions = () => {
                 {t("Shortcuts")}
             </Typography>
 
-            <Grid
-                container
-                spacing={2}
-            >
-
-                {actions.map((action) => (
-
+            <Grid container spacing={2}>
+                {actions.map(action => (
                     <Grid
                         item
                         xs={6}
                         md={3}
-                        key={action.title}
+                        key={action.route}
                     >
-
                         <Card
                             elevation={2}
                             sx={{
                                 borderRadius: 3
                             }}
                         >
-
                             <CardActionArea
-                                onClick={() =>
-                                    navigate(action.route)
-                                }
+                                onClick={() => navigate(action.route)}
                             >
-
                                 <CardContent>
-
                                     <Stack
                                         spacing={2}
                                         alignItems="center"
                                     >
-
                                         {action.icon}
 
                                         <Typography
@@ -104,25 +83,15 @@ const QuickActions = () => {
                                         >
                                             {action.title}
                                         </Typography>
-
                                     </Stack>
-
                                 </CardContent>
-
                             </CardActionArea>
-
                         </Card>
-
                     </Grid>
-
                 ))}
-
             </Grid>
-
         </>
-
     );
-
 };
 
-export default QuickActions;
+export default React.memo(QuickActions);

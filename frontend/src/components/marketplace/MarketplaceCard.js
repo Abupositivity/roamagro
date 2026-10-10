@@ -108,6 +108,7 @@ const MarketplaceCard=({
         >
             <MarketplaceImage
                 images={listing?.images||[]}
+                title={listing?.title||t('Marketplace listing')}
             />
 
             <CardContent

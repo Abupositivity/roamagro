@@ -1,5 +1,5 @@
-import React, { useRef, useState } from 'react';
 
+import React, { useRef, useState } from "react";
 import {
     Alert,
     Box,
@@ -7,92 +7,57 @@ import {
     Card,
     CardContent,
     CardMedia,
+    CircularProgress,
     FormControl,
     InputLabel,
     MenuItem,
     Select,
     Stack,
     TextField,
-    Typography,
-} from '@mui/material';
-
-import SendOutlinedIcon from '@mui/icons-material/SendOutlined';
-import CameraAltIcon from '@mui/icons-material/CameraAlt';
-
-import { useDispatch, useSelector } from 'react-redux';
-import { useTranslation } from 'react-i18next';
-
-import { createAgriTip } from '../../redux/actions/agriFeedActions';
-
-const MAX_IMAGE_SIZE = 1200;
-const IMAGE_QUALITY = 0.75;
+    Typography
+} from "@mui/material";
+import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
+import CameraAltIcon from "@mui/icons-material/CameraAlt";
+import { useDispatch, useSelector } from "react-redux";
+import { useTranslation } from "react-i18next";
+import { createAgriTip } from "../../redux/actions/agriFeedActions";
+import compressImage from "../../utils/compressImage";
 
 const categories = [
-    'Crop Production',
-    'Livestock',
-    'Poultry',
-    'Soil Health',
-    'Pest Control',
-    'Diseases',
-    'Climate',
-    'Weather',
-    'Market Prices',
-    'Government Support',
-    'Mechanization',
-    'Agribusiness',
-    'Finance',
-    'Technology',
-    'General',
+    "Crop Production",
+    "Livestock",
+    "Poultry",
+    "Soil Health",
+    "Pest Control",
+    "Diseases",
+    "Climate",
+    "Weather",
+    "Market Prices",
+    "Government Support",
+    "Mechanization",
+    "Agribusiness",
+    "Finance",
+    "Technology",
+    "General"
 ];
 
-const priorities = ['Normal', 'Important', 'Urgent'];
-
-const compressImage = (file) =>
-    new Promise((resolve, reject) => {
-        const reader = new FileReader();
-
-        reader.onload = () => {
-            const image = new Image();
-
-            image.onload = () => {
-                const scale = Math.min(
-                    1,
-                    MAX_IMAGE_SIZE / Math.max(image.width, image.height)
-                );
-
-                const canvas = document.createElement('canvas');
-
-                canvas.width = Math.round(image.width * scale);
-                canvas.height = Math.round(image.height * scale);
-
-                const context = canvas.getContext('2d');
-                context.drawImage(image, 0, 0, canvas.width, canvas.height);
-
-                resolve(canvas.toDataURL('image/jpeg', IMAGE_QUALITY));
-            };
-
-            image.onerror = reject;
-            image.src = reader.result;
-        };
-
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-    });
+const priorities = ["Normal", "Important", "Urgent"];
 
 const initialFormData = {
-    title: '',
-    content: '',
-    category: 'General',
-    priority: 'Normal',
-    language: 'English',
-    region: 'Nigeria',
-    image: '',
+    title: "",
+    content: "",
+    category: "General",
+    priority: "Normal",
+    language: "English",
+    region: "Nigeria",
+    image: ""
 };
 
 const ExtensionTipForm = ({ onPublished }) => {
     const { t } = useTranslation();
     const dispatch = useDispatch();
     const fileInputRef = useRef(null);
+    const imageSelectionRef = useRef(0);
 
     const { creating, createError } = useSelector(
         (state) => state.agriFeed
@@ -102,61 +67,99 @@ const ExtensionTipForm = ({ onPublished }) => {
         (state) => state.auth.user || state.auth.currentUser
     );
 
-    const isAdmin = user?.role === 'admin';
+    const isAdmin = user?.role === "admin";
 
     const [formData, setFormData] = useState(initialFormData);
-    const [successMessage, setSuccessMessage] = useState('');
-    const [imageError, setImageError] = useState('');
+    const [successMessage, setSuccessMessage] = useState("");
+    const [imageError, setImageError] = useState("");
+    const [imageProcessing, setImageProcessing] = useState(false);
 
     const handleChange = (event) => {
         const { name, value } = event.target;
 
         setFormData((previous) => ({
             ...previous,
-            [name]: name === 'priority' && !isAdmin ? 'Normal' : value,
+            [name]:
+                name === "priority" && !isAdmin
+                    ? "Normal"
+                    : value
         }));
 
-        setSuccessMessage('');
+        setSuccessMessage("");
     };
 
     const handleImageChange = async (event) => {
         const file = event.target.files?.[0];
-        event.target.value = '';
+        event.target.value = "";
 
         if (!file) return;
 
-        if (!file.type.startsWith('image/')) {
-            setImageError(t('Please select an image file.'));
-            return;
-        }
+        const selectionId = ++imageSelectionRef.current;
+
+        setImageError("");
+        setImageProcessing(true);
 
         try {
-            setImageError('');
             const image = await compressImage(file);
-            setFormData((previous) => ({ ...previous, image }));
-        } catch {
-            setImageError(t('Unable to process this image.'));
+
+            if (selectionId !== imageSelectionRef.current) return;
+
+            setFormData((previous) => ({
+                ...previous,
+                image
+            }));
+        } catch (error) {
+            if (selectionId !== imageSelectionRef.current) return;
+
+            setImageError(
+                t(error.message || "Unable to process this image.")
+            );
+        } finally {
+            if (selectionId === imageSelectionRef.current) {
+                setImageProcessing(false);
+            }
         }
+    };
+
+    const handleRemoveImage = () => {
+        imageSelectionRef.current += 1;
+        setImageProcessing(false);
+        setImageError("");
+
+        setFormData((previous) => ({
+            ...previous,
+            image: ""
+        }));
     };
 
     const handleSubmit = async (event) => {
         event.preventDefault();
-        setSuccessMessage('');
+        setSuccessMessage("");
+
+        if (imageProcessing || creating) return;
 
         const tipData = {
             ...formData,
-            priority: isAdmin ? formData.priority : 'Normal',
+            priority: isAdmin ? formData.priority : "Normal"
         };
 
-        const result = await dispatch(createAgriTip(tipData));
+        try {
+            const result = await dispatch(createAgriTip(tipData));
 
-        if (!result.success) return;
+            if (!result?.success) return;
 
-        setFormData({ ...initialFormData });
-        setSuccessMessage(t('Agricultural tip published successfully.'));
+            imageSelectionRef.current += 1;
+            setFormData({ ...initialFormData });
+            setImageError("");
+            setSuccessMessage(
+                t("Agricultural tip published successfully.")
+            );
 
-        if (onPublished) {
-            onPublished(result.data);
+            if (onPublished) {
+                onPublished(result.data);
+            }
+        } catch {
+            // The Redux action should expose publication errors in createError.
         }
     };
 
@@ -166,7 +169,7 @@ const ExtensionTipForm = ({ onPublished }) => {
                 <Stack spacing={3}>
                     <Box>
                         <Typography variant="h6" fontWeight={700}>
-                            {t('Post Agricultural Tip')} 🌱
+                            {t("Post Agricultural Tip")} 🌱
                         </Typography>
 
                         <Typography
@@ -174,14 +177,16 @@ const ExtensionTipForm = ({ onPublished }) => {
                             color="text.secondary"
                             mt={0.5}
                         >
-                            {t('Share useful agricultural knowledge and advice with farmers.')}
+                            {t(
+                                "Share useful agricultural knowledge and advice with farmers."
+                            )}
                         </Typography>
                     </Box>
 
                     {successMessage && (
                         <Alert
                             severity="success"
-                            onClose={() => setSuccessMessage('')}
+                            onClose={() => setSuccessMessage("")}
                         >
                             {successMessage}
                         </Alert>
@@ -204,7 +209,7 @@ const ExtensionTipForm = ({ onPublished }) => {
                             <TextField
                                 fullWidth
                                 required
-                                label={t('Title')}
+                                label={t("Title")}
                                 name="title"
                                 value={formData.title}
                                 onChange={handleChange}
@@ -212,15 +217,18 @@ const ExtensionTipForm = ({ onPublished }) => {
                             />
 
                             <FormControl fullWidth required>
-                                <InputLabel>{t('Category')}</InputLabel>
+                                <InputLabel>{t("Category")}</InputLabel>
                                 <Select
                                     name="category"
                                     value={formData.category}
-                                    label={t('Category')}
+                                    label={t("Category")}
                                     onChange={handleChange}
                                 >
                                     {categories.map((category) => (
-                                        <MenuItem key={category} value={category}>
+                                        <MenuItem
+                                            key={category}
+                                            value={category}
+                                        >
                                             {t(category)}
                                         </MenuItem>
                                     ))}
@@ -232,24 +240,29 @@ const ExtensionTipForm = ({ onPublished }) => {
                                 required
                                 multiline
                                 minRows={5}
-                                label={t('Content')}
+                                label={t("Content")}
                                 name="content"
                                 value={formData.content}
                                 onChange={handleChange}
-                                placeholder={t('Write your agricultural advice here...')}
+                                placeholder={t(
+                                    "Write your agricultural advice here..."
+                                )}
                             />
 
                             {isAdmin && (
                                 <FormControl fullWidth>
-                                    <InputLabel>{t('Priority')}</InputLabel>
+                                    <InputLabel>{t("Priority")}</InputLabel>
                                     <Select
                                         name="priority"
                                         value={formData.priority}
-                                        label={t('Priority')}
+                                        label={t("Priority")}
                                         onChange={handleChange}
                                     >
                                         {priorities.map((priority) => (
-                                            <MenuItem key={priority} value={priority}>
+                                            <MenuItem
+                                                key={priority}
+                                                value={priority}
+                                            >
                                                 {t(priority)}
                                             </MenuItem>
                                         ))}
@@ -258,15 +271,18 @@ const ExtensionTipForm = ({ onPublished }) => {
                             )}
 
                             <FormControl fullWidth>
-                                <InputLabel>{t('Language')}</InputLabel>
+                                <InputLabel>{t("Language")}</InputLabel>
                                 <Select
                                     name="language"
                                     value={formData.language}
-                                    label={t('Language')}
+                                    label={t("Language")}
                                     onChange={handleChange}
                                 >
-                                    {['English', 'Hausa'].map((language) => (
-                                        <MenuItem key={language} value={language}>
+                                    {["English", "Hausa"].map((language) => (
+                                        <MenuItem
+                                            key={language}
+                                            value={language}
+                                        >
                                             {t(language)}
                                         </MenuItem>
                                     ))}
@@ -275,7 +291,7 @@ const ExtensionTipForm = ({ onPublished }) => {
 
                             <TextField
                                 fullWidth
-                                label={t('Region')}
+                                label={t("Region")}
                                 name="region"
                                 value={formData.region}
                                 onChange={handleChange}
@@ -286,24 +302,23 @@ const ExtensionTipForm = ({ onPublished }) => {
                                     <CardMedia
                                         component="img"
                                         image={formData.image}
-                                        alt={t('Agricultural tip image preview')}
+                                        alt={t(
+                                            "Agricultural tip image preview"
+                                        )}
+                                        loading="lazy"
                                         sx={{
+                                            width: "100%",
                                             maxHeight: 260,
-                                            objectFit: 'contain',
-                                            borderRadius: 2,
+                                            objectFit: "contain",
+                                            borderRadius: 2
                                         }}
                                     />
 
                                     <Button
                                         color="error"
-                                        onClick={() =>
-                                            setFormData((previous) => ({
-                                                ...previous,
-                                                image: '',
-                                            }))
-                                        }
+                                        onClick={handleRemoveImage}
                                     >
-                                        {t('Remove image')}
+                                        {t("Remove image")}
                                     </Button>
                                 </Box>
                             )}
@@ -319,10 +334,28 @@ const ExtensionTipForm = ({ onPublished }) => {
 
                             <Button
                                 variant="outlined"
-                                startIcon={<CameraAltIcon />}
-                                onClick={() => fileInputRef.current?.click()}
+                                startIcon={
+                                    imageProcessing ? (
+                                        <CircularProgress
+                                            size={18}
+                                            color="inherit"
+                                        />
+                                    ) : (
+                                        <CameraAltIcon />
+                                    )
+                                }
+                                onClick={() =>
+                                    fileInputRef.current?.click()
+                                }
+                                disabled={imageProcessing || creating}
                             >
-                                {t(formData.image ? 'Change image' : 'Add photo or take a picture')}
+                                {imageProcessing
+                                    ? t("Processing image...")
+                                    : t(
+                                          formData.image
+                                              ? "Change image"
+                                              : "Add photo or take a picture"
+                                      )}
                             </Button>
 
                             <Box>
@@ -332,12 +365,15 @@ const ExtensionTipForm = ({ onPublished }) => {
                                     startIcon={<SendOutlinedIcon />}
                                     disabled={
                                         creating ||
+                                        imageProcessing ||
                                         !formData.title.trim() ||
                                         !formData.content.trim()
                                     }
                                     sx={{ borderRadius: 2.5 }}
                                 >
-                                    {creating ? t('Publishing...') : t('Publish Tip')}
+                                    {creating
+                                        ? t("Publishing...")
+                                        : t("Publish Tip")}
                                 </Button>
                             </Box>
                         </Stack>

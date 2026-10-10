@@ -285,9 +285,21 @@ const AgriTipCard = ({ tip }) => {
                 {tip.image && (
                     <CardMedia
                         component="img"
-                        height="220"
                         image={tip.image}
-                        alt={tip.title}
+                        alt={tip.title || t("Agricultural tip image")}
+                        loading="lazy"
+                        decoding="async"
+                        onError={(event) => {
+                            event.currentTarget.style.display = "none";
+                        }}
+                        sx={{
+                            display: "block",
+                            width: "100%",
+                            aspectRatio: "16 / 9",
+                            maxHeight: 260,
+                            objectFit: "cover",
+                            backgroundColor: "action.hover"
+                        }}
                     />
                 )}
 

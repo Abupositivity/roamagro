@@ -1,4 +1,4 @@
-import React,{useRef,useState}from'react';
+import React,{useEffect, useRef,useState}from'react';
 import{
     Avatar,
     Box,
@@ -256,6 +256,11 @@ const AgriPostCard=({
         shareLoading,
         setShareLoading,
     ]=useState(false);
+
+    const [postImageFailed, setPostImageFailed] = useState(false);
+        useEffect(() => {
+        setPostImageFailed(false);
+    }, [post.image]);
 
     const[
         imageLoading,
@@ -740,28 +745,25 @@ const AgriPostCard=({
                         </Typography>
                     </Box>
 
-                    {post.image&&(
+                    {post.image && !postImageFailed && (
                         <CardMedia
                             component="img"
                             image={post.image}
-                            alt={
-                                post.title||
-                                t(
-                                    'Community post image'
-                                )
-                            }
+                            alt={post.title || t("Community post image")}
                             loading="lazy"
+                            decoding="async"
+                            onError={() => setPostImageFailed(true)}
                             sx={{
-                                mt:2,
-                                width:'100%',
-                                maxHeight:{
-                                    xs:280,
-                                    sm:380,
+                                mt: 2,
+                                width: "100%",
+                                aspectRatio: "4 / 3",
+                                maxHeight: {
+                                    xs: 280,
+                                    sm: 380
                                 },
-                                borderRadius:2,
-                                objectFit:'cover',
-                                backgroundColor:
-                                    'action.hover',
+                                borderRadius: 2,
+                                objectFit: "cover",
+                                backgroundColor: "action.hover"
                             }}
                         />
                     )}
