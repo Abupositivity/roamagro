@@ -1,1060 +1,702 @@
-const mongoose=require('mongoose');
-const User=require('../models/User');
-const Connection=require('../models/Connection');
-const MarketplaceItem=require('../models/MarketplaceItem');
-const CommunityPost=require('../models/CommunityPost');
-const Notification=require('../models/Notification');
-const asyncHandler=require('../middleware/asyncHandler');
-const AppError=require('../utils/AppError');
+const mongoose = require('mongoose');
+const User = require('../models/User');
+const Connection = require('../models/Connection');
+const MarketplaceItem = require('../models/MarketplaceItem');
+const CommunityPost = require('../models/CommunityPost');
+const Notification = require('../models/Notification');
+const asyncHandler = require('../middleware/asyncHandler');
+const AppError = require('../utils/AppError');
 
-const createNotificationSafely=async data=>{
-    try{
-        await Notification.create(data);
-    }catch(error){
-        console.error('Notification creation failed:',error.message);
+const PUBLIC_USER_FIELDS = 'name profilePhoto bio state lga location language role createdAt';
+const SEARCH_USER_FIELDS = 'name profilePhoto bio state lga location language role';
+
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const validateUserId = (id) => {
+    if (!mongoose.isValidObjectId(id)) {
+        throw new AppError('Invalid user ID.', 400);
     }
 };
 
-const getConnectionFilter=(userId,otherUserId)=>{
-    return{
-        $or:[
-            {
-                requester:userId,
-                recipient:otherUserId
-            },
-            {
-                requester:otherUserId,
-                recipient:userId
-            }
-        ]
-    };
-};
+const getPagination = (query) => {
+    const requestedPage = Number.parseInt(query.page, 10);
+    const requestedLimit = Number.parseInt(query.limit, 10);
 
-const normalizeConnectionStatus=(connection,userId)=>{
-    if(!connection){
-        return{
-            status:'none',
-            connectionId:null
-        };
-    }
+    const page = Number.isFinite(requestedPage) && requestedPage > 0
+        ? requestedPage
+        : 1;
+    const limit = Number.isFinite(requestedLimit) && requestedLimit > 0
+        ? Math.min(requestedLimit, 50)
+        : 10;
 
-    if(connection.status==='accepted'){
-        return{
-            status:'connected',
-            connectionId:connection._id
-        };
-    }
-
-    if(
-        connection.requester.toString()===
-        userId.toString()
-    ){
-        return{
-            status:'outgoing_pending',
-            connectionId:connection._id
-        };
-    }
-
-    return{
-        status:'incoming_pending',
-        connectionId:connection._id
-    };
-};
-
-const escapeRegex=value=>
-    value.replace(
-        /[.*+?^${}()|[\]\\]/g,
-        '\\$&'
-    );
-
-const getPagination=(query,defaultLimit=20)=>{
-    const page=Math.max(
-        parseInt(query.page,10)||1,
-        1
-    );
-
-    const limit=Math.min(
-        Math.max(
-            parseInt(query.limit,10)||defaultLimit,
-            1
-        ),
-        50
-    );
-
-    return{
+    return {
         page,
         limit,
-        skip:(page-1)*limit
+        skip: (page - 1) * limit
     };
 };
 
-const getTotalPages=(total,limit)=>
-    Math.ceil(total/limit);
+const getTotalPages = (total, limit) => Math.ceil(total / limit);
 
-exports.searchUsers=asyncHandler(async(req,res)=>{
-    const search=String(
-        req.query.search||''
+const getPaginationResponse = (data, total, page, limit) => {
+    const totalPages = getTotalPages(total, limit);
+
+    return {
+        success: true,
+        count: data.length,
+        total,
+        page,
+        limit,
+        totalPages,
+        hasMore: page < totalPages,
+        data
+    };
+};
+
+const getConnectionFilter = (userId, otherUserId) => ({
+    $or: [
+        { requester: userId, recipient: otherUserId },
+        { requester: otherUserId, recipient: userId }
+    ]
+});
+
+const normalizeConnectionStatus = (connection, currentUserId) => {
+    if (!connection) return 'none';
+
+    const currentId = String(currentUserId);
+    const requesterId = String(connection.requester);
+    const recipientId = String(connection.recipient);
+
+    if (connection.status === 'accepted') return 'connected';
+
+    if (requesterId === currentId) return 'outgoing_pending';
+    if (recipientId === currentId) return 'incoming_pending';
+
+    return 'none';
+};
+
+const createNotificationSafely = async ({
+    sender,
+    recipient,
+    type,
+    title,
+    message,
+    link
+}) => {
+    try {
+        await Notification.create({
+            sender,
+            recipient,
+            type,
+            title,
+            message,
+            link
+        });
+    } catch (error) {
+        console.error('Failed to create connection notification:', error.message);
+    }
+};
+
+const getActiveUser = async (userId) => {
+    return User.findOne({
+        _id: userId,
+        accountStatus: 'active'
+    });
+};
+
+exports.searchUsers = asyncHandler(async (req, res) => {
+    const currentUserId = req.user._id;
+    const searchTerm = String(
+        req.query.search || req.query.q || req.query.query || ''
     ).trim();
 
-    const{
-        page,
-        limit,
-        skip
-    }=getPagination(req.query,12);
+    const { page, limit, skip } = getPagination(req.query);
 
-    if(search.length<2){
+    if (searchTerm.length > 100) {
+        throw new AppError('Search term cannot exceed 100 characters.', 400);
+    }
+
+    if (searchTerm.length < 2) {
         return res.status(200).json({
-            success:true,
-            count:0,
-            total:0,
+            success: true,
+            count: 0,
+            total: 0,
             page,
             limit,
-            totalPages:0,
-            hasMore:false,
-            data:[]
+            totalPages: 0,
+            hasMore: false,
+            data: []
         });
     }
 
-    const searchRegex=new RegExp(
-        escapeRegex(search),
-        'i'
-    );
+    const searchRegex = new RegExp(escapeRegex(searchTerm), 'i');
 
-    const filter={
-        _id:{
-            $ne:req.user._id
-        },
-        $or:[
-            {
-                name:searchRegex
-            },
-            {
-                email:searchRegex
-            },
-            {
-                state:searchRegex
-            },
-            {
-                lga:searchRegex
-            },
-            {
-                location:searchRegex
-            }
+    const filter = {
+        _id: { $ne: currentUserId },
+        accountStatus: 'active',
+        $or: [
+            { name: searchRegex },
+            { email: searchRegex },
+            { state: searchRegex },
+            { lga: searchRegex },
+            { location: searchRegex }
         ]
     };
 
-    const[
-        total,
-        users
-    ]=await Promise.all([
-        User.countDocuments(filter),
+    const [users, total] = await Promise.all([
         User.find(filter)
-            .select(
-                'name email profilePhoto bio phone state lga location language role'
-            )
-            .sort({
-                name:1
-            })
+            .select(SEARCH_USER_FIELDS)
+            .sort({ name: 1 })
             .skip(skip)
             .limit(limit)
-            .lean()
+            .lean(),
+        User.countDocuments(filter)
     ]);
 
-    if(!users.length){
-        const totalPages=
-            getTotalPages(total,limit);
-
-        return res.status(200).json({
-            success:true,
-            count:0,
-            total,
-            page,
-            limit,
-            totalPages,
-            hasMore:page<totalPages,
-            data:[]
-        });
-    }
-
-    const userIds=users.map(
-        user=>user._id
-    );
-
-    const connections=await Connection.find({
-        $or:[
-            {
-                requester:req.user._id,
-                recipient:{
-                    $in:userIds
+    const connections = users.length
+        ? await Connection.find({
+            $or: [
+                {
+                    requester: currentUserId,
+                    recipient: { $in: users.map((user) => user._id) }
+                },
+                {
+                    requester: { $in: users.map((user) => user._id) },
+                    recipient: currentUserId
                 }
-            },
-            {
-                recipient:req.user._id,
-                requester:{
-                    $in:userIds
-                }
-            }
-        ]
-    })
-        .select(
-            '_id requester recipient status'
-        )
-        .lean();
+            ]
+        }).select('requester recipient status')
+        : [];
 
-    const connectionMap=new Map();
+    const connectionMap = new Map();
 
-    connections.forEach(connection=>{
-        const otherUserId=
-            connection.requester.toString()===
-            req.user._id.toString()
-                ?connection.recipient.toString()
-                :connection.requester.toString();
-
-        connectionMap.set(
-            otherUserId,
-            connection
+    connections.forEach((connection) => {
+        const otherUserId = String(
+            String(connection.requester) === String(currentUserId)
+                ? connection.recipient
+                : connection.requester
         );
+
+        connectionMap.set(otherUserId, connection);
     });
 
-    const data=users.map(user=>{
-        const connection=
-            connectionMap.get(
-                user._id.toString()
-            );
+    const data = users.map((user) => {
+        const connection = connectionMap.get(String(user._id));
 
-        const normalized=
-            normalizeConnectionStatus(
-                connection,
-                req.user._id
-            );
-
-        return{
+        return {
             ...user,
-            connectionStatus:
-                normalized.status,
-            connectionId:
-                normalized.connectionId
+            connectionStatus: normalizeConnectionStatus(connection, currentUserId),
+            connectionId: connection ? connection._id : null
         };
     });
 
-    const totalPages=
-        getTotalPages(total,limit);
-
-    res.status(200).json({
-        success:true,
-        count:data.length,
-        total,
-        page,
-        limit,
-        totalPages,
-        hasMore:page<totalPages,
-        data
-    });
+    return res.status(200).json(
+        getPaginationResponse(data, total, page, limit)
+    );
 });
 
-exports.discoverUsers=asyncHandler(async(req,res)=>{
-    const limit=Math.min(
-        Math.max(
-            parseInt(req.query.limit,10)||6,
-            1
-        ),
-        20
-    );
+exports.discoverUsers = asyncHandler(async (req, res) => {
+    const currentUser = req.user;
+    const currentUserId = currentUser._id;
+    const { page, limit, skip } = getPagination(req.query);
 
-    const candidates=await User.find({
-        _id:{
-            $ne:req.user._id
+    const existingConnections = await Connection.find({
+        $or: [
+            { requester: currentUserId },
+            { recipient: currentUserId }
+        ]
+    }).select('requester recipient');
+
+    const excludedIds = new Set([String(currentUserId)]);
+
+    existingConnections.forEach((connection) => {
+        excludedIds.add(String(connection.requester));
+        excludedIds.add(String(connection.recipient));
+    });
+
+    const filter = {
+        _id: {
+            $nin: Array.from(excludedIds).map((id) => new mongoose.Types.ObjectId(id))
+        },
+        accountStatus: 'active'
+    };
+
+    const [users, total] = await Promise.all([
+        User.find(filter)
+            .select(SEARCH_USER_FIELDS)
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit)
+            .lean(),
+        User.countDocuments(filter)
+    ]);
+
+    const scoreUser = (user) => {
+        let score = 0;
+
+        if (
+            currentUser.state &&
+            user.state &&
+            currentUser.state.toLowerCase() === user.state.toLowerCase()
+        ) {
+            score += 3;
         }
-    })
-        .select(
-            'name profilePhoto bio state lga location language role'
-        )
-        .sort({
-            createdAt:-1
-        })
-        .limit(50)
-        .lean();
 
-    if(!candidates.length){
+        if (
+            currentUser.lga &&
+            user.lga &&
+            currentUser.lga.toLowerCase() === user.lga.toLowerCase()
+        ) {
+            score += 2;
+        }
+
+        if (currentUser.role && user.role === currentUser.role) {
+            score += 1;
+        }
+
+        return score;
+    };
+
+    const data = users
+        .map((user) => ({
+            ...user,
+            connectionStatus: 'none',
+            connectionId: null,
+            recommendationScore: scoreUser(user)
+        }))
+        .sort((a, b) => b.recommendationScore - a.recommendationScore)
+        .map(({ recommendationScore, ...user }) => user);
+
+    return res.status(200).json(
+        getPaginationResponse(data, total, page, limit)
+    );
+});
+
+exports.getPublicProfile = asyncHandler(async (req, res) => {
+    const { userId } = req.params;
+    validateUserId(userId);
+
+    const currentUserId = String(req.user._id);
+    const isSelf = currentUserId === String(userId);
+
+    const user = await User.findOne({
+        _id: userId,
+        accountStatus: 'active'
+    }).select(PUBLIC_USER_FIELDS).lean();
+
+    if (!user) {
+        throw new AppError('User not found.', 404);
+    }
+
+    if (isSelf) {
         return res.status(200).json({
-            success:true,
-            count:0,
-            data:[]
+            success: true,
+            data: {
+                user,
+                stats: {
+                    connections: await Connection.countDocuments({
+                        $or: [
+                            { requester: userId, status: 'accepted' },
+                            { recipient: userId, status: 'accepted' }
+                        ]
+                    }),
+                    marketplaceListings: await MarketplaceItem.countDocuments({
+                        user: userId,
+                        available: true
+                    }),
+                    communityPosts: await CommunityPost.countDocuments({
+                        user: userId,
+                        status: 'active'
+                    })
+                },
+                connectionStatus: 'self',
+                connectionId: null
+            }
         });
     }
 
-    const userIds=candidates.map(
-        user=>user._id
-    );
-
-    const connections=await Connection.find({
-        $or:[
-            {
-                requester:req.user._id,
-                recipient:{
-                    $in:userIds
-                }
-            },
-            {
-                recipient:req.user._id,
-                requester:{
-                    $in:userIds
-                }
-            }
-        ]
-    })
-        .select(
-            '_id requester recipient status'
-        )
-        .lean();
-
-    const connectedIds=new Set();
-
-    connections.forEach(connection=>{
-        connectedIds.add(
-            connection.requester.toString()===
-            req.user._id.toString()
-                ?connection.recipient.toString()
-                :connection.requester.toString()
-        );
-    });
-
-    const scored=candidates
-        .filter(
-            candidate=>
-                !connectedIds.has(
-                    candidate._id.toString()
-                )
-        )
-        .map(candidate=>{
-            let score=0;
-
-            if(
-                candidate.state&&
-                req.user.state&&
-                candidate.state===
-                req.user.state
-            ){
-                score+=3;
-            }
-
-            if(
-                candidate.lga&&
-                req.user.lga&&
-                candidate.lga===
-                req.user.lga
-            ){
-                score+=2;
-            }
-
-            if(
-                candidate.role&&
-                req.user.role&&
-                candidate.role===
-                req.user.role
-            ){
-                score+=1;
-            }
-
-            return{
-                candidate,
-                score
-            };
-        })
-        .sort(
-            (a,b)=>
-                b.score-a.score||
-                a.candidate.name.localeCompare(
-                    b.candidate.name
-                )
-        )
-        .slice(0,limit)
-        .map(item=>({
-            ...item.candidate,
-            connectionStatus:'none',
-            connectionId:null
-        }));
+    const [connection, connectionsCount, marketplaceListings, communityPosts] =
+        await Promise.all([
+            Connection.findOne(getConnectionFilter(currentUserId, userId)),
+            Connection.countDocuments({
+                $or: [
+                    { requester: userId, status: 'accepted' },
+                    { recipient: userId, status: 'accepted' }
+                ]
+            }),
+            MarketplaceItem.find({
+                user: userId,
+                available: true
+            })
+                .sort({ createdAt: -1 })
+                .limit(3)
+                .lean(),
+            CommunityPost.find({
+                user: userId,
+                status: 'active'
+            })
+                .sort({ createdAt: -1 })
+                .limit(3)
+                .lean()
+        ]);
 
     return res.status(200).json({
-        success:true,
-        count:scored.length,
-        data:scored
-    });
-});
-
-exports.getPublicProfile=asyncHandler(async(req,res)=>{
-    const userId=req.params.userId;
-
-    if(
-        !mongoose.Types.ObjectId.isValid(
-            userId
-        )
-    ){
-        throw new AppError(
-            'Invalid user ID.',
-            400
-        );
-    }
-
-    const user=await User.findById(userId)
-        .select(
-            'name profilePhoto bio state lga location language role createdAt'
-        )
-        .lean();
-
-    if(!user){
-        throw new AppError(
-            'User profile not found.',
-            404
-        );
-    }
-
-    if(
-        user._id.toString()===
-        req.user._id.toString()
-    ){
-        return res.status(200).json({
-            success:true,
-            data:{
-                user,
-                connectionStatus:'self',
-                connectionId:null
-            }
-        });
-    }
-
-    const[
-        connectionCount,
-        marketplaceListings,
-        communityPosts
-    ]=await Promise.all([
-        Connection.countDocuments({
-            $or:[
-                {
-                    requester:user._id,
-                    status:'accepted'
-                },
-                {
-                    recipient:user._id,
-                    status:'accepted'
-                }
-            ]
-        }),
-        MarketplaceItem.find({
-            user:user._id
-        })
-            .select(
-                'title description category price quantity unit location images available createdAt'
-            )
-            .sort({
-                createdAt:-1
-            })
-            .limit(6)
-            .lean(),
-        CommunityPost.find({
-            user:user._id,
-            status:'Active'
-        })
-            .select(
-                'title content category image featured shares likes comments createdAt'
-            )
-            .sort({
-                featured:-1,
-                createdAt:-1
-            })
-            .limit(6)
-            .lean()
-    ]);
-
-    const connection=await Connection.findOne(
-        getConnectionFilter(
-            req.user._id,
-            user._id
-        )
-    )
-        .select(
-            '_id requester recipient status'
-        )
-        .lean();
-
-    const normalized=
-        normalizeConnectionStatus(
-            connection,
-            req.user._id
-        );
-
-    res.status(200).json({
-        success:true,
-        data:{
+        success: true,
+        data: {
             user,
-            connectionStatus:
-                normalized.status,
-            connectionId:
-                normalized.connectionId,
-            stats:{
-                connections:
-                    connectionCount,
-                marketplaceListings:
-                    marketplaceListings.length,
-                communityPosts:
-                    communityPosts.length
+            stats: {
+                connections: connectionsCount,
+                marketplaceListings: await MarketplaceItem.countDocuments({
+                    user: userId,
+                    available: true
+                }),
+                communityPosts: await CommunityPost.countDocuments({
+                    user: userId,
+                    status: 'active'
+                })
             },
             marketplaceListings,
-            communityPosts
+            communityPosts,
+            connectionStatus: normalizeConnectionStatus(connection, currentUserId),
+            connectionId: connection ? connection._id : null
         }
     });
 });
 
-exports.getConnectionStatus=asyncHandler(async(req,res)=>{
-    const userId=req.user._id;
-    const otherUserId=req.params.userId;
+exports.getConnectionStatus = asyncHandler(async (req, res) => {
+    const { userId } = req.params;
+    validateUserId(userId);
 
-    if(
-        !mongoose.Types.ObjectId.isValid(
-            otherUserId
-        )
-    ){
-        throw new AppError(
-            'Invalid user ID.',
-            400
-        );
-    }
+    const currentUserId = String(req.user._id);
 
-    if(
-        userId.toString()===
-        otherUserId.toString()
-    ){
+    if (currentUserId === String(userId)) {
         return res.status(200).json({
-            success:true,
-            data:{
-                userId:otherUserId,
-                status:'self',
-                connectionId:null
+            success: true,
+            data: {
+                connectionStatus: 'self',
+                connectionId: null
             }
         });
     }
 
-    const connection=await Connection.findOne(
-        getConnectionFilter(
-            userId,
-            otherUserId
-        )
+    const otherUser = await getActiveUser(userId);
+
+    if (!otherUser) {
+        throw new AppError('User not found.', 404);
+    }
+
+    const connection = await Connection.findOne(
+        getConnectionFilter(currentUserId, userId)
+    );
+
+    return res.status(200).json({
+        success: true,
+        data: {
+            connectionStatus: normalizeConnectionStatus(connection, currentUserId),
+            connectionId: connection ? connection._id : null
+        }
+    });
+});
+
+exports.sendConnectionRequest = asyncHandler(async (req, res) => {
+    const { userId } = req.params;
+    const currentUserId = req.user._id;
+
+    validateUserId(userId);
+
+    if (String(currentUserId) === String(userId)) {
+        throw new AppError('You cannot send a connection request to yourself.', 400);
+    }
+
+    const recipient = await getActiveUser(userId);
+
+    if (!recipient) {
+        throw new AppError('User not found or account is unavailable.', 404);
+    }
+
+    const existingConnection = await Connection.findOne(
+        getConnectionFilter(currentUserId, userId)
+    );
+
+    if (existingConnection) {
+        if (existingConnection.status === 'accepted') {
+            throw new AppError('You are already connected with this user.', 409);
+        }
+
+        if (String(existingConnection.requester) === String(currentUserId)) {
+            throw new AppError('You have already sent a connection request.', 409);
+        }
+
+        throw new AppError('This user has already sent you a connection request.', 409);
+    }
+
+    let connection;
+
+    try {
+        connection = await Connection.create({
+            requester: currentUserId,
+            recipient: userId,
+            status: 'pending'
+        });
+    } catch (error) {
+        if (error.code === 11000) {
+            throw new AppError('A connection request already exists.', 409);
+        }
+
+        throw error;
+    }
+
+    await createNotificationSafely({
+        sender: currentUserId,
+        recipient: userId,
+        type: 'connection_request',
+        title: 'New connection request',
+        message: `${req.user.name || 'A user'} sent you a connection request.`,
+        link: '/connections'
+    });
+
+    const populatedConnection = await Connection.findById(connection._id)
+        .populate('requester', PUBLIC_USER_FIELDS)
+        .populate('recipient', PUBLIC_USER_FIELDS);
+
+    return res.status(201).json({
+        success: true,
+        message: 'Connection request sent successfully.',
+        data: populatedConnection
+    });
+});
+
+exports.acceptConnectionRequest = asyncHandler(async (req, res) => {
+    const { userId } = req.params;
+    const currentUserId = req.user._id;
+
+    validateUserId(userId);
+
+    const requester = await getActiveUser(userId);
+
+    if (!requester) {
+        throw new AppError('User not found or account is unavailable.', 404);
+    }
+
+    const connection = await Connection.findOneAndUpdate(
+        {
+            requester: userId,
+            recipient: currentUserId,
+            status: 'pending'
+        },
+        { status: 'accepted' },
+        { new: true, runValidators: true }
     )
-        .select(
-            '_id requester recipient status'
-        )
-        .lean();
+        .populate('requester', PUBLIC_USER_FIELDS)
+        .populate('recipient', PUBLIC_USER_FIELDS);
 
-    const normalized=
-        normalizeConnectionStatus(
-            connection,
-            userId
-        );
-
-    res.status(200).json({
-        success:true,
-        data:{
-            userId:otherUserId,
-            status:normalized.status,
-            connectionId:
-                normalized.connectionId
-        }
-    });
-});
-
-exports.sendConnectionRequest=asyncHandler(async(req,res)=>{
-    const requesterId=req.user._id;
-    const recipientId=req.params.userId;
-
-    if(
-        requesterId.toString()===
-        recipientId.toString()
-    ){
-        throw new AppError(
-            'You cannot connect with yourself.',
-            400
-        );
+    if (!connection) {
+        throw new AppError('Pending connection request not found.', 404);
     }
-
-    if(
-        !mongoose.Types.ObjectId.isValid(
-            recipientId
-        )
-    ){
-        throw new AppError(
-            'Invalid user ID.',
-            400
-        );
-    }
-
-    const recipient=await User.findById(
-        recipientId
-    );
-
-    if(!recipient){
-        throw new AppError(
-            'User not found.',
-            404
-        );
-    }
-
-    const existing=await Connection.findOne(
-        getConnectionFilter(
-            requesterId,
-            recipientId
-        )
-    );
-
-    if(existing){
-        if(
-            existing.status==='accepted'
-        ){
-            throw new AppError(
-                'You are already connected with this user.',
-                400
-            );
-        }
-
-        if(
-            existing.requester.toString()===
-            requesterId.toString()
-        ){
-            throw new AppError(
-                'Connection request already sent.',
-                400
-            );
-        }
-
-        throw new AppError(
-            'This user has already sent you a connection request. Review the request in your Connections.',
-            400
-        );
-    }
-
-    const connection=await Connection.create({
-        requester:requesterId,
-        recipient:recipientId,
-        status:'pending'
-    });
-
-    await connection.populate(
-        'recipient',
-        'name profilePhoto bio role state lga location'
-    );
 
     await createNotificationSafely({
-        recipient:recipientId,
-        sender:requesterId,
-        type:'connection_request',
-        title:'New Connection Request',
-        message:`${req.user.name||'Someone'} sent you a connection request.`,
-        link:`/profile/${requesterId}`
+        sender: currentUserId,
+        recipient: userId,
+        type: 'connection_accepted',
+        title: 'Connection request accepted',
+        message: `${req.user.name || 'A user'} accepted your connection request.`,
+        link: '/connections'
     });
 
-    res.status(201).json({
-        success:true,
-        message:
-            'Connection request sent successfully.',
-        data:{
-            ...connection.toObject(),
-            connectionStatus:
-                'outgoing_pending',
-            connectionId:connection._id
-        }
+    return res.status(200).json({
+        success: true,
+        message: 'Connection request accepted.',
+        data: connection
     });
 });
 
-exports.acceptConnectionRequest=asyncHandler(async(req,res)=>{
-    const recipientId=req.user._id;
-    const requesterId=req.params.userId;
+exports.declineConnectionRequest = asyncHandler(async (req, res) => {
+    const { userId } = req.params;
+    const currentUserId = req.user._id;
 
-    if(
-        !mongoose.Types.ObjectId.isValid(
-            requesterId
-        )
-    ){
-        throw new AppError(
-            'Invalid user ID.',
-            400
-        );
-    }
+    validateUserId(userId);
 
-    const connection=await Connection.findOne({
-        requester:requesterId,
-        recipient:recipientId,
-        status:'pending'
+    const connection = await Connection.findOneAndDelete({
+        requester: userId,
+        recipient: currentUserId,
+        status: 'pending'
     });
 
-    if(!connection){
-        throw new AppError(
-            'Connection request not found.',
-            404
-        );
+    if (!connection) {
+        throw new AppError('Pending connection request not found.', 404);
     }
-
-    connection.status='accepted';
-
-    await connection.save();
-
-    await connection.populate(
-        'requester',
-        'name profilePhoto bio role state lga location'
-    );
 
     await createNotificationSafely({
-        recipient:requesterId,
-        sender:recipientId,
-        type:'connection_accepted',
-        title:'Connection Request Accepted',
-        message:`${req.user.name||'Someone'} accepted your connection request.`,
-        link:`/profile/${recipientId}`
+        sender: currentUserId,
+        recipient: userId,
+        type: 'connection_rejected',
+        title: 'Connection request declined',
+        message: `${req.user.name || 'A user'} declined your connection request.`,
+        link: '/connections'
     });
 
-    res.status(200).json({
-        success:true,
-        message:
-            'Connection request accepted.',
-        data:{
-            ...connection.toObject(),
-            connectionStatus:'connected',
-            connectionId:connection._id
-        }
+    return res.status(200).json({
+        success: true,
+        message: 'Connection request declined.'
     });
 });
 
-exports.declineConnectionRequest=asyncHandler(async(req,res)=>{
-    const recipientId=req.user._id;
-    const requesterId=req.params.userId;
+exports.cancelConnectionRequest = asyncHandler(async (req, res) => {
+    const { userId } = req.params;
+    const currentUserId = req.user._id;
 
-    if(
-        !mongoose.Types.ObjectId.isValid(
-            requesterId
-        )
-    ){
-        throw new AppError(
-            'Invalid user ID.',
-            400
-        );
-    }
+    validateUserId(userId);
 
-    const connection=await Connection.findOne({
-        requester:requesterId,
-        recipient:recipientId,
-        status:'pending'
+    const connection = await Connection.findOneAndDelete({
+        requester: currentUserId,
+        recipient: userId,
+        status: 'pending'
     });
 
-    if(!connection){
-        throw new AppError(
-            'Connection request not found.',
-            404
-        );
+    if (!connection) {
+        throw new AppError('Outgoing connection request not found.', 404);
     }
 
-    await connection.deleteOne();
-
-    await createNotificationSafely({
-        recipient:requesterId,
-        sender:recipientId,
-        type:'connection_rejected',
-        title:'Connection Request Declined',
-        message:`${req.user.name||'Someone'} declined your connection request.`,
-        link:`/profile/${recipientId}`
-    });
-
-    res.status(200).json({
-        success:true,
-        message:
-            'Connection request declined.',
-        data:{
-            userId:requesterId,
-            connectionStatus:'none',
-            connectionId:null
-        }
+    return res.status(200).json({
+        success: true,
+        message: 'Connection request cancelled.'
     });
 });
 
-exports.cancelConnectionRequest=asyncHandler(async(req,res)=>{
-    const requesterId=req.user._id;
-    const recipientId=req.params.userId;
+exports.removeConnection = asyncHandler(async (req, res) => {
+    const { userId } = req.params;
+    const currentUserId = req.user._id;
 
-    if(
-        !mongoose.Types.ObjectId.isValid(
-            recipientId
-        )
-    ){
-        throw new AppError(
-            'Invalid user ID.',
-            400
-        );
+    validateUserId(userId);
+
+    if (String(currentUserId) === String(userId)) {
+        throw new AppError('Invalid connection.', 400);
     }
 
-    const connection=await Connection.findOne({
-        requester:requesterId,
-        recipient:recipientId,
-        status:'pending'
+    const connection = await Connection.findOneAndDelete({
+        ...getConnectionFilter(currentUserId, userId),
+        status: 'accepted'
     });
 
-    if(!connection){
-        throw new AppError(
-            'Connection request not found.',
-            404
-        );
+    if (!connection) {
+        throw new AppError('Connection not found.', 404);
     }
 
-    await connection.deleteOne();
-
-    res.status(200).json({
-        success:true,
-        message:
-            'Connection request cancelled.',
-        data:{
-            userId:recipientId,
-            connectionStatus:'none',
-            connectionId:null
-        }
+    return res.status(200).json({
+        success: true,
+        message: 'Connection removed successfully.'
     });
 });
 
-exports.removeConnection=asyncHandler(async(req,res)=>{
-    const userId=req.user._id;
-    const otherUserId=req.params.userId;
+exports.getConnections = asyncHandler(async (req, res) => {
+    const currentUserId = req.user._id;
+    const { page, limit, skip } = getPagination(req.query);
 
-    if(
-        !mongoose.Types.ObjectId.isValid(
-            otherUserId
-        )
-    ){
-        throw new AppError(
-            'Invalid user ID.',
-            400
-        );
-    }
-
-    const connection=await Connection.findOne({
-        $or:[
-            {
-                requester:userId,
-                recipient:otherUserId,
-                status:'accepted'
-            },
-            {
-                requester:otherUserId,
-                recipient:userId,
-                status:'accepted'
-            }
-        ]
-    });
-
-    if(!connection){
-        throw new AppError(
-            'Connection not found.',
-            404
-        );
-    }
-
-    await connection.deleteOne();
-
-    res.status(200).json({
-        success:true,
-        message:
-            'Connection removed successfully.',
-        data:{
-            userId:otherUserId,
-            connectionStatus:'none',
-            connectionId:null
-        }
-    });
-});
-
-exports.getConnections=asyncHandler(async(req,res)=>{
-    const{
-        page,
-        limit,
-        skip
-    }=getPagination(req.query,20);
-
-    const filter={
-        $or:[
-            {
-                requester:req.user._id,
-                status:'accepted'
-            },
-            {
-                recipient:req.user._id,
-                status:'accepted'
-            }
-        ]
+    const filter = {
+        $or: [
+            { requester: currentUserId },
+            { recipient: currentUserId }
+        ],
+        status: 'accepted'
     };
 
-    const[
-        total,
-        connections
-    ]=await Promise.all([
-        Connection.countDocuments(filter),
+    const [connections, total] = await Promise.all([
         Connection.find(filter)
-            .populate(
-                'requester',
-                'name profilePhoto bio state lga location role'
-            )
-            .populate(
-                'recipient',
-                'name profilePhoto bio state lga location role'
-            )
-            .sort({
-                updatedAt:-1
-            })
+            .populate('requester', PUBLIC_USER_FIELDS)
+            .populate('recipient', PUBLIC_USER_FIELDS)
+            .sort({ updatedAt: -1 })
             .skip(skip)
-            .limit(limit)
-            .lean()
+            .limit(limit),
+        Connection.countDocuments(filter)
     ]);
 
-    const users=connections.map(
-        connection=>{
-            const requesterId=
-                connection.requester._id.toString();
+    const data = connections
+        .map((connection) => {
+            const requester = connection.requester;
+            const recipient = connection.recipient;
+            const user = String(requester?._id) === String(currentUserId)
+                ? recipient
+                : requester;
 
-            const user=
-                requesterId===
-                req.user._id.toString()
-                    ?connection.recipient
-                    :connection.requester;
+            if (!user || user.accountStatus === 'suspended') return null;
 
-            return{
-                ...user,
-                connectionStatus:
-                    'connected',
-                connectionId:
-                    connection._id
+            return {
+                user,
+                connectionStatus: 'connected',
+                connectionId: connection._id
             };
-        }
+        })
+        .filter(Boolean);
+
+    return res.status(200).json(
+        getPaginationResponse(data, total, page, limit)
     );
-
-    const totalPages=
-        getTotalPages(total,limit);
-
-    res.status(200).json({
-        success:true,
-        count:users.length,
-        total,
-        page,
-        limit,
-        totalPages,
-        hasMore:
-            page<totalPages,
-        data:users
-    });
 });
 
-exports.getIncomingRequests=asyncHandler(async(req,res)=>{
-    const{
-        page,
-        limit,
-        skip
-    }=getPagination(req.query,20);
+exports.getIncomingRequests = asyncHandler(async (req, res) => {
+    const currentUserId = req.user._id;
+    const { page, limit, skip } = getPagination(req.query);
 
-    const filter={
-        recipient:req.user._id,
-        status:'pending'
+    const filter = {
+        recipient: currentUserId,
+        status: 'pending'
     };
 
-    const[
-        total,
-        requests
-    ]=await Promise.all([
-        Connection.countDocuments(filter),
+    const [connections, total] = await Promise.all([
         Connection.find(filter)
-            .populate(
-                'requester',
-                'name profilePhoto bio state lga location role'
-            )
-            .sort({
-                createdAt:-1
-            })
+            .populate('requester', PUBLIC_USER_FIELDS)
+            .sort({ createdAt: -1 })
             .skip(skip)
-            .limit(limit)
-            .lean()
+            .limit(limit),
+        Connection.countDocuments(filter)
     ]);
 
-    const data=requests.map(
-        request=>({
-            ...request,
-            user:request.requester,
-            connectionStatus:
-                'incoming_pending',
-            connectionId:
-                request._id
-        })
+    const data = connections
+        .filter((connection) => (
+            connection.requester &&
+            connection.requester.accountStatus !== 'suspended'
+        ))
+        .map((connection) => ({
+            user: connection.requester,
+            connectionStatus: 'incoming_pending',
+            connectionId: connection._id
+        }));
+
+    return res.status(200).json(
+        getPaginationResponse(data, total, page, limit)
     );
-
-    const totalPages=
-        getTotalPages(total,limit);
-
-    res.status(200).json({
-        success:true,
-        count:data.length,
-        total,
-        page,
-        limit,
-        totalPages,
-        hasMore:
-            page<totalPages,
-        data
-    });
 });
 
-exports.getOutgoingRequests=asyncHandler(async(req,res)=>{
-    const{
-        page,
-        limit,
-        skip
-    }=getPagination(req.query,20);
+exports.getOutgoingRequests = asyncHandler(async (req, res) => {
+    const currentUserId = req.user._id;
+    const { page, limit, skip } = getPagination(req.query);
 
-    const filter={
-        requester:req.user._id,
-        status:'pending'
+    const filter = {
+        requester: currentUserId,
+        status: 'pending'
     };
 
-    const[
-        total,
-        requests
-    ]=await Promise.all([
-        Connection.countDocuments(filter),
+    const [connections, total] = await Promise.all([
         Connection.find(filter)
-            .populate(
-                'recipient',
-                'name profilePhoto bio state lga location role'
-            )
-            .sort({
-                createdAt:-1
-            })
+            .populate('recipient', PUBLIC_USER_FIELDS)
+            .sort({ createdAt: -1 })
             .skip(skip)
-            .limit(limit)
-            .lean()
+            .limit(limit),
+        Connection.countDocuments(filter)
     ]);
 
-    const data=requests.map(
-        request=>({
-            ...request,
-            user:request.recipient,
-            connectionStatus:
-                'outgoing_pending',
-            connectionId:
-                request._id
-        })
+    const data = connections
+        .filter((connection) => (
+            connection.recipient &&
+            connection.recipient.accountStatus !== 'suspended'
+        ))
+        .map((connection) => ({
+            user: connection.recipient,
+            connectionStatus: 'outgoing_pending',
+            connectionId: connection._id
+        }));
+
+    return res.status(200).json(
+        getPaginationResponse(data, total, page, limit)
     );
-
-    const totalPages=
-        getTotalPages(total,limit);
-
-    res.status(200).json({
-        success:true,
-        count:data.length,
-        total,
-        page,
-        limit,
-        totalPages,
-        hasMore:
-            page<totalPages,
-        data
-    });
 });

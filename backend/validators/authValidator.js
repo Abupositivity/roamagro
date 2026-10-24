@@ -1,6 +1,9 @@
-const{body}=require('express-validator');
+const { body, query } = require('express-validator');
 
-const emailValidator=body('email')
+const emailValidator = body('email')
+    .isString()
+    .withMessage('Email must be a string.')
+    .bail()
     .trim()
     .normalizeEmail()
     .notEmpty()
@@ -9,50 +12,78 @@ const emailValidator=body('email')
     .isEmail()
     .withMessage('Please provide a valid email address.');
 
-exports.registerValidator=[
+const passwordValidator = field =>
+    body(field)
+        .isString()
+        .withMessage('Password must be a string.')
+        .bail()
+        .notEmpty()
+        .withMessage('Password is required.')
+        .bail()
+        .isLength({ min: 6, max: 128 })
+        .withMessage('Password must be between 6 and 128 characters.');
+
+exports.registerValidator = [
     body('name')
+        .isString()
+        .withMessage('Name must be a string.')
+        .bail()
         .trim()
         .notEmpty()
         .withMessage('Name is required.')
         .bail()
-        .isLength({min:2,max:100})
+        .isLength({ min: 2, max: 100 })
         .withMessage('Name must be between 2 and 100 characters.')
         .escape(),
     emailValidator,
+    passwordValidator('password')
+];
+
+exports.loginValidator = [
+    emailValidator,
     body('password')
+        .isString()
+        .withMessage('Password must be a string.')
+        .bail()
         .notEmpty()
         .withMessage('Password is required.')
         .bail()
-        .isLength({min:6})
-        .withMessage('Password must be at least 6 characters.')
+        .isLength({ max: 128 })
+        .withMessage('Password cannot exceed 128 characters.')
 ];
 
-exports.loginValidator=[
-    emailValidator,
-    body('password')
+exports.googleValidator = [
+    body('token')
+        .isString()
+        .withMessage('Google authentication token must be a string.')
+        .bail()
+        .trim()
         .notEmpty()
-        .withMessage('Password is required.')
+        .withMessage('Google authentication token is required.')
+        .bail()
+        .isLength({ max: 10000 })
+        .withMessage('Google authentication token is too long.')
 ];
 
-exports.forgotPasswordValidator=[
+exports.verifyEmailValidator = [
+    query('token')
+        .isString()
+        .withMessage('Email verification token must be a string.')
+        .bail()
+        .matches(/^[a-fA-F0-9]{64}$/)
+        .withMessage('Email verification token is invalid.')
+];
+
+exports.forgotPasswordValidator = [
     emailValidator
 ];
 
-exports.resetPasswordValidator=[
+exports.resetPasswordValidator = [
     body('token')
-        .trim()
-        .notEmpty()
-        .withMessage('Password reset token is required.'),
-    body('password')
-        .notEmpty()
-        .withMessage('Password is required.')
+        .isString()
+        .withMessage('Password reset token must be a string.')
         .bail()
-        .isLength({min:6})
-        .withMessage('Password must be at least 6 characters.')
-];
-
-exports.googleValidator=[
-    body('token')
-        .notEmpty()
-        .withMessage('Google authentication token is required.')
+        .matches(/^[a-fA-F0-9]{64}$/)
+        .withMessage('Password reset token is invalid.'),
+    passwordValidator('password')
 ];

@@ -1,663 +1,529 @@
+const mongoose = require('mongoose');
 const AgriTip = require('../models/AgriTip');
 const CommunityPost = require('../models/CommunityPost');
 const Connection = require('../models/Connection');
 const Notification = require('../models/Notification');
 const asyncHandler = require('../middleware/asyncHandler');
+const AppError = require('../utils/AppError');
 
-const PUBLIC_USER_FIELDS =
-    'name profilePhoto role state lga location';
+const PUBLIC_USER_FIELDS = 'name profilePhoto role state lga location';
+
+const MAX_SEARCH_LENGTH = 100;
+const MAX_CATEGORY_LENGTH = 100;
+const MAX_TITLE_LENGTH = 200;
+const MAX_CONTENT_LENGTH = 5000;
+const MAX_COMMENT_LENGTH = 1000;
+const MAX_IMAGE_LENGTH = 3000000;
+
+const escapeRegex = (value) =>
+    value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const validateObjectId = (id, label = 'ID') => {
+    if (!mongoose.isValidObjectId(id)) {
+        throw new AppError(`Invalid ${label}.`, 400);
+    }
+};
+
+const validateText = (value, field, maxLength, required = true) => {
+    if (typeof value !== 'string') {
+        throw new AppError(`${field} must be text.`, 400);
+    }
+
+    const text = value.trim();
+
+    if (required && !text) {
+        throw new AppError(`${field} is required.`, 400);
+    }
+
+    if (text.length > maxLength) {
+        throw new AppError(
+            `${field} cannot exceed ${maxLength} characters.`,
+            400
+        );
+    }
+
+    return text;
+};
+
+const getPagination = (query) => {
+    const requestedPage = Number.parseInt(query.page, 10);
+    const requestedLimit = Number.parseInt(query.limit, 10);
+
+    const page = Number.isSafeInteger(requestedPage) && requestedPage > 0
+        ? requestedPage
+        : 1;
+
+    const limit = Number.isSafeInteger(requestedLimit) && requestedLimit > 0
+        ? Math.min(requestedLimit, 50)
+        : 15;
+
+    return {
+        page,
+        limit,
+        skip: (page - 1) * limit
+    };
+};
 
 const createNotificationSafely = async (data) => {
     try {
         await Notification.create(data);
     } catch (error) {
-        console.error(
-            'Notification creation failed:',
-            error.message
-        );
+        console.error('Notification creation failed:', error.message);
+    }
+};
+
+const populatePostUsers = async (post) => {
+    await post.populate('user', PUBLIC_USER_FIELDS);
+    await post.populate('comments.user', PUBLIC_USER_FIELDS);
+    return post;
+};
+
+const findPostById = async (id) => {
+    validateObjectId(id, 'post ID');
+
+    const post = await CommunityPost.findById(id);
+
+    if (!post) {
+        throw new AppError('Community post not found.', 404);
+    }
+
+    return post;
+};
+
+const ensurePostOwner = (post, userId) => {
+    if (String(post.user) !== String(userId)) {
+        throw new AppError('You can only manage your own posts.', 403);
+    }
+};
+
+const ensureActivePost = (post) => {
+    if (post.status !== 'Active') {
+        throw new AppError('This post is no longer active.', 400);
     }
 };
 
 exports.createCommunityPost = asyncHandler(async (req, res) => {
-    const post = await CommunityPost.create({
-        title: req.body.title,
-        content: req.body.content,
-        category: req.body.category,
-        image: req.body.image || '',
-        user: req.user._id,
-    });
-
-    await post.populate(
-        'user',
-        PUBLIC_USER_FIELDS
+    const title = validateText(
+        req.body.title,
+        'Title',
+        MAX_TITLE_LENGTH
     );
 
-    res.status(201).json({
+    const content = validateText(
+        req.body.content,
+        'Content',
+        MAX_CONTENT_LENGTH
+    );
+
+    const category = validateText(
+        req.body.category,
+        'Category',
+        MAX_CATEGORY_LENGTH
+    );
+
+    let image = '';
+
+    if (req.body.image !== undefined && req.body.image !== null) {
+        image = validateText(
+            req.body.image,
+            'Image',
+            MAX_IMAGE_LENGTH,
+            false
+        );
+    }
+
+    const post = await CommunityPost.create({
+        title,
+        content,
+        category,
+        image,
+        user: req.user._id
+    });
+
+    await populatePostUsers(post);
+
+    return res.status(201).json({
         success: true,
-        message:
-            'Community post created successfully.',
-        data: post,
+        message: 'Community post created successfully.',
+        data: post
     });
 });
 
 exports.getCommunityPosts = asyncHandler(async (req, res) => {
-    const page = Math.max(
-        parseInt(req.query.page, 10) || 1,
-        1
-    );
+    const { page, limit, skip } = getPagination(req.query);
 
-    const limit = Math.min(
-        Math.max(
-            parseInt(req.query.limit, 10) || 15,
-            1
-        ),
-        50
-    );
+    const search = req.query.search === undefined
+        ? ''
+        : validateText(
+            req.query.search,
+            'Search',
+            MAX_SEARCH_LENGTH,
+            false
+        );
 
-    const skip = (page - 1) * limit;
+    const category = req.query.category === undefined
+        ? ''
+        : validateText(
+            req.query.category,
+            'Category',
+            MAX_CATEGORY_LENGTH,
+            false
+        );
 
-    const search =
-        req.query.search?.trim() || '';
+    const mine = req.query.mine === 'true' || req.query.mine === '1';
 
-    const category =
-        req.query.category?.trim() || '';
-
-    const mine =
-        req.query.mine === 'true' ||
-        req.query.mine === '1';
-
-    const filter = {
-        status: 'Active',
-    };
+    const filter = { status: 'Active' };
 
     if (mine) {
         filter.user = req.user._id;
     }
 
-    if (
-        category &&
-        category.toLowerCase() !== 'all'
-    ) {
+    if (category && category.toLowerCase() !== 'all') {
         filter.category = category;
     }
 
     if (search) {
+        const searchRegex = new RegExp(escapeRegex(search), 'i');
+
         filter.$or = [
-            {
-                title: {
-                    $regex: search,
-                    $options: 'i',
-                },
-            },
-            {
-                content: {
-                    $regex: search,
-                    $options: 'i',
-                },
-            },
+            { title: searchRegex },
+            { content: searchRegex }
         ];
     }
 
     let connectedUserIds = [];
 
     if (!mine) {
-        const connections =
-            await Connection.find({
-                $or: [
-                    {
-                        requester: req.user._id,
-                        status: 'accepted',
-                    },
-                    {
-                        recipient: req.user._id,
-                        status: 'accepted',
-                    },
-                ],
-            })
-                .select(
-                    'requester recipient'
-                )
-                .lean();
+        const connections = await Connection.find({
+            status: 'accepted',
+            $or: [
+                { requester: req.user._id },
+                { recipient: req.user._id }
+            ]
+        })
+            .select('requester recipient')
+            .lean();
 
-        const currentUserId =
-            req.user._id.toString();
+        const currentUserId = String(req.user._id);
 
-        connectedUserIds =
-            connections.map(
-                connection => {
-                    const requesterId =
-                        connection.requester.toString();
-
-                    return requesterId ===
-                        currentUserId
-                        ? connection.recipient
-                        : connection.requester;
-                }
-            );
+        connectedUserIds = connections.map((connection) => (
+            String(connection.requester) === currentUserId
+                ? connection.recipient
+                : connection.requester
+        ));
     }
 
-    const total =
-        await CommunityPost.countDocuments(
-            filter
-        );
+    const total = await CommunityPost.countDocuments(filter);
 
-    const orderedPostIds =
-        await CommunityPost.aggregate([
-            {
-                $match: filter,
-            },
-            {
-                $addFields: {
-                    connectionPriority: {
-                        $cond: [
-                            {
-                                $in: [
-                                    '$user',
-                                    connectedUserIds,
-                                ],
-                            },
-                            1,
-                            0,
-                        ],
-                    },
-                },
-            },
-            {
-                $sort: {
-                    connectionPriority: -1,
-                    featured: -1,
-                    createdAt: -1,
-                    _id: -1,
-                },
-            },
-            {
-                $skip: skip,
-            },
-            {
-                $limit: limit,
-            },
-            {
-                $project: {
-                    _id: 1,
-                },
-            },
-        ]);
+    const orderedPostIds = await CommunityPost.aggregate([
+        { $match: filter },
+        {
+            $addFields: {
+                connectionPriority: {
+                    $cond: [
+                        { $in: ['$user', connectedUserIds] },
+                        1,
+                        0
+                    ]
+                }
+            }
+        },
+        {
+            $sort: {
+                connectionPriority: -1,
+                featured: -1,
+                createdAt: -1,
+                _id: -1
+            }
+        },
+        { $skip: skip },
+        { $limit: limit },
+        { $project: { _id: 1 } }
+    ]);
 
-    const postIds =
-        orderedPostIds.map(
-            post => post._id
-        );
+    const postIds = orderedPostIds.map((post) => post._id);
 
     let posts = [];
 
     if (postIds.length) {
-        const fetchedPosts =
-            await CommunityPost.find({
-                _id: {
-                    $in: postIds,
-                },
-            })
-                .populate(
-                    'user',
-                    PUBLIC_USER_FIELDS
-                )
-                .populate(
-                    'comments.user',
-                    PUBLIC_USER_FIELDS
-                )
-                .lean();
+        const fetchedPosts = await CommunityPost.find({
+            _id: { $in: postIds }
+        })
+            .populate('user', PUBLIC_USER_FIELDS)
+            .populate('comments.user', PUBLIC_USER_FIELDS)
+            .lean();
 
         const postMap = new Map(
-            fetchedPosts.map(post => [
-                post._id.toString(),
-                post,
-            ])
+            fetchedPosts.map((post) => [String(post._id), post])
         );
 
         posts = postIds
-            .map(postId =>
-                postMap.get(
-                    postId.toString()
-                )
-            )
+            .map((id) => postMap.get(String(id)))
             .filter(Boolean);
     }
 
-    const totalPages =
-        Math.ceil(total / limit);
+    const totalPages = Math.ceil(total / limit);
 
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         count: posts.length,
         total,
         page,
         limit,
         totalPages,
-        hasMore:
-            page < totalPages,
+        hasMore: page < totalPages,
         search,
         category,
         mine,
         connectionsFirst: !mine,
-        connectedUsersCount:
-            connectedUserIds.length,
-        data: posts,
+        connectedUsersCount: connectedUserIds.length,
+        data: posts
     });
 });
 
 exports.getFeaturedPosts = asyncHandler(async (req, res) => {
-    const posts =
-        await CommunityPost.find({
-            featured: true,
-            status: 'Active',
-        })
-            .populate(
-                'user',
-                PUBLIC_USER_FIELDS
-            )
-            .populate(
-                'comments.user',
-                PUBLIC_USER_FIELDS
-            )
-            .sort({
-                createdAt: -1,
-            })
-            .limit(5);
+    const posts = await CommunityPost.find({
+        featured: true,
+        status: 'Active'
+    })
+        .populate('user', PUBLIC_USER_FIELDS)
+        .populate('comments.user', PUBLIC_USER_FIELDS)
+        .sort({ createdAt: -1 })
+        .limit(5);
 
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
-        data: posts,
+        data: posts
     });
 });
 
 exports.updateCommunityPost = asyncHandler(async (req, res) => {
-    const post =
-        await CommunityPost.findById(
-            req.params.id
-        );
+    const post = await findPostById(req.params.id);
 
-    if (!post) {
-        return res.status(404).json({
-            success: false,
-            message:
-                'Community post not found.',
-        });
-    }
+    ensurePostOwner(post, req.user._id);
+    ensureActivePost(post);
 
-    if (
-        post.user.toString() !==
-        req.user._id.toString()
-    ) {
-        return res.status(403).json({
-            success: false,
-            message:
-                'You can only edit your own posts.',
-        });
-    }
+    const allowedFields = ['title', 'content', 'category', 'image'];
 
-    if (post.status !== 'Active') {
-        return res.status(400).json({
-            success: false,
-            message:
-                'Archived posts cannot be edited.',
-        });
-    }
+    for (const field of allowedFields) {
+        if (!Object.prototype.hasOwnProperty.call(req.body, field)) {
+            continue;
+        }
 
-    post.title =
-        req.body.title?.trim() ||
-        post.title;
+        if (field === 'title') {
+            post.title = validateText(
+                req.body.title,
+                'Title',
+                MAX_TITLE_LENGTH
+            );
+        }
 
-    post.content =
-        req.body.content?.trim() ||
-        post.content;
+        if (field === 'content') {
+            post.content = validateText(
+                req.body.content,
+                'Content',
+                MAX_CONTENT_LENGTH
+            );
+        }
 
-    post.category =
-        req.body.category?.trim() ||
-        post.category;
+        if (field === 'category') {
+            post.category = validateText(
+                req.body.category,
+                'Category',
+                MAX_CATEGORY_LENGTH
+            );
+        }
 
-    if (
-        Object.prototype.hasOwnProperty.call(
-            req.body,
-            'image'
-        )
-    ) {
-        post.image =
-            req.body.image || '';
+        if (field === 'image') {
+            if (req.body.image === null || req.body.image === '') {
+                post.image = '';
+            } else {
+                post.image = validateText(
+                    req.body.image,
+                    'Image',
+                    MAX_IMAGE_LENGTH
+                );
+            }
+        }
     }
 
     await post.save();
+    await populatePostUsers(post);
 
-    await post.populate(
-        'user',
-        PUBLIC_USER_FIELDS
-    );
-
-    await post.populate(
-        'comments.user',
-        PUBLIC_USER_FIELDS
-    );
-
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
-        message:
-            'Community post updated successfully.',
-        data: post,
+        message: 'Community post updated successfully.',
+        data: post
     });
 });
 
-exports.archiveCommunityPost =
-    asyncHandler(async (req, res) => {
-        const post =
-            await CommunityPost.findById(
-                req.params.id
+exports.archiveCommunityPost = asyncHandler(async (req, res) => {
+    const post = await findPostById(req.params.id);
+
+    ensurePostOwner(post, req.user._id);
+
+    if (post.status === 'Archived') {
+        return res.status(200).json({
+            success: true,
+            message: 'Post is already archived.',
+            data: { _id: post._id }
+        });
+    }
+
+    if (post.agriTip) {
+        const tip = await AgriTip.findById(post.agriTip);
+
+        if (tip) {
+            tip.sharedBy = tip.sharedBy.filter(
+                (id) => String(id) !== String(req.user._id)
             );
 
-        if (!post) {
-            return res.status(404).json({
-                success: false,
-                message:
-                    'Community post not found.',
-            });
+            tip.shares = tip.sharedBy.length;
+
+            await tip.save();
         }
+    }
 
-        if (
-            post.user.toString() !==
-            req.user._id.toString()
-        ) {
-            return res.status(403).json({
-                success: false,
-                message:
-                    'You can only delete your own posts.',
-            });
-        }
+    post.status = 'Archived';
+    await post.save();
 
-        if (post.agriTip) {
-            const tip =
-                await AgriTip.findById(
-                    post.agriTip
-                );
+    return res.status(200).json({
+        success: true,
+        message: 'Community post archived successfully.',
+        data: { _id: post._id }
+    });
+});
 
-            if (tip) {
-                tip.sharedBy =
-                    tip.sharedBy.filter(
-                        id =>
-                            id.toString() !==
-                            req.user._id.toString()
-                    );
+exports.shareCommunityPost = asyncHandler(async (req, res) => {
+    const post = await findPostById(req.params.id);
 
-                tip.shares =
-                    tip.sharedBy.length;
+    ensureActivePost(post);
 
-                await tip.save();
-            }
-        }
+    const userId = String(req.user._id);
+    const alreadyShared = post.sharedBy.some(
+        (id) => String(id) === userId
+    );
 
-        post.status = 'Archived';
-
+    if (!alreadyShared) {
+        post.sharedBy.push(req.user._id);
+        post.shares = post.sharedBy.length;
         await post.save();
+    }
 
-        res.status(200).json({
-            success: true,
-            message:
-                'Community post deleted successfully.',
-            data: {
-                _id: post._id,
-            },
-        });
+    await populatePostUsers(post);
+
+    return res.status(200).json({
+        success: true,
+        message: alreadyShared
+            ? 'You have already shared this post.'
+            : 'Community post share recorded.',
+        data: post
+    });
+});
+
+exports.addComment = asyncHandler(async (req, res) => {
+    const post = await findPostById(req.params.id);
+
+    ensureActivePost(post);
+
+    const content = validateText(
+        req.body.content,
+        'Comment',
+        MAX_COMMENT_LENGTH
+    );
+
+    post.comments.push({
+        user: req.user._id,
+        content
     });
 
-exports.shareCommunityPost =
-    asyncHandler(async (req, res) => {
-        const userId = req.user._id;
+    await post.save();
 
-        const post =
-            await CommunityPost.findOne({
-                _id: req.params.id,
-                status: 'Active',
-            });
-
-        if (!post) {
-            return res.status(404).json({
-                success: false,
-                message:
-                    'Community post not found.',
-            });
-        }
-
-        const alreadyShared =
-            post.sharedBy.some(
-                id =>
-                    id.toString() ===
-                    userId.toString()
-            );
-
-        if (!alreadyShared) {
-            post.sharedBy.push(userId);
-            post.shares =
-                post.sharedBy.length;
-
-            await post.save();
-        }
-
-        await post.populate(
-            'user',
-            PUBLIC_USER_FIELDS
-        );
-
-        await post.populate(
-            'comments.user',
-            PUBLIC_USER_FIELDS
-        );
-
-        res.status(200).json({
-            success: true,
-            message: alreadyShared
-                ? 'You have already shared this post.'
-                : 'Community post share recorded.',
-            data: post,
+    if (String(post.user) !== String(req.user._id)) {
+        await createNotificationSafely({
+            recipient: post.user,
+            sender: req.user._id,
+            type: 'comment',
+            title: 'New Comment',
+            message: `${req.user.name || 'Someone'} commented on your community post.`,
+            link: `/community/${post._id}`
         });
+    }
+
+    await populatePostUsers(post);
+
+    return res.status(201).json({
+        success: true,
+        message: 'Comment added successfully.',
+        data: post
     });
+});
 
-exports.addComment = asyncHandler(
-    async (req, res) => {
-        const post =
-            await CommunityPost.findById(
-                req.params.id
-            );
+exports.deleteComment = asyncHandler(async (req, res) => {
+    validateObjectId(req.params.postId, 'post ID');
+    validateObjectId(req.params.commentId, 'comment ID');
 
-        if (!post) {
-            return res.status(404).json({
-                success: false,
-                message:
-                    'Community post not found.',
-            });
-        }
+    const post = await CommunityPost.findById(req.params.postId);
 
-        if (post.status !== 'Active') {
-            return res.status(400).json({
-                success: false,
-                message:
-                    'Comments cannot be added to this post.',
-            });
-        }
+    if (!post) {
+        throw new AppError('Community post not found.', 404);
+    }
 
-        post.comments.push({
-            user: req.user._id,
-            content: req.body.content,
-        });
+    const comment = post.comments.id(req.params.commentId);
 
-        await post.save();
+    if (!comment) {
+        throw new AppError('Comment not found.', 404);
+    }
 
-        if (
-            post.user &&
-            post.user.toString() !==
-                req.user._id.toString()
-        ) {
+    if (String(comment.user) !== String(req.user._id)) {
+        throw new AppError('You can only delete your own comments.', 403);
+    }
+
+    comment.deleteOne();
+    await post.save();
+    await populatePostUsers(post);
+
+    return res.status(200).json({
+        success: true,
+        message: 'Comment deleted successfully.',
+        data: post
+    });
+});
+
+exports.toggleLike = asyncHandler(async (req, res) => {
+    const post = await findPostById(req.params.id);
+
+    ensureActivePost(post);
+
+    const userId = String(req.user._id);
+    const alreadyLiked = post.likes.some(
+        (id) => String(id) === userId
+    );
+
+    if (alreadyLiked) {
+        post.likes = post.likes.filter(
+            (id) => String(id) !== userId
+        );
+    } else {
+        post.likes.push(req.user._id);
+
+        if (String(post.user) !== userId) {
             await createNotificationSafely({
                 recipient: post.user,
                 sender: req.user._id,
-                type: 'comment',
-                title: 'New Comment',
-                message:
-                    `${req.user.name || 'Someone'} commented on your community post.`,
-                link:
-                    `/community/${post._id}`,
+                type: 'like',
+                title: 'New Like',
+                message: `${req.user.name || 'Someone'} liked your community post.`,
+                link: `/community/${post._id}`
             });
         }
-
-        await post.populate(
-            'comments.user',
-            PUBLIC_USER_FIELDS
-        );
-
-        await post.populate(
-            'user',
-            PUBLIC_USER_FIELDS
-        );
-
-        res.status(200).json({
-            success: true,
-            message:
-                'Comment added successfully.',
-            data: post,
-        });
     }
-);
 
-exports.deleteComment =
-    asyncHandler(async (req, res) => {
-        const post =
-            await CommunityPost.findById(
-                req.params.postId
-            );
+    await post.save();
+    await populatePostUsers(post);
 
-        if (!post) {
-            return res.status(404).json({
-                success: false,
-                message:
-                    'Community post not found.',
-            });
-        }
-
-        const comment =
-            post.comments.id(
-                req.params.commentId
-            );
-
-        if (!comment) {
-            return res.status(404).json({
-                success: false,
-                message:
-                    'Comment not found.',
-            });
-        }
-
-        if (
-            comment.user.toString() !==
-            req.user._id.toString()
-        ) {
-            return res.status(403).json({
-                success: false,
-                message:
-                    'You can only delete your own comments.',
-            });
-        }
-
-        comment.deleteOne();
-
-        await post.save();
-
-        await post.populate(
-            'comments.user',
-            PUBLIC_USER_FIELDS
-        );
-
-        await post.populate(
-            'user',
-            PUBLIC_USER_FIELDS
-        );
-
-        res.status(200).json({
-            success: true,
-            message: 'Comment deleted.',
-            data: post,
-        });
+    return res.status(200).json({
+        success: true,
+        data: post
     });
-
-exports.toggleLike = asyncHandler(
-    async (req, res) => {
-        const post =
-            await CommunityPost.findById(
-                req.params.id
-            );
-
-        if (!post) {
-            return res.status(404).json({
-                success: false,
-                message: 'Post not found.',
-            });
-        }
-
-        if (post.status !== 'Active') {
-            return res.status(400).json({
-                success: false,
-                message:
-                    'This post is no longer active.',
-            });
-        }
-
-        const alreadyLiked =
-            post.likes.some(
-                id =>
-                    id.toString() ===
-                    req.user._id.toString()
-            );
-
-        if (alreadyLiked) {
-            post.likes =
-                post.likes.filter(
-                    id =>
-                        id.toString() !==
-                        req.user._id.toString()
-                );
-        } else {
-            post.likes.push(
-                req.user._id
-            );
-
-            if (
-                post.user &&
-                post.user.toString() !==
-                    req.user._id.toString()
-            ) {
-                await createNotificationSafely({
-                    recipient: post.user,
-                    sender: req.user._id,
-                    type: 'like',
-                    title: 'New Like',
-                    message:
-                        `${req.user.name || 'Someone'} liked your community post.`,
-                    link:
-                        `/community/${post._id}`,
-                });
-            }
-        }
-
-        await post.save();
-
-        await post.populate(
-            'user',
-            PUBLIC_USER_FIELDS
-        );
-
-        await post.populate(
-            'comments.user',
-            PUBLIC_USER_FIELDS
-        );
-
-        res.json({
-            success: true,
-            data: post,
-        });
-    }
-);
+});

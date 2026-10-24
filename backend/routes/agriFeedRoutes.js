@@ -1,4 +1,5 @@
 const express = require('express');
+
 const router = express.Router();
 
 const {
@@ -20,10 +21,18 @@ const validateRequest = require('../middleware/validateRequest');
 
 const {
     createTipValidation,
+    updateTipValidation,
 } = require('../validators/agriFeedValidator');
 
-router.get('/', getTips);
+const optionalAuthenticate = (req, res, next) => {
+    if (!req.headers.authorization) {
+        return next(); }
+        return ensureAuthenticated(req, res, next);
+    };
+
 router.get('/featured', getFeaturedTips);
+
+router.get('/', optionalAuthenticate, getTips);
 
 router.post(
     '/',
@@ -38,7 +47,7 @@ router.put(
     '/:id',
     ensureAuthenticated,
     authorizeRoles('admin', 'extension_officer'),
-    createTipValidation,
+    updateTipValidation,
     validateRequest,
     updateTip
 );

@@ -73,9 +73,12 @@ const Register=()=>{
             return;
         }
 
-        if(formData.password.length<6){
+        if (
+            formData.password.length < 6 ||
+            formData.password.length > 128
+        ) {
             setLocalError(
-                t("Password must be at least 6 characters.")
+                t("Password must be between 6 and 128 characters.")
             );
             return;
         }

@@ -55,10 +55,13 @@ const ResetPassword=()=>{
             return;
         }
 
-        if(password.length<6){
+        if (
+            password.length < 6 ||
+            password.length > 128
+        ) {
             setLocalError(
                 t(
-                    "Password must be at least 6 characters."
+                    "Password must be between 6 and 128 characters."
                 )
             );
             return;

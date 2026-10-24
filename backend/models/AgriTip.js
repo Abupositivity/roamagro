@@ -1,3 +1,4 @@
+
 const mongoose = require('mongoose');
 
 const CommentSchema = new mongoose.Schema(
@@ -5,16 +6,17 @@ const CommentSchema = new mongoose.Schema(
         user: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'User',
-            required: true,
+            required: true
         },
         content: {
             type: String,
             required: true,
             trim: true,
-        },
+            maxlength: 1000
+        }
     },
     {
-        timestamps: true,
+        timestamps: true
     }
 );
 
@@ -24,95 +26,104 @@ const AgriTipSchema = new mongoose.Schema(
             type: String,
             required: true,
             trim: true,
-            maxlength: 150,
+            maxlength: 150
         },
         content: {
             type: String,
             required: true,
             trim: true,
+            maxlength: 5000
         },
         category: {
             type: String,
             required: true,
-            index: true,
+            trim: true,
+            maxlength: 100,
+            index: true
         },
         language: {
             type: String,
             enum: ['English', 'Hausa'],
             default: 'English',
-            index: true,
+            index: true
         },
         region: {
             type: String,
+            trim: true,
+            maxlength: 100,
             default: 'Nigeria',
-            index: true,
+            index: true
         },
         image: {
             type: String,
             default: '',
+            maxlength: 3000000
         },
         source: {
             type: String,
-            default: '',
+            trim: true,
+            maxlength: 2048,
+            default: ''
         },
         priority: {
             type: String,
             enum: ['Normal', 'Important', 'Urgent'],
-            default: 'Normal',
+            default: 'Normal'
         },
         status: {
             type: String,
             enum: ['Draft', 'Published', 'Archived'],
             default: 'Published',
-            index: true,
+            index: true
         },
         views: {
             type: Number,
             default: 0,
+            min: 0
         },
         shares: {
             type: Number,
             default: 0,
-            min: 0,
+            min: 0
         },
         sharedBy: [
             {
                 type: mongoose.Schema.Types.ObjectId,
-                ref: 'User',
-            },
+                ref: 'User'
+            }
         ],
         likes: [
             {
                 type: mongoose.Schema.Types.ObjectId,
-                ref: 'User',
-            },
+                ref: 'User'
+            }
         ],
         bookmarks: [
             {
                 type: mongoose.Schema.Types.ObjectId,
-                ref: 'User',
-            },
+                ref: 'User'
+            }
         ],
         comments: [CommentSchema],
         createdBy: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'User',
-            required: true,
-        },
+            required: true
+        }
     },
     {
-        timestamps: true,
+        timestamps: true
     }
 );
 
 AgriTipSchema.index({
     status: 1,
     category: 1,
-    createdAt: -1,
+    createdAt: -1
 });
 
 AgriTipSchema.index({
-    sharedBy: 1,
+    sharedBy: 1
 });
 
 module.exports = mongoose.model('AgriTip', AgriTipSchema);
