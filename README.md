@@ -1,55 +1,327 @@
 # RoamAgro
 
-**RoamAgro** is a mobile-first web application designed to streamline the management of agribusinesses and create a digital marketplace that connects agroproducers, particularly farmers, directly with consumers. Built with a focus on accessibility, the platform offers functionalities like farm project management, a price index, a marketplace, and a community space for farmers to interact and stay informed.
+RoamAgro is a full-stack agritech application designed to help farmers
+manage farm projects and connect with buyers. It brings farm management,
+agricultural community features, produce trading, and market-price
+information into one accessible platform.
+
+The project is built with a responsive interface and aims to keep
+everyday workflows straightforward for farmers, consumers, agro-dealers,
+and agro-processors.
 
 ## Table of Contents
-- [Features](#features)
-- [Project Architecture](#project-architecture)
-- [Tech Stack](#tech-stack)
-- [Setup Instructions](#setup-instructions)
-- [Usage Guidelines](#usage-guidelines)
-- [Folder Structure](#folder-structure)
+
+-   [Features](#features)
+-   [Project Architecture](#project-architecture)
+-   [Tech Stack](#tech-stack)
+-   [Prerequisites](#prerequisites)
+-   [Installation](#installation)
+-   [Environment Configuration](#environment-configuration)
+-   [Running the Application](#running-the-application)
+-   [Testing and Code Coverage](#testing-and-code-coverage)
+-   [Production Notes](#production-notes)
+-   [Contributing](#contributing)
+-   [License](#license)
 
 ## Features
 
-- **Farm Project Management**: Add and manage various farm projects with relevant data.
-- **Marketplace**: A digital marketplace for buying/selling agricultural products and equipment.
-- **Community Forum**: Connect and interact with other farmers for tips and shared experiences.
-- **Price Index**: Access real-time data on agricultural market trends and prices.
-- **Multilingual Support**: Available in English and Hausa for accessibility.
-- **Google Authentication**: Secure Google OAuth2 integration for easy sign-in.
-- **Theme Mode**: Dark and light theme support to suit user preference.
+-   **Authentication and account recovery:** Email/password
+    authentication, Google sign-in, email verification, and password
+    recovery flows where configured.
+-   **Farm Projects:** Create and manage farm projects, activities,
+    schedules, expenses, harvest records, and financial summaries.
+-   **Marketplace:** Browse and manage agricultural produce and related
+    marketplace listings.
+-   **Price Index:** View agricultural market-price information.
+-   **Community:** Publish and interact with agricultural community
+    posts.
+-   **AgriFeed:** Share farming information and practical agricultural
+    content.
+-   **Profiles and connections:** Manage user profiles and connect with
+    other users.
+-   **Notifications:** View application notifications and unread
+    notification counts.
+-   **Role-based dashboards:** Dedicated dashboard experiences for
+    farmers/buyers, administrators, and extension officers.
+-   **Weather information:** Weather information on supported
+    home/dashboard views.
+-   **Localization and themes:** English/Hausa translation support and
+    light/dark theme options.
 
----
+Feature availability depends on the application's current configuration
+and environment variables.
 
 ## Project Architecture
 
-RoamAgro follows a client-server architecture:
-1. **Frontend**: Built with React, it uses Redux for state management and Material-UI for styling, focusing on a responsive and mobile-friendly experience.
-2. **Backend**: Node.js with Express serves as the API layer, managing user authentication, CRUD operations for marketplace, farm projects, community posts, and the price index.
-3. **Database**: MongoDB stores data related to users, projects, community posts, and marketplace items.
-4. **Cache**: Redis provides caching for optimized data retrieval and user session handling.
+The repository contains a React frontend and a Node.js/Express backend.
+The backend uses MongoDB for persistence and exposes API routes consumed
+by the frontend.
 
-### Tech Stack
+``` text
+RoamAgro/
+├── backend/
+│   ├── controllers/
+│   ├── middleware/
+│   ├── models/
+│   ├── routes/
+│   ├── validators/
+│   ├── tests/
+│   ├── app.js
+│   └── index.js
+├── frontend/
+│   ├── public/
+│   └── src/
+├── jest.config.js
+├── package.json
+└── README.md
+```
 
-- **Frontend**: React, Redux, Material-UI
-- **Backend**: Node.js, Express, MongoDB, Redis
-- **Authentication**: Google Identity Services, JWT
-- **Development**: ESLint for linting, Babel for modern JavaScript compatibility
+Some folders or files may differ as the project evolves.
 
----
+## Tech Stack
 
-## Setup Instructions
+### Frontend
 
-### Prerequisites
-- **Node.js** (v14 or later)
-- **MongoDB** (Local or hosted)
-- **Redis** (Optional, for caching)
-- **Google Developer Console**: Create OAuth credentials for Google Authentication
+-   React 18
+-   React Router
+-   Redux
+-   Material UI
+-   Axios
+-   Internationalization support for English and Hausa
 
-### Installation
+### Backend
 
-1. **Clone the Repository**:
-   ```bash
-   git clone https://github.com/AbuPositivity/roamagro.git
-   cd roamagro
+-   Node.js
+-   Express
+-   MongoDB and Mongoose
+-   Passport and session-based authentication support
+-   JSON Web Tokens for authentication flows
+-   Helmet, CORS, compression, and request logging middleware
+
+### Testing and tooling
+
+-   Jest
+-   Supertest
+-   Coverage reports generated by Jest
+
+## Prerequisites
+
+Install the following before setting up the project:
+
+-   Node.js and npm
+-   MongoDB, either locally or through a hosted MongoDB service
+-   Git
+
+Use a Node.js version supported by the dependencies in `package.json`.
+
+## Installation
+
+### 1. Clone the repository
+
+``` bash
+git clone <repository-url>
+cd RoamAgro
+```
+
+Replace `<repository-url>` with the repository's actual Git URL.
+
+### 2. Install dependencies
+
+If the root `package.json` manages the project's dependencies and
+scripts, install them from the repository root:
+
+``` bash
+npm install
+```
+
+If the frontend has a separate `package.json` and its dependencies are
+not installed by the root setup, install them separately:
+
+``` bash
+cd frontend
+npm install
+cd ..
+```
+
+## Environment Configuration
+
+Create the environment file expected by the backend (commonly
+`backend/.env`) and set the required values. Do not commit real secrets
+or production credentials.
+
+Example:
+
+``` dotenv
+NODE_ENV=development
+PORT=5000
+MONGO_URI=mongodb://127.0.0.1:27017/roamagro
+JWT_SECRET=replace-with-a-long-random-secret-at-least-32-characters
+SESSION_SECRET=replace-with-another-long-random-secret-at-least-32-characters
+FRONTEND_URL=http://localhost:3000
+```
+
+Use unique, randomly generated secrets of at least 32 characters. The
+values above are examples only; do not use placeholder secrets in a
+deployed environment.
+
+Configure any additional authentication-provider or email-service
+variables required by the features you enable, such as Google Identity
+Services credentials. Use the variable names expected by the current
+backend and frontend configuration.
+
+For production, set `NODE_ENV=production`, configure an HTTPS
+`FRONTEND_URL`, and use a valid production MongoDB connection string.
+
+## Running the Application
+
+### Start the backend
+
+From the repository root, use the development script if it is configured
+in `package.json`:
+
+``` bash
+npm run dev
+```
+
+The current root development script starts `backend/index.js` using
+Node's watch mode. Ensure the backend environment variables are set
+first.
+
+### Start the frontend
+
+In a separate terminal, run the frontend's development script:
+
+``` bash
+cd frontend
+npm start
+```
+
+If the frontend uses a different script, check `frontend/package.json`
+and use its configured development command.
+
+The frontend and backend must be configured to use the correct local
+URLs and ports. The default frontend URL in the backend configuration is
+`http://localhost:3000`.
+
+## Testing and Code Coverage
+
+RoamAgro uses Jest for backend tests and Supertest for HTTP-level
+testing. Run these commands from the repository root.
+
+### Run the full test suite
+
+``` bash
+npm test
+```
+
+The root test script runs Jest serially with `--runInBand`.
+
+### Run the full test suite with coverage
+
+``` bash
+npm test -- --coverage
+```
+
+Jest prints a coverage summary in the terminal and writes coverage
+artifacts to the configured `coverage/` directory.
+
+### Run one test file
+
+``` bash
+npx jest backend/tests/controllers/userController.test.js --runInBand
+```
+
+Replace the path with the test file you want to run.
+
+### Run one test file with coverage
+
+``` bash
+npx jest backend/tests/middleware/errorHandler.test.js --runInBand --coverage
+```
+
+### View the HTML coverage report
+
+After running the coverage command, open:
+
+``` text
+coverage/lcov-report/index.html
+```
+
+The report provides file-by-file coverage details. Other generated
+artifacts may include `coverage/lcov.info`,
+`coverage/coverage-final.json`, and `coverage/clover.xml`, depending on
+the configured reporters.
+
+### Understanding coverage metrics
+
+-   **Statements:** Percentage of executable statements exercised by
+    tests.
+-   **Branches:** Percentage of conditional paths exercised by tests.
+-   **Functions:** Percentage of functions called by tests.
+-   **Lines:** Percentage of executable lines exercised by tests.
+
+Coverage is a guide to test completeness, not proof that the application
+is free from defects. Prioritize important behavior, failure cases,
+authorization boundaries, and input validation as well as coverage
+percentages.
+
+### Latest recorded test baseline
+
+The latest test run recorded for this project completed with:
+
+-   **Test suites:** 14 passed
+-   **Tests:** 442 passed
+-   **Statements:** 80.80%
+-   **Branches:** 68.05%
+-   **Functions:** 69.42%
+-   **Lines:** 81.46%
+
+These figures describe that specific run and may change as the code or
+tests change. Re-run `npm test -- --coverage` to obtain the current
+results.
+
+### Troubleshooting
+
+-   Run commands from the repository root unless a command explicitly
+    says otherwise.
+-   If Jest cannot find a test, check that the path matches the file's
+    location and name.
+-   If a test fails, review the first assertion or error and fix the
+    underlying issue rather than updating expected results without
+    verification.
+-   Logs from tests that deliberately exercise error handling may be
+    expected; check the Jest summary to determine whether the suite
+    passed.
+
+## Production Notes
+
+Before deployment:
+
+-   Set all required environment variables and use strong, unique
+    secrets.
+-   Configure allowed frontend origins correctly; use HTTPS for
+    production.
+-   Keep dependencies updated and review audit findings before
+    deploying.
+-   Run the full test suite and inspect the coverage report.
+-   Build the frontend and verify the production static-file fallback
+    and API health endpoint.
+-   Confirm that logs and error responses do not expose secrets or
+    internal implementation details.
+-   Test authentication, role permissions, ownership checks, and
+    account-recovery flows in the deployment environment.
+
+## Contributing
+
+1.  Create a branch for your change.
+2.  Keep changes focused and consistent with the existing project
+    structure.
+3.  Add or update tests for changed behavior.
+4.  Run `npm test -- --coverage` before submitting the change.
+5.  Update this README when setup steps, scripts, or application
+    behavior changes.
+
+## License
+
+Add the project's chosen license and license details here before
+distributing the software.
