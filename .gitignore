@@ -1,3 +1,7 @@
 node_modules
 .env
 seed.js
+.env.*
+!.env.example
+coverage/
+frontend/build/

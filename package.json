@@ -26,8 +26,10 @@
   },
   "proxy": "http://localhost:5000",
   "scripts": {
+    "start": "node backend/index.js",
+    "dev": "node --watch backend/index.js",
     "test": "jest --runInBand",
-    "dev": "node --watch backend/index.js"
+    "test:coverage": "jest --runInBand --coverage"
   },
   "overrides": {
     "@istanbuljs/load-nyc-config": {}
