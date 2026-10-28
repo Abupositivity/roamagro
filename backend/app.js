@@ -30,19 +30,39 @@ const connectionRoutes = require('./routes/connectionRoutes');
 
 const getAllowedOrigins = () => {
     const configuredOrigins = (
-        process.env.FRONTEND_URL || 'http://localhost:3000' || 'https://roamagro-frontend.onrender.com'
+        process.env.FRONTEND_URL || 'http://localhost:3000'
     )
         .split(',')
         .map(origin => origin.trim())
         .filter(Boolean);
 
-    return configuredOrigins.map(origin => {
+    const knownOrigins = [
+        'https://roamagro-frontend.onrender.com',
+        'https://roamagro.com',
+        'https://www.roamagro.com',
+    ];
+
+    if (process.env.NODE_ENV !== 'production') {
+        knownOrigins.push(
+            'http://localhost:3000',
+            'http://localhost:3001'
+        );
+    }
+
+    const origins = [...new Set([
+        ...configuredOrigins,
+        ...knownOrigins,
+    ])];
+
+    return origins.map(origin => {
         let parsedOrigin;
 
         try {
             parsedOrigin = new URL(origin);
         } catch {
-            throw new Error(`Invalid FRONTEND_URL origin: ${origin}`);
+            throw new Error(
+                `Invalid frontend origin: ${origin}`
+            );
         }
 
         if (
@@ -50,7 +70,7 @@ const getAllowedOrigins = () => {
             parsedOrigin.origin !== origin.replace(/\/+$/, '')
         ) {
             throw new Error(
-                `FRONTEND_URL must contain valid origins without paths: ${origin}`
+                `Frontend origins must be valid origins without paths: ${origin}`
             );
         }
 
@@ -75,17 +95,16 @@ const createApp = ({ sessionStore } = {}) => {
     app.set('json spaces', 2);
 
     if (process.env.NODE_ENV === 'production') {
-        // Match this value to the actual trusted proxy configuration.
         app.set('trust proxy', 1);
     }
 
     app.use(helmet({
         crossOriginResourcePolicy: {
-            policy: 'cross-origin'
+            policy: 'cross-origin',
         },
         crossOriginOpenerPolicy: {
-            policy: 'same-origin-allow-popups'
-        }
+            policy: 'same-origin-allow-popups',
+        },
     }));
 
     app.use(compression());
@@ -93,7 +112,6 @@ const createApp = ({ sessionStore } = {}) => {
     if (process.env.NODE_ENV === 'development') {
         app.use(morgan('dev'));
     } else {
-        // Do not log query strings, which may contain sensitive data.
         app.use(morgan(
             ':method :status :res[content-length] - :response-time ms'
         ));
@@ -101,7 +119,6 @@ const createApp = ({ sessionStore } = {}) => {
 
     app.use(cors({
         origin(origin, callback) {
-            // Allow non-browser requests without an Origin header.
             if (!origin || allowedOrigins.includes(origin)) {
                 return callback(null, true);
             }
@@ -118,26 +135,26 @@ const createApp = ({ sessionStore } = {}) => {
             'PUT',
             'PATCH',
             'DELETE',
-            'OPTIONS'
+            'OPTIONS',
         ],
         allowedHeaders: [
             'Content-Type',
-            'Authorization'
-        ]
+            'Authorization',
+        ],
     }));
 
     app.use(express.json({
-        limit: '10mb'
+        limit: '10mb',
     }));
 
     app.use(express.urlencoded({
         extended: true,
-        limit: '10mb'
+        limit: '10mb',
     }));
 
     const store = sessionStore || MongoStore.create({
         mongoUrl: process.env.MONGO_URI,
-        ttl: 60 * 60 * 24
+        ttl: 60 * 60 * 24,
     });
 
     app.use(session({
@@ -150,8 +167,8 @@ const createApp = ({ sessionStore } = {}) => {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
-            maxAge: 1000 * 60 * 60 * 24
-        }
+            maxAge: 1000 * 60 * 60 * 24,
+        },
     }));
 
     app.use(passport.initialize());
@@ -163,7 +180,7 @@ const createApp = ({ sessionStore } = {}) => {
             message: 'RoamAgro API is running.',
             version: process.env.API_VERSION || '1.0.0',
             uptime: process.uptime(),
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
         });
     });
 
@@ -185,12 +202,11 @@ const createApp = ({ sessionStore } = {}) => {
             success: true,
             application: 'RoamAgro API',
             version: process.env.API_VERSION || '1.0.0',
-            documentation: '/api/v1/health'
+            documentation: '/api/v1/health',
         });
     });
 
     if (process.env.NODE_ENV === 'production') {
-        // Verify that this matches your actual frontend build directory.
         const frontendBuildPath = path.join(
             __dirname,
             '../frontend/build'
@@ -198,7 +214,6 @@ const createApp = ({ sessionStore } = {}) => {
 
         app.use(express.static(frontendBuildPath));
 
-        // Serve the frontend for non-API paths only.
         app.get(/^\/(?!api(?:\/|$)).*/, (req, res, next) => {
             res.sendFile(
                 path.join(frontendBuildPath, 'index.html'),
