@@ -199,7 +199,7 @@ const resources = {
             "Logout": "Fita",
             "Low": "Ƙasa",
             "Maintenance": "Kulawa",
-            "Manage Farm Projects. Track Prices. Buy/Sell Produce. Connect & Share Knowledge.": "Gudanar da Ayyukan Gona. Bibiyi Farashi. Saya/Sayar da Amfanin Gona. Haɗu kuma Raba Ilimi.",
+            "Manage Farm Projects. Track Prices. Buy/Sell Produce. Connect & Share Knowledge.": "Gudanar da Ayyukan Gona. Bibiyi Farashin Kaya. Saya ko Sayar da Amfanin Gona. Haɗuwa tare da yaɗa Ilimi.",
             "Manage Farms. Track Prices. Sell Produce.": "Gudanar da Gonaki. Bibiyi Farashi. Sayar da Amfanin Gona.",
             "Manage Reports": "Gudanar da Rahotanni",
             "Manage and monitor RoamAgro activity.": "Gudanar da bibiyar ayyukan RoamAgro.",

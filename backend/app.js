@@ -30,7 +30,7 @@ const connectionRoutes = require('./routes/connectionRoutes');
 
 const getAllowedOrigins = () => {
     const configuredOrigins = (
-        process.env.FRONTEND_URL || 'http://localhost:3000'
+        process.env.FRONTEND_URL || 'http://localhost:3000' || 'https://roamagro-frontend.onrender.com'
     )
         .split(',')
         .map(origin => origin.trim())
