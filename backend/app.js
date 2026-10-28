@@ -61,7 +61,7 @@ const getAllowedOrigins = () => {
             parsedOrigin = new URL(origin);
         } catch {
             throw new Error(
-                `Invalid frontend origin: ${origin}`
+                `Invalid FRONTEND_URL origin: ${origin}`
             );
         }
 
@@ -70,7 +70,7 @@ const getAllowedOrigins = () => {
             parsedOrigin.origin !== origin.replace(/\/+$/, '')
         ) {
             throw new Error(
-                `Frontend origins must be valid origins without paths: ${origin}`
+                `FRONTEND_URL must contain valid origins without paths: ${origin}`
             );
         }
 
