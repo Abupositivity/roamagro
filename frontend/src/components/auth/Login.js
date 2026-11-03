@@ -1,5 +1,5 @@
-import React,{useEffect,useState}from"react";
-import{
+import React, { useEffect, useState } from "react";
+import {
     Alert,
     Box,
     Button,
@@ -13,120 +13,162 @@ import{
     Stack,
     TextField,
     Typography
-}from"@mui/material";
-import{
+} from "@mui/material";
+import {
     Visibility,
     VisibilityOff
-}from"@mui/icons-material";
-import{GoogleLogin}from"@react-oauth/google";
-import{useDispatch,useSelector}from"react-redux";
-import{login,googleLogin}from"../../redux/actions/authActions";
-import{Link,useNavigate}from"react-router-dom";
-import{useTranslation}from"react-i18next";
+} from "@mui/icons-material";
+import { GoogleLogin } from "@react-oauth/google";
+import { useDispatch, useSelector } from "react-redux";
+import {
+    login,
+    googleLogin
+} from "../../redux/actions/authActions";
+import {
+    Link,
+    useLocation,
+    useNavigate
+} from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
-const Login=()=>{
-    const dispatch=useDispatch();
-    const navigate=useNavigate();
-    const{t}=useTranslation();
+const Login = () => {
+    const dispatch = useDispatch();
+    const navigate = useNavigate();
+    const location = useLocation();
+    const { t } = useTranslation();
 
-    const{
+    const {
         loading,
         error,
         isAuthenticated
-    }=useSelector(state=>state.auth);
+    } = useSelector(state => state.auth);
 
-    const[credentials,setCredentials]=useState({
-        email:"",
-        password:""
+    const [credentials, setCredentials] = useState({
+        email: "",
+        password: ""
     });
 
-    const[showPassword,setShowPassword]=useState(false);
-    const[localError,setLocalError]=useState("");
-    const[success,setSuccess]=useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [localError, setLocalError] = useState("");
+    const [success, setSuccess] = useState(false);
+    const [infoMessage, setInfoMessage] = useState(
+        location.state?.message || ""
+    );
 
-    useEffect(()=>{
-        if(!isAuthenticated){
-            return;
-        }
+    useEffect(() => {
+        if (!isAuthenticated) return;
 
         setSuccess(true);
 
-        const timer=setTimeout(()=>{
-            navigate("/dashboard");
-        },700);
+        const timer = setTimeout(() => {
+            navigate("/dashboard", { replace: true });
+        }, 700);
 
-        return()=>clearTimeout(timer);
-    },[isAuthenticated,navigate]);
+        return () => clearTimeout(timer);
+    }, [isAuthenticated, navigate]);
 
-    const handleChange=e=>{
-        setCredentials(previous=>({
+    const handleChange = e => {
+        setCredentials(previous => ({
             ...previous,
-            [e.target.name]:e.target.value
+            [e.target.name]: e.target.value
         }));
 
         setLocalError("");
     };
 
-    const handleSubmit=async e=>{
+    const handleSubmit = async e => {
         e.preventDefault();
+
+        if (loading) return;
+
         setLocalError("");
 
-        const email=credentials.email.trim();
+        const email = credentials.email.trim().toLowerCase();
 
-        if(!email){
+        if (!email) {
             setLocalError(t("Email is required."));
             return;
         }
 
-        if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
-            setLocalError(
-                t("Please enter a valid email address.")
-            );
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            setLocalError(t("Please enter a valid email address."));
             return;
         }
 
-        if(!credentials.password){
+        if (!credentials.password) {
             setLocalError(t("Password is required."));
             return;
         }
 
-        await dispatch(
-            login({
-                email,
-                password:credentials.password
-            })
-        );
+        try {
+            const result = await dispatch(
+                login({
+                    email,
+                    password: credentials.password
+                })
+            );
+
+            if (!result?.success) {
+                setLocalError(
+                    result?.message ||
+                    t("Login failed. Please check your details and try again.")
+                );
+            }
+        } catch (err) {
+            setLocalError(
+                t("Something went wrong. Please try again.")
+            );
+        }
     };
 
-    const handleGoogleSuccess=response=>{
+    const handleGoogleSuccess = async response => {
+        if (loading) return;
+
         setLocalError("");
-        dispatch(
-            googleLogin(response.credential)
-        );
+
+        if (!response?.credential) {
+            setLocalError(
+                t("Google sign-in did not return a valid credential. Please try again.")
+            );
+            return;
+        }
+
+        try {
+            const result = await dispatch(
+                googleLogin(response.credential)
+            );
+
+            if (!result?.success) {
+                setLocalError(
+                    result?.message ||
+                    t("Google sign-in failed. Please try again.")
+                );
+            }
+        } catch (err) {
+            setLocalError(
+                t("Google sign-in failed. Please try again.")
+            );
+        }
     };
 
-    return(
+    return (
         <Container maxWidth="sm">
             <Box
                 sx={{
-                    minHeight:"100vh",
-                    display:"flex",
-                    alignItems:"center",
-                    py:3
+                    minHeight: "100vh",
+                    display: "flex",
+                    alignItems: "center",
+                    py: 3
                 }}
             >
                 <Card
                     sx={{
-                        width:"100%",
-                        borderRadius:4
+                        width: "100%",
+                        borderRadius: 4
                     }}
                     elevation={3}
                 >
-                    <CardContent
-                        sx={{
-                            p:{xs:2.5,sm:4}
-                        }}
-                    >
+                    <CardContent sx={{ p: { xs: 2.5, sm: 4 } }}>
                         <Stack spacing={2.5}>
                             <Box>
                                 <Typography
@@ -141,15 +183,24 @@ const Login=()=>{
                                     variant="body2"
                                     align="center"
                                     color="text.secondary"
-                                    sx={{mt:.7}}
+                                    sx={{ mt: 0.7 }}
                                 >
                                     {t("Welcome Back")}
                                 </Typography>
                             </Box>
 
-                            {(localError||error)&&(
+                            {infoMessage && (
+                                <Alert
+                                    severity="info"
+                                    onClose={() => setInfoMessage("")}
+                                >
+                                    {infoMessage}
+                                </Alert>
+                            )}
+
+                            {(localError || error) && (
                                 <Alert severity="error">
-                                    {localError||error}
+                                    {localError || error}
                                 </Alert>
                             )}
 
@@ -175,36 +226,30 @@ const Login=()=>{
                                         fullWidth
                                         name="password"
                                         label={t("Password")}
-                                        type={
-                                            showPassword
-                                                ?"text"
-                                                :"password"
-                                        }
+                                        type={showPassword ? "text" : "password"}
                                         value={credentials.password}
                                         onChange={handleChange}
                                         disabled={loading}
                                         autoComplete="current-password"
                                         required
                                         InputProps={{
-                                            endAdornment:(
+                                            endAdornment: (
                                                 <InputAdornment position="end">
                                                     <IconButton
                                                         type="button"
-                                                        onClick={()=>
-                                                            setShowPassword(
-                                                                previous=>!previous
-                                                            )
+                                                        onClick={() =>
+                                                            setShowPassword(previous => !previous)
                                                         }
                                                         edge="end"
                                                         aria-label={
                                                             showPassword
-                                                                ?t("Hide password")
-                                                                :t("Show password")
+                                                                ? t("Hide password")
+                                                                : t("Show password")
                                                         }
                                                     >
                                                         {showPassword
-                                                            ?<VisibilityOff/>
-                                                            :<Visibility/>
+                                                            ? <VisibilityOff />
+                                                            : <Visibility />
                                                         }
                                                     </IconButton>
                                                 </InputAdornment>
@@ -214,8 +259,8 @@ const Login=()=>{
 
                                     <Box
                                         sx={{
-                                            display:"flex",
-                                            justifyContent:"flex-end"
+                                            display: "flex",
+                                            justifyContent: "flex-end"
                                         }}
                                     >
                                         <Typography
@@ -224,8 +269,8 @@ const Login=()=>{
                                             variant="body2"
                                             color="primary"
                                             sx={{
-                                                textDecoration:"none",
-                                                fontWeight:600
+                                                textDecoration: "none",
+                                                fontWeight: 600
                                             }}
                                         >
                                             {t("Forgot password?")}
@@ -239,16 +284,16 @@ const Login=()=>{
                                         type="submit"
                                         size="large"
                                         sx={{
-                                            borderRadius:2.5,
-                                            py:1.3
+                                            borderRadius: 2.5,
+                                            py: 1.3
                                         }}
                                     >
-                                        {loading?(
+                                        {loading ? (
                                             <CircularProgress
                                                 size={24}
                                                 color="inherit"
                                             />
-                                        ):(
+                                        ) : (
                                             t("SIGN IN")
                                         )}
                                     </Button>
@@ -257,16 +302,16 @@ const Login=()=>{
 
                             <Box
                                 sx={{
-                                    display:"flex",
-                                    alignItems:"center",
-                                    gap:1.5
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 1.5
                                 }}
                             >
                                 <Box
                                     sx={{
-                                        flex:1,
-                                        height:"1px",
-                                        bgcolor:"divider"
+                                        flex: 1,
+                                        height: "1px",
+                                        bgcolor: "divider"
                                     }}
                                 />
 
@@ -279,44 +324,37 @@ const Login=()=>{
 
                                 <Box
                                     sx={{
-                                        flex:1,
-                                        height:"1px",
-                                        bgcolor:"divider"
+                                        flex: 1,
+                                        height: "1px",
+                                        bgcolor: "divider"
                                     }}
                                 />
                             </Box>
 
                             <Box
                                 sx={{
-                                    display:"flex",
-                                    justifyContent:"center"
+                                    display: "flex",
+                                    justifyContent: "center"
                                 }}
                             >
                                 <GoogleLogin
                                     onSuccess={handleGoogleSuccess}
-                                    onError={()=>
+                                    onError={() =>
                                         setLocalError(
-                                            t(
-                                                "Google sign-in failed. Please try again."
-                                            )
+                                            t("Google sign-in failed. Please try again.")
                                         )
                                     }
                                 />
                             </Box>
 
-                            <Typography
-                                align="center"
-                                variant="body2"
-                            >
+                            <Typography align="center" variant="body2">
                                 {t("Don't have an account?")}{" "}
                                 <Typography
                                     component={Link}
                                     to="/register"
                                     color="primary"
                                     fontWeight={700}
-                                    sx={{
-                                        textDecoration:"none"
-                                    }}
+                                    sx={{ textDecoration: "none" }}
                                 >
                                     {t("Register")}
                                 </Typography>
@@ -329,16 +367,16 @@ const Login=()=>{
             <Snackbar
                 open={success}
                 autoHideDuration={1800}
-                onClose={()=>setSuccess(false)}
+                onClose={() => setSuccess(false)}
                 anchorOrigin={{
-                    vertical:"bottom",
-                    horizontal:"center"
+                    vertical: "bottom",
+                    horizontal: "center"
                 }}
             >
                 <Alert
                     severity="success"
                     variant="filled"
-                    onClose={()=>setSuccess(false)}
+                    onClose={() => setSuccess(false)}
                 >
                     {t("Login successful")}
                 </Alert>

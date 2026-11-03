@@ -1,5 +1,5 @@
-import React,{useEffect,useState}from"react";
-import{
+import React, { useEffect, useRef, useState } from "react";
+import {
     Alert,
     Box,
     Button,
@@ -9,77 +9,100 @@ import{
     Container,
     Stack,
     Typography
-}from"@mui/material";
-import{useDispatch,useSelector}from"react-redux";
-import{verifyEmail}from"../../redux/actions/authActions";
-import{Link,useSearchParams}from"react-router-dom";
-import{useTranslation}from"react-i18next";
+} from "@mui/material";
+import { useDispatch, useSelector } from "react-redux";
+import { verifyEmail } from "../../redux/actions/authActions";
+import {
+    Link,
+    useSearchParams
+} from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
-const VerifyEmail=()=>{
-    const dispatch=useDispatch();
-    const[tParams]=useSearchParams();
-    const{t}=useTranslation();
+const VerifyEmail = () => {
+    const dispatch = useDispatch();
+    const [tParams] = useSearchParams();
+    const { t } = useTranslation();
 
-    const{
+    const {
         loading,
         error
-    }=useSelector(state=>state.auth);
+    } = useSelector(state => state.auth);
 
-    const token=tParams.get("token");
+    const token = tParams.get("token");
 
-    const[message,setMessage]=useState("");
-    const[completed,setCompleted]=useState(false);
+    const [message, setMessage] = useState("");
+    const [completed, setCompleted] = useState(false);
+    const [localError, setLocalError] = useState("");
 
-    useEffect(()=>{
-        if(!token){
+    const attemptedToken = useRef(null);
+
+    useEffect(() => {
+        if (!token) {
+            setLocalError(
+                t("This verification link is invalid or incomplete.")
+            );
             return;
         }
 
-        let active=true;
+        if (attemptedToken.current === token) return;
 
-        const verify=async()=>{
-            const result=await dispatch(
-                verifyEmail(token)
-            );
+        attemptedToken.current = token;
 
-            if(active&&result?.success){
-                setMessage(
-                    result.message||
-                    t("Email verified successfully.")
-                );
-                setCompleted(true);
+        let active = true;
+
+        const verify = async () => {
+            try {
+                const result = await dispatch(verifyEmail(token));
+
+                if (!active) return;
+
+                if (result?.success) {
+                    setMessage(
+                        result.message ||
+                        t("Email verified successfully.")
+                    );
+                    setCompleted(true);
+                    setLocalError("");
+                } else {
+                    setLocalError(
+                        result?.message ||
+                        t("Email verification failed. The link may have expired.")
+                    );
+                }
+            } catch (err) {
+                if (active) {
+                    setLocalError(
+                        t("Something went wrong while verifying your email. Please try again.")
+                    );
+                }
             }
         };
 
         verify();
 
-        return()=>{
-            active=false;
+        return () => {
+            active = false;
         };
-    },[dispatch,token,t]);
+    }, [dispatch, token, t]);
 
-    return(
+    return (
         <Container maxWidth="sm">
             <Box
                 sx={{
-                    minHeight:"100vh",
-                    display:"flex",
-                    alignItems:"center",
-                    py:3
+                    minHeight: "100vh",
+                    display: "flex",
+                    alignItems: "center",
+                    py: 3
                 }}
             >
                 <Card
                     sx={{
-                        width:"100%",
-                        borderRadius:4
+                        width: "100%",
+                        borderRadius: 4
                     }}
                     elevation={3}
                 >
-                    <CardContent
-                        sx={{
-                            p:{xs:2.5,sm:4}
-                        }}
-                    >
+                    <CardContent sx={{ p: { xs: 2.5, sm: 4 } }}>
                         <Stack
                             spacing={2.5}
                             alignItems="center"
@@ -92,46 +115,43 @@ const VerifyEmail=()=>{
                                 {t("Email Verification")}
                             </Typography>
 
-                            {loading&&(
+                            {loading && (
                                 <>
-                                    <CircularProgress/>
+                                    <CircularProgress />
 
                                     <Typography
                                         color="text.secondary"
                                         align="center"
                                     >
-                                        {t(
-                                            "Verifying your email address..."
-                                        )}
+                                        {t("Verifying your email address...")}
                                     </Typography>
                                 </>
                             )}
 
-                            {!loading&&!token&&(
+                            {!loading && !token && (
                                 <Alert
                                     severity="error"
-                                    sx={{width:"100%"}}
+                                    sx={{ width: "100%" }}
                                 >
-                                    {t(
-                                        "This verification link is invalid or incomplete."
-                                    )}
+                                    {localError ||
+                                        t("This verification link is invalid or incomplete.")}
                                 </Alert>
                             )}
 
-                            {!loading&&error&&(
+                            {!loading && token && (localError || error) && (
                                 <Alert
                                     severity="error"
-                                    sx={{width:"100%"}}
+                                    sx={{ width: "100%" }}
                                 >
-                                    {error}
+                                    {localError || error}
                                 </Alert>
                             )}
 
-                            {!loading&&completed&&(
+                            {!loading && completed && (
                                 <>
                                     <Alert
                                         severity="success"
-                                        sx={{width:"100%"}}
+                                        sx={{ width: "100%" }}
                                     >
                                         {message}
                                     </Alert>
@@ -141,13 +161,23 @@ const VerifyEmail=()=>{
                                         to="/login"
                                         variant="contained"
                                         fullWidth
-                                        sx={{
-                                            borderRadius:2.5
-                                        }}
+                                        sx={{ borderRadius: 2.5 }}
                                     >
                                         {t("Continue to Login")}
                                     </Button>
                                 </>
+                            )}
+
+                            {!loading && !completed && token && (
+                                <Button
+                                    component={Link}
+                                    to="/login"
+                                    variant="outlined"
+                                    fullWidth
+                                    sx={{ borderRadius: 2.5 }}
+                                >
+                                    {t("Back to Login")}
+                                </Button>
                             )}
                         </Stack>
                     </CardContent>
