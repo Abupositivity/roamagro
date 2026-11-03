@@ -30,9 +30,10 @@ module.exports = (err, req, res, next) => {
             method: req.method,
             path: req.path,
             statusCode,
-            message: isProduction
-                ? 'Unexpected server error'
-                : err.message
+            errorName: err.name,
+            errorCode: err.code,
+            errorMessage: err.message,
+            stack: err.stack
         });
     }
 
