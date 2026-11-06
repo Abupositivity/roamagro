@@ -1,25 +1,29 @@
+
 const express = require('express');
 const router = express.Router();
+
 const ensureAuthenticated = require('../middleware/ensureAuthenticated');
 const validateRequest = require('../middleware/validateRequest');
+const upload = require('../middleware/uploadImage');
 
 const {
     createMarketplaceItem,
     getMarketplaceItems,
     getMarketplaceItem,
     updateMarketplaceItem,
-    deleteMarketplaceItem
+    deleteMarketplaceItem,
 } = require('../controllers/marketplaceController');
 
 const {
     createMarketplaceValidator,
     marketplaceIdValidator,
-    updateMarketplaceValidator
+    updateMarketplaceValidator,
 } = require('../validators');
 
 router.post(
     '/',
     ensureAuthenticated,
+    upload.array('images', 3),
     createMarketplaceValidator,
     validateRequest,
     createMarketplaceItem
@@ -42,10 +46,12 @@ router.get(
 router.put(
     '/:id',
     ensureAuthenticated,
+    upload.array('images', 3),
     updateMarketplaceValidator,
     validateRequest,
     updateMarketplaceItem
 );
+
 router.delete(
     '/:id',
     ensureAuthenticated,

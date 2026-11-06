@@ -1,7 +1,8 @@
 const mongoose = require('mongoose');
 
 jest.mock('../../models/AgriTip', () => ({
-    findById: jest.fn()
+    findById: jest.fn(),
+    exists: jest.fn()
 }));
 
 jest.mock('../../models/CommunityPost', () => ({
@@ -9,7 +10,8 @@ jest.mock('../../models/CommunityPost', () => ({
     find: jest.fn(),
     findById: jest.fn(),
     countDocuments: jest.fn(),
-    aggregate: jest.fn()
+    aggregate: jest.fn(),
+    exists: jest.fn()
 }));
 
 jest.mock('../../models/Connection', () => ({
@@ -20,10 +22,19 @@ jest.mock('../../models/Notification', () => ({
     create: jest.fn()
 }));
 
+jest.mock('../../utils/cloudinaryStorage', () => ({
+    uploadImage: jest.fn(),
+    deleteImage: jest.fn()
+}));
+
 const AgriTip = require('../../models/AgriTip');
 const CommunityPost = require('../../models/CommunityPost');
 const Connection = require('../../models/Connection');
 const Notification = require('../../models/Notification');
+const {
+    uploadImage,
+    deleteImage
+} = require('../../utils/cloudinaryStorage');
 const controller = require('../../controllers/communityController');
 
 const USER_ID = '507f1f77bcf86cd799439011';
@@ -32,10 +43,32 @@ const POST_ID = '507f1f77bcf86cd799439013';
 const COMMENT_ID = '507f1f77bcf86cd799439014';
 const TIP_ID = '507f1f77bcf86cd799439015';
 
+const IMAGE_URL = 'https://res.cloudinary.com/test/image/upload/community.jpg';
+const IMAGE_PUBLIC_ID = 'roamagro/community/community';
+const OLD_IMAGE_URL = 'https://res.cloudinary.com/test/image/upload/old.jpg';
+const OLD_IMAGE_PUBLIC_ID = 'roamagro/community/old';
+
+const validPostBody = {
+    title: 'Growing maize',
+    content: 'Maize is growing well.',
+    category: 'Maize'
+};
+
+const makeFile = () => ({
+    fieldname: 'image',
+    originalname: 'maize.jpg',
+    encoding: '7bit',
+    mimetype: 'image/jpeg',
+    buffer: Buffer.from('test-image-content'),
+    size: 18
+});
+
 const makeResponse = () => {
     const res = {};
+
     res.status = jest.fn().mockReturnValue(res);
     res.json = jest.fn().mockReturnValue(res);
+
     return res;
 };
 
@@ -59,28 +92,25 @@ const invoke = async (handler, req) => {
     return { req, res, next };
 };
 
-const makePost = (overrides = {}) => {
-    const post = {
-        _id: POST_ID,
-        user: USER_ID,
-        title: 'Growing maize',
-        content: 'My maize is growing well.',
-        category: 'Maize',
-        image: '',
-        status: 'Active',
-        featured: false,
-        agriTip: null,
-        sharedBy: [],
-        shares: 0,
-        likes: [],
-        comments: [],
-        populate: jest.fn().mockResolvedValue(undefined),
-        save: jest.fn().mockResolvedValue(undefined),
-        ...overrides
-    };
-
-    return post;
-};
+const makePost = (overrides = {}) => ({
+    _id: POST_ID,
+    user: USER_ID,
+    title: 'Growing maize',
+    content: 'My maize is growing well.',
+    category: 'Maize',
+    image: '',
+    imagePublicId: '',
+    status: 'Active',
+    featured: false,
+    agriTip: null,
+    sharedBy: [],
+    shares: 0,
+    likes: [],
+    comments: [],
+    populate: jest.fn().mockResolvedValue(undefined),
+    save: jest.fn().mockResolvedValue(undefined),
+    ...overrides
+});
 
 const makeQuery = (result) => {
     const query = {
@@ -122,16 +152,25 @@ const expectAppError = async (handler, req, statusCode, message) => {
 beforeEach(() => {
     jest.clearAllMocks();
 
-    Connection.find.mockReturnValue(
-        makeQuery([])
-    );
+    Connection.find.mockReturnValue(makeQuery([]));
 
     CommunityPost.countDocuments.mockResolvedValue(0);
     CommunityPost.aggregate.mockResolvedValue([]);
     CommunityPost.create.mockResolvedValue(makePost());
+    CommunityPost.exists.mockResolvedValue(null);
 
     Notification.create.mockResolvedValue({});
     AgriTip.findById.mockResolvedValue(null);
+    AgriTip.exists.mockResolvedValue(null);
+
+    uploadImage.mockResolvedValue({
+        url: IMAGE_URL,
+        publicId: IMAGE_PUBLIC_ID
+    });
+
+    deleteImage.mockResolvedValue({
+        result: 'ok'
+    });
 });
 
 describe('createCommunityPost', () => {
@@ -146,8 +185,7 @@ describe('createCommunityPost', () => {
                 body: {
                     title: '  Growing maize  ',
                     content: '  Maize is growing well.  ',
-                    category: '  Maize  ',
-                    image: 'https://example.com/maize.jpg'
+                    category: '  Maize  '
                 }
             })
         );
@@ -158,11 +196,14 @@ describe('createCommunityPost', () => {
             title: 'Growing maize',
             content: 'Maize is growing well.',
             category: 'Maize',
-            image: 'https://example.com/maize.jpg',
+            image: '',
+            imagePublicId: '',
             user: USER_ID
         });
 
+        expect(uploadImage).not.toHaveBeenCalled();
         expect(post.populate).toHaveBeenCalledTimes(2);
+
         expect(res.status).toHaveBeenCalledWith(201);
         expect(res.json).toHaveBeenCalledWith({
             success: true,
@@ -171,8 +212,51 @@ describe('createCommunityPost', () => {
         });
     });
 
+    test('uploads a new image to Cloudinary when creating a post', async () => {
+        const file = makeFile();
+        const post = makePost({
+            image: IMAGE_URL,
+            imagePublicId: IMAGE_PUBLIC_ID
+        });
+
+        CommunityPost.create.mockResolvedValue(post);
+
+        const { res, next } = await invoke(
+            controller.createCommunityPost,
+            makeRequest({
+                body: validPostBody,
+                file
+            })
+        );
+
+        expect(next).not.toHaveBeenCalled();
+
+        expect(uploadImage).toHaveBeenCalledTimes(1);
+        expect(uploadImage.mock.calls[0][0]).toBe(file);
+        expect(uploadImage.mock.calls[0][1]).toContain('community');
+
+        expect(CommunityPost.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                title: validPostBody.title,
+                content: validPostBody.content,
+                category: validPostBody.category,
+                image: IMAGE_URL,
+                imagePublicId: IMAGE_PUBLIC_ID,
+                user: USER_ID
+            })
+        );
+
+        expect(res.status).toHaveBeenCalledWith(201);
+        expect(res.json).toHaveBeenCalledWith(
+            expect.objectContaining({
+                success: true,
+                data: post
+            })
+        );
+    });
+
     test('creates a post without an image when no image is supplied', async () => {
-        await invoke(
+        const { next } = await invoke(
             controller.createCommunityPost,
             makeRequest({
                 body: {
@@ -183,11 +267,16 @@ describe('createCommunityPost', () => {
             })
         );
 
+        expect(next).not.toHaveBeenCalled();
+
         expect(CommunityPost.create).toHaveBeenCalledWith(
             expect.objectContaining({
-                image: ''
+                image: '',
+                imagePublicId: ''
             })
         );
+
+        expect(uploadImage).not.toHaveBeenCalled();
     });
 
     test.each([
@@ -209,6 +298,7 @@ describe('createCommunityPost', () => {
         );
 
         expect(CommunityPost.create).not.toHaveBeenCalled();
+        expect(uploadImage).not.toHaveBeenCalled();
     });
 
     test.each([
@@ -217,12 +307,9 @@ describe('createCommunityPost', () => {
         ['category', 100]
     ])('rejects a %s exceeding its maximum length', async (field, maxLength) => {
         const body = {
-            title: 'Title',
-            content: 'Content',
-            category: 'Maize'
+            ...validPostBody,
+            [field]: 'x'.repeat(maxLength + 1)
         };
-
-        body[field] = 'x'.repeat(maxLength + 1);
 
         await expectAppError(
             controller.createCommunityPost,
@@ -232,21 +319,20 @@ describe('createCommunityPost', () => {
         );
 
         expect(CommunityPost.create).not.toHaveBeenCalled();
+        expect(uploadImage).not.toHaveBeenCalled();
     });
 
-    test('rejects an image exceeding the maximum length', async () => {
+    test('rejects an invalid image value', async () => {
         await expectAppError(
             controller.createCommunityPost,
             makeRequest({
                 body: {
-                    title: 'Title',
-                    content: 'Content',
-                    category: 'Maize',
+                    ...validPostBody,
                     image: 'x'.repeat(3000001)
                 }
             }),
             400,
-            'Image cannot exceed 3000000 characters.'
+            'Image must be a valid HTTPS URL or empty to remove it.'
         );
 
         expect(CommunityPost.create).not.toHaveBeenCalled();
@@ -257,15 +343,72 @@ describe('createCommunityPost', () => {
             controller.createCommunityPost,
             makeRequest({
                 body: {
-                    title: 'Title',
-                    content: 'Content',
-                    category: 'Maize',
+                    ...validPostBody,
                     image: {}
                 }
             }),
             400,
-            'Image must be text.'
+            'Image must be a valid HTTPS URL or empty to remove it.'
         );
+
+        expect(CommunityPost.create).not.toHaveBeenCalled();
+    });
+
+    test('rejects an externally supplied HTTPS image URL', async () => {
+        await expectAppError(
+            controller.createCommunityPost,
+            makeRequest({
+                body: {
+                    ...validPostBody,
+                    image: 'https://example.com/maize.jpg'
+                }
+            }),
+            400,
+            'Please upload a new image instead of providing an image URL.'
+        );
+
+        expect(CommunityPost.create).not.toHaveBeenCalled();
+        expect(uploadImage).not.toHaveBeenCalled();
+    });
+
+    test('rejects a JPEG Base64 data URL', async () => {
+        await expectAppError(
+            controller.createCommunityPost,
+            makeRequest({
+                body: {
+                    ...validPostBody,
+                    image: 'data:image/jpeg;base64,/9j/4AAQSkZJRg=='
+                }
+            }),
+            400,
+            'Image must be a valid HTTPS URL or empty to remove it.'
+        );
+
+        expect(CommunityPost.create).not.toHaveBeenCalled();
+        expect(uploadImage).not.toHaveBeenCalled();
+    });
+
+    test('forwards Cloudinary upload errors', async () => {
+        uploadImage.mockRejectedValue(
+            new Error('Cloudinary upload failed')
+        );
+
+        const { next, res } = await invoke(
+            controller.createCommunityPost,
+            makeRequest({
+                body: validPostBody,
+                file: makeFile()
+            })
+        );
+
+        expect(next).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Cloudinary upload failed'
+            })
+        );
+
+        expect(CommunityPost.create).not.toHaveBeenCalled();
+        expect(res.json).not.toHaveBeenCalled();
     });
 
     test('forwards a database creation error', async () => {
@@ -276,11 +419,7 @@ describe('createCommunityPost', () => {
         const { next } = await invoke(
             controller.createCommunityPost,
             makeRequest({
-                body: {
-                    title: 'Title',
-                    content: 'Content',
-                    category: 'Maize'
-                }
+                body: validPostBody
             })
         );
 
@@ -745,7 +884,6 @@ describe('updateCommunityPost', () => {
                     title: '  Updated title  ',
                     content: ' Updated content ',
                     category: ' Rice ',
-                    image: 'https://example.com/rice.jpg',
                     status: 'Archived',
                     user: OTHER_USER_ID
                 }
@@ -757,13 +895,16 @@ describe('updateCommunityPost', () => {
         expect(post.title).toBe('Updated title');
         expect(post.content).toBe('Updated content');
         expect(post.category).toBe('Rice');
-        expect(post.image).toBe('https://example.com/rice.jpg');
+        expect(post.image).toBe('');
+        expect(post.imagePublicId).toBe('');
 
         expect(post.status).toBe('Active');
         expect(post.user).toBe(USER_ID);
 
         expect(post.save).toHaveBeenCalledTimes(1);
         expect(post.populate).toHaveBeenCalledTimes(2);
+
+        expect(uploadImage).not.toHaveBeenCalled();
 
         expect(res.status).toHaveBeenCalledWith(200);
         expect(res.json).toHaveBeenCalledWith({
@@ -773,14 +914,118 @@ describe('updateCommunityPost', () => {
         });
     });
 
-    test('allows an owner to remove an image', async () => {
+    test('keeps an existing Cloudinary image unchanged', async () => {
         const post = makePost({
-            image: 'https://example.com/old.jpg'
+            image: OLD_IMAGE_URL,
+            imagePublicId: OLD_IMAGE_PUBLIC_ID
         });
 
         CommunityPost.findById.mockResolvedValue(post);
 
-        await invoke(
+        const { res, next } = await invoke(
+            controller.updateCommunityPost,
+            makeRequest({
+                params: { id: POST_ID },
+                body: {
+                    title: 'Updated maize post',
+                    image: OLD_IMAGE_URL
+                }
+            })
+        );
+
+        expect(next).not.toHaveBeenCalled();
+
+        expect(post.title).toBe('Updated maize post');
+        expect(post.image).toBe(OLD_IMAGE_URL);
+        expect(post.imagePublicId).toBe(OLD_IMAGE_PUBLIC_ID);
+
+        expect(uploadImage).not.toHaveBeenCalled();
+        expect(deleteImage).not.toHaveBeenCalled();
+        expect(post.save).toHaveBeenCalledTimes(1);
+
+        expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    test('replaces an existing image using Cloudinary', async () => {
+        const file = makeFile();
+
+        const post = makePost({
+            image: OLD_IMAGE_URL,
+            imagePublicId: OLD_IMAGE_PUBLIC_ID
+        });
+
+        CommunityPost.findById.mockResolvedValue(post);
+
+        const { res, next } = await invoke(
+            controller.updateCommunityPost,
+            makeRequest({
+                params: { id: POST_ID },
+                body: {
+                    title: 'Updated maize image'
+                },
+                file
+            })
+        );
+
+        expect(next).not.toHaveBeenCalled();
+
+        expect(uploadImage).toHaveBeenCalledTimes(1);
+        expect(uploadImage.mock.calls[0][0]).toBe(file);
+        expect(uploadImage.mock.calls[0][1]).toContain('community');
+
+        expect(post.image).toBe(IMAGE_URL);
+        expect(post.imagePublicId).toBe(IMAGE_PUBLIC_ID);
+        expect(post.save).toHaveBeenCalledTimes(1);
+
+        expect(CommunityPost.exists).toHaveBeenCalled();
+        expect(deleteImage).toHaveBeenCalledWith(
+            OLD_IMAGE_PUBLIC_ID
+        );
+
+        expect(res.status).toHaveBeenCalledWith(200);
+        expect(res.json).toHaveBeenCalledWith(
+            expect.objectContaining({
+                success: true,
+                data: post
+            })
+        );
+    });
+
+    test('uploads an image to a post that previously had no image', async () => {
+        const file = makeFile();
+        const post = makePost();
+
+        CommunityPost.findById.mockResolvedValue(post);
+
+        const { res, next } = await invoke(
+            controller.updateCommunityPost,
+            makeRequest({
+                params: { id: POST_ID },
+                body: {},
+                file
+            })
+        );
+
+        expect(next).not.toHaveBeenCalled();
+
+        expect(uploadImage).toHaveBeenCalledTimes(1);
+        expect(post.image).toBe(IMAGE_URL);
+        expect(post.imagePublicId).toBe(IMAGE_PUBLIC_ID);
+
+        expect(deleteImage).not.toHaveBeenCalled();
+        expect(post.save).toHaveBeenCalledTimes(1);
+        expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    test('allows an owner to remove an image', async () => {
+        const post = makePost({
+            image: OLD_IMAGE_URL,
+            imagePublicId: OLD_IMAGE_PUBLIC_ID
+        });
+
+        CommunityPost.findById.mockResolvedValue(post);
+
+        const { res, next } = await invoke(
             controller.updateCommunityPost,
             makeRequest({
                 params: { id: POST_ID },
@@ -788,18 +1033,29 @@ describe('updateCommunityPost', () => {
             })
         );
 
+        expect(next).not.toHaveBeenCalled();
+
         expect(post.image).toBe('');
+        expect(post.imagePublicId).toBe('');
         expect(post.save).toHaveBeenCalledTimes(1);
+
+        expect(CommunityPost.exists).toHaveBeenCalled();
+        expect(deleteImage).toHaveBeenCalledWith(
+            OLD_IMAGE_PUBLIC_ID
+        );
+
+        expect(res.status).toHaveBeenCalledWith(200);
     });
 
     test('allows an owner to clear an image with null', async () => {
         const post = makePost({
-            image: 'https://example.com/old.jpg'
+            image: OLD_IMAGE_URL,
+            imagePublicId: OLD_IMAGE_PUBLIC_ID
         });
 
         CommunityPost.findById.mockResolvedValue(post);
 
-        await invoke(
+        const { next } = await invoke(
             controller.updateCommunityPost,
             makeRequest({
                 params: { id: POST_ID },
@@ -807,7 +1063,154 @@ describe('updateCommunityPost', () => {
             })
         );
 
+        expect(next).not.toHaveBeenCalled();
+
         expect(post.image).toBe('');
+        expect(post.imagePublicId).toBe('');
+        expect(post.save).toHaveBeenCalledTimes(1);
+    });
+
+    test('does not delete an image still referenced by another post', async () => {
+        const post = makePost({
+            image: OLD_IMAGE_URL,
+            imagePublicId: OLD_IMAGE_PUBLIC_ID
+        });
+
+        CommunityPost.findById.mockResolvedValue(post);
+
+        CommunityPost.exists.mockResolvedValue({
+            _id: '507f1f77bcf86cd799439099'
+        });
+
+        const { res, next } = await invoke(
+            controller.updateCommunityPost,
+            makeRequest({
+                params: { id: POST_ID },
+                body: { image: '' }
+            })
+        );
+
+        expect(next).not.toHaveBeenCalled();
+
+        expect(post.image).toBe('');
+        expect(post.imagePublicId).toBe('');
+        expect(post.save).toHaveBeenCalledTimes(1);
+
+        expect(CommunityPost.exists).toHaveBeenCalled();
+        expect(deleteImage).not.toHaveBeenCalled();
+
+        expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    test('does not delete an image still referenced by an AgriTip', async () => {
+        const post = makePost({
+            image: OLD_IMAGE_URL,
+            imagePublicId: OLD_IMAGE_PUBLIC_ID
+        });
+
+        CommunityPost.findById.mockResolvedValue(post);
+
+        AgriTip.exists.mockResolvedValue({
+            _id: TIP_ID
+        });
+
+        const { res, next } = await invoke(
+            controller.updateCommunityPost,
+            makeRequest({
+                params: { id: POST_ID },
+                body: { image: '' }
+            })
+        );
+
+        expect(next).not.toHaveBeenCalled();
+
+        expect(post.image).toBe('');
+        expect(post.imagePublicId).toBe('');
+        expect(post.save).toHaveBeenCalledTimes(1);
+
+        expect(deleteImage).not.toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    test('rejects replacing an image with an arbitrary HTTPS URL', async () => {
+        const post = makePost({
+            image: OLD_IMAGE_URL,
+            imagePublicId: OLD_IMAGE_PUBLIC_ID
+        });
+
+        CommunityPost.findById.mockResolvedValue(post);
+
+        await expectAppError(
+            controller.updateCommunityPost,
+            makeRequest({
+                params: { id: POST_ID },
+                body: {
+                    image: 'https://example.com/new-image.jpg'
+                }
+            }),
+            400,
+            'Please upload a new image instead of providing an image URL.'
+        );
+
+        expect(post.image).toBe(OLD_IMAGE_URL);
+        expect(post.imagePublicId).toBe(OLD_IMAGE_PUBLIC_ID);
+        expect(post.save).not.toHaveBeenCalled();
+        expect(uploadImage).not.toHaveBeenCalled();
+        expect(deleteImage).not.toHaveBeenCalled();
+    });
+
+    test('rejects a Base64 image during an update', async () => {
+        const post = makePost();
+
+        CommunityPost.findById.mockResolvedValue(post);
+
+        await expectAppError(
+            controller.updateCommunityPost,
+            makeRequest({
+                params: { id: POST_ID },
+                body: {
+                    image: 'data:image/jpeg;base64,/9j/4AAQSkZJRg=='
+                }
+            }),
+            400,
+            'Image must be a valid HTTPS URL or empty to remove it.'
+        );
+
+        expect(post.save).not.toHaveBeenCalled();
+        expect(uploadImage).not.toHaveBeenCalled();
+    });
+
+    test('forwards Cloudinary upload errors during updates', async () => {
+        const post = makePost({
+            image: OLD_IMAGE_URL,
+            imagePublicId: OLD_IMAGE_PUBLIC_ID
+        });
+
+        CommunityPost.findById.mockResolvedValue(post);
+
+        uploadImage.mockRejectedValue(
+            new Error('Cloudinary upload failed')
+        );
+
+        const { next } = await invoke(
+            controller.updateCommunityPost,
+            makeRequest({
+                params: { id: POST_ID },
+                body: {},
+                file: makeFile()
+            })
+        );
+
+        expect(next).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Cloudinary upload failed'
+            })
+        );
+
+        expect(post.image).toBe(OLD_IMAGE_URL);
+        expect(post.imagePublicId).toBe(OLD_IMAGE_PUBLIC_ID);
+        expect(post.save).not.toHaveBeenCalled();
+        expect(deleteImage).not.toHaveBeenCalled();
     });
 
     test('rejects an invalid post ID', async () => {
@@ -837,9 +1240,11 @@ describe('updateCommunityPost', () => {
     });
 
     test('prevents another user from updating a post', async () => {
-        CommunityPost.findById.mockResolvedValue(
-            makePost({ user: OTHER_USER_ID })
-        );
+        const post = makePost({
+            user: OTHER_USER_ID
+        });
+
+        CommunityPost.findById.mockResolvedValue(post);
 
         await expectAppError(
             controller.updateCommunityPost,
@@ -851,7 +1256,8 @@ describe('updateCommunityPost', () => {
             'You can only manage your own posts.'
         );
 
-        expect(CommunityPost.findById.mock.results[0].value).toBeDefined();
+        expect(post.save).not.toHaveBeenCalled();
+        expect(uploadImage).not.toHaveBeenCalled();
     });
 
     test('rejects updates to an archived post', async () => {
@@ -902,7 +1308,31 @@ describe('updateCommunityPost', () => {
                 body: { image: 'x'.repeat(3000001) }
             }),
             400,
-            'Image cannot exceed 3000000 characters.'
+            'Image must be a valid HTTPS URL or empty to remove it.'
+        );
+    });
+
+    test('forwards save errors', async () => {
+        const post = makePost();
+
+        post.save.mockRejectedValue(
+            new Error('Post update failed')
+        );
+
+        CommunityPost.findById.mockResolvedValue(post);
+
+        const { next } = await invoke(
+            controller.updateCommunityPost,
+            makeRequest({
+                params: { id: POST_ID },
+                body: { title: 'Updated title' }
+            })
+        );
+
+        expect(next).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Post update failed'
+            })
         );
     });
 });
@@ -930,6 +1360,31 @@ describe('archiveCommunityPost', () => {
             message: 'Community post archived successfully.',
             data: { _id: POST_ID }
         });
+    });
+
+    test('preserves Cloudinary image references when archiving', async () => {
+        const post = makePost({
+            image: IMAGE_URL,
+            imagePublicId: IMAGE_PUBLIC_ID
+        });
+
+        CommunityPost.findById.mockResolvedValue(post);
+
+        const { next } = await invoke(
+            controller.archiveCommunityPost,
+            makeRequest({
+                params: { id: POST_ID }
+            })
+        );
+
+        expect(next).not.toHaveBeenCalled();
+
+        expect(post.status).toBe('Archived');
+        expect(post.image).toBe(IMAGE_URL);
+        expect(post.imagePublicId).toBe(IMAGE_PUBLIC_ID);
+
+        expect(deleteImage).not.toHaveBeenCalled();
+        expect(post.save).toHaveBeenCalledTimes(1);
     });
 
     test('removes the archived post from its linked AgriTip shares', async () => {
@@ -1055,6 +1510,31 @@ describe('shareCommunityPost', () => {
             message: 'Community post share recorded.',
             data: post
         });
+    });
+
+    test('preserves image references when a post is shared', async () => {
+        const post = makePost({
+            image: IMAGE_URL,
+            imagePublicId: IMAGE_PUBLIC_ID
+        });
+
+        CommunityPost.findById.mockResolvedValue(post);
+
+        const { next } = await invoke(
+            controller.shareCommunityPost,
+            makeRequest({
+                params: { id: POST_ID }
+            })
+        );
+
+        expect(next).not.toHaveBeenCalled();
+
+        expect(post.sharedBy).toEqual([USER_ID]);
+        expect(post.image).toBe(IMAGE_URL);
+        expect(post.imagePublicId).toBe(IMAGE_PUBLIC_ID);
+
+        expect(uploadImage).not.toHaveBeenCalled();
+        expect(deleteImage).not.toHaveBeenCalled();
     });
 
     test('does not duplicate an existing share', async () => {
@@ -1201,6 +1681,7 @@ describe('addComment', () => {
             expect(post.comments).toHaveLength(1);
             expect(post.save).toHaveBeenCalledTimes(1);
             expect(res.status).toHaveBeenCalledWith(201);
+
             expect(logSpy).toHaveBeenCalledWith(
                 'Notification creation failed:',
                 'Notification database unavailable'
@@ -1482,6 +1963,7 @@ describe('toggleLike', () => {
             expect(post.likes).toEqual([USER_ID]);
             expect(post.save).toHaveBeenCalledTimes(1);
             expect(res.status).toHaveBeenCalledWith(200);
+
             expect(logSpy).toHaveBeenCalledWith(
                 'Notification creation failed:',
                 'Notification failed'

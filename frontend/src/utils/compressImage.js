@@ -1,103 +1,95 @@
-
 const MAX_IMAGE_DIMENSION = 1200;
-const MAX_IMAGE_FILE_SIZE = 12 * 1024 * 1024;
+const MAX_FILE_SIZE = 12 * 1024 * 1024;
 const JPEG_QUALITY = 0.75;
 
-const compressImage = (file) =>
-    new Promise((resolve, reject) => {
-        if (!file || !file.type?.startsWith("image/")) {
-            reject(new Error("Please select an image file."));
-            return;
+const compressImage = file => {
+    return new Promise((resolve, reject) => {
+        if (!file || !(file instanceof File)) {
+            return reject(new Error('Please select a valid image.'));
         }
 
-        if (file.size > MAX_IMAGE_FILE_SIZE) {
-            reject(
-                new Error(
-                    "Image is too large. Please choose an image smaller than 12 MB."
-                )
+        if (!file.type.startsWith('image/')) {
+            return reject(new Error('Please select a valid image file.'));
+        }
+
+        if (file.size > MAX_FILE_SIZE) {
+            return reject(
+                new Error('Image size must not exceed 12MB.')
             );
-            return;
         }
 
-        const objectUrl = URL.createObjectURL(file);
+        const imageUrl = URL.createObjectURL(file);
         const image = new Image();
-
-        const cleanup = () => {
-            URL.revokeObjectURL(objectUrl);
-            image.onload = null;
-            image.onerror = null;
-        };
 
         image.onload = () => {
             try {
-                const originalWidth = image.naturalWidth;
-                const originalHeight = image.naturalHeight;
+                let { width, height } = image;
 
-                if (!originalWidth || !originalHeight) {
-                    throw new Error("Unable to process image.");
+                if (width > MAX_IMAGE_DIMENSION || height > MAX_IMAGE_DIMENSION) {
+                    const scale = Math.min(
+                        MAX_IMAGE_DIMENSION / width,
+                        MAX_IMAGE_DIMENSION / height
+                    );
+
+                    width = Math.round(width * scale);
+                    height = Math.round(height * scale);
                 }
 
-                const scale = Math.min(
-                    1,
-                    MAX_IMAGE_DIMENSION /
-                        Math.max(originalWidth, originalHeight)
-                );
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
 
-                const canvas = document.createElement("canvas");
-
-                canvas.width = Math.max(
-                    1,
-                    Math.round(originalWidth * scale)
-                );
-                canvas.height = Math.max(
-                    1,
-                    Math.round(originalHeight * scale)
-                );
-
-                const context = canvas.getContext("2d");
+                const context = canvas.getContext('2d');
 
                 if (!context) {
-                    throw new Error("Unable to process image.");
+                    URL.revokeObjectURL(imageUrl);
+                    return reject(
+                        new Error('Unable to process the selected image.')
+                    );
                 }
 
                 // Use a white background when converting transparent images to JPEG.
-                context.fillStyle = "#FFFFFF";
-                context.fillRect(0, 0, canvas.width, canvas.height);
+                context.fillStyle = '#FFFFFF';
+                context.fillRect(0, 0, width, height);
+                context.drawImage(image, 0, 0, width, height);
 
-                context.drawImage(
-                    image,
-                    0,
-                    0,
-                    canvas.width,
-                    canvas.height
-                );
+                canvas.toBlob(
+                    blob => {
+                        URL.revokeObjectURL(imageUrl);
 
-                const compressedImage = canvas.toDataURL(
-                    "image/jpeg",
+                        if (!blob) {
+                            return reject(
+                                new Error('Unable to compress the selected image.')
+                            );
+                        }
+
+                        const compressedFile = new File(
+                            [blob],
+                            `${file.name.replace(/\.[^/.]+$/, '')}.jpg`,
+                            {
+                                type: 'image/jpeg',
+                                lastModified: Date.now(),
+                            }
+                        );
+
+                        resolve(compressedFile);
+                    },
+                    'image/jpeg',
                     JPEG_QUALITY
                 );
-
-                canvas.width = 0;
-                canvas.height = 0;
-
-                cleanup();
-                resolve(compressedImage);
             } catch (error) {
-                cleanup();
-                reject(
-                    error instanceof Error
-                        ? error
-                        : new Error("Unable to process image.")
-                );
+                URL.revokeObjectURL(imageUrl);
+                reject(error);
             }
         };
 
         image.onerror = () => {
-            cleanup();
-            reject(new Error("Unable to process image."));
+            URL.revokeObjectURL(imageUrl);
+            reject(new Error('Unable to load the selected image.'));
         };
 
-        image.src = objectUrl;
+        image.src = imageUrl;
     });
+};
 
 export default compressImage;

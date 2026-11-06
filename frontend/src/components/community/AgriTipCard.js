@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 import {
     Alert,
@@ -9,6 +9,7 @@ import {
     CardContent,
     CardMedia,
     Chip,
+    CircularProgress,
     Dialog,
     DialogActions,
     DialogContent,
@@ -48,41 +49,7 @@ import {
     unshareAgriTip,
 } from '../../redux/actions/agriFeedActions';
 
-const MAX_IMAGE_SIZE = 1200;
-const IMAGE_QUALITY = 0.75;
-
-const compressImage = (file) =>
-    new Promise((resolve, reject) => {
-        const reader = new FileReader();
-
-        reader.onload = () => {
-            const image = new Image();
-
-            image.onload = () => {
-                const scale = Math.min(
-                    1,
-                    MAX_IMAGE_SIZE / Math.max(image.width, image.height)
-                );
-                const canvas = document.createElement('canvas');
-
-                canvas.width = Math.round(image.width * scale);
-                canvas.height = Math.round(image.height * scale);
-
-                const context = canvas.getContext('2d');
-                context.drawImage(image, 0, 0, canvas.width, canvas.height);
-
-                resolve(
-                    canvas.toDataURL('image/jpeg', IMAGE_QUALITY)
-                );
-            };
-
-            image.onerror = reject;
-            image.src = reader.result;
-        };
-
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-    });
+import compressImage from '../../utils/compressImage';
 
 const getId = (value) =>
     value?._id?.toString() || value?.id?.toString() || value?.toString();
@@ -92,6 +59,7 @@ const AgriTipCard = ({ tip }) => {
     const dispatch = useDispatch();
     const currentUser = useSelector((state) => state.auth?.user);
     const fileInputRef = useRef(null);
+    const imageSelectionRef = useRef(0);
 
     const [menuAnchor, setMenuAnchor] = useState(null);
     const [editOpen, setEditOpen] = useState(false);
@@ -100,6 +68,8 @@ const AgriTipCard = ({ tip }) => {
     const [editError, setEditError] = useState('');
     const [commentError, setCommentError] = useState('');
     const [imageError, setImageError] = useState('');
+    const [imageProcessing, setImageProcessing] = useState(false);
+    const [imagePreview, setImagePreview] = useState('');
     const [saving, setSaving] = useState(false);
     const [commenting, setCommenting] = useState(false);
     const [sharing, setSharing] = useState(false);
@@ -115,21 +85,51 @@ const AgriTipCard = ({ tip }) => {
         image: tip.image || '',
     });
 
+    useEffect(() => {
+        if (
+            typeof File !== 'undefined' &&
+            editData.image instanceof File
+        ) {
+            const previewUrl = URL.createObjectURL(editData.image);
+            setImagePreview(previewUrl);
+
+            return () => {
+                URL.revokeObjectURL(previewUrl);
+            };
+        }
+
+        setImagePreview(
+            typeof editData.image === 'string'
+                ? editData.image
+                : ''
+        );
+    }, [editData.image]);
+
+    useEffect(() => {
+        return () => {
+            imageSelectionRef.current += 1;
+        };
+    }, []);
+
     const userId = getId(currentUser);
     const creatorId = getId(tip.createdBy);
     const isAdmin = currentUser?.role === 'admin';
     const isExtensionOfficer = currentUser?.role === 'extension_officer';
+
     const canManage = Boolean(
-    userId &&
-    (
-        isAdmin ||
-        (isExtensionOfficer && userId === creatorId)
-    )
+        userId &&
+        (
+            isAdmin ||
+            (isExtensionOfficer && userId === creatorId)
+        )
     );
-    const liked = (tip.likes || []).some((like) => getId(like) === userId);
+
+    const liked = (tip.likes || []).some(
+        (like) => getId(like) === userId
+    );
 
     const shared = (tip.sharedBy || []).some(
-    (id) => getId(id) === userId
+        (id) => getId(id) === userId
     );
 
     const priorityColor = () => {
@@ -144,21 +144,52 @@ const AgriTipCard = ({ tip }) => {
 
         if (!file) return;
 
-        if (!file.type.startsWith('image/')) {
-            setImageError(t('Please select an image file.'));
-            return;
-        }
+        const selectionId = ++imageSelectionRef.current;
+
+        setImageError('');
+        setImageProcessing(true);
 
         try {
-            setImageError('');
-            const image = await compressImage(file);
-            setEditData((previous) => ({ ...previous, image }));
-        } catch {
-            setImageError(t('Unable to process this image.'));
+            const compressedFile = await compressImage(file);
+
+            if (selectionId !== imageSelectionRef.current) return;
+
+            setEditData((previous) => ({
+                ...previous,
+                image: compressedFile,
+            }));
+        } catch (error) {
+            if (selectionId !== imageSelectionRef.current) return;
+
+            setImageError(
+                t(error.message || 'Unable to process this image.')
+            );
+        } finally {
+            if (selectionId === imageSelectionRef.current) {
+                setImageProcessing(false);
+            }
         }
     };
 
+    const handleRemoveImage = () => {
+        imageSelectionRef.current += 1;
+        setImageProcessing(false);
+        setImageError('');
+
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+
+        setEditData((previous) => ({
+            ...previous,
+            image: '',
+        }));
+    };
+
     const openEdit = () => {
+        imageSelectionRef.current += 1;
+        setImageProcessing(false);
+
         setEditData({
             title: tip.title || '',
             content: tip.content || '',
@@ -169,26 +200,64 @@ const AgriTipCard = ({ tip }) => {
             source: tip.source || '',
             image: tip.image || '',
         });
+
         setEditError('');
         setImageError('');
         setEditOpen(true);
         setMenuAnchor(null);
     };
 
+    const handleCloseEdit = () => {
+        if (saving) return;
+
+        imageSelectionRef.current += 1;
+        setImageProcessing(false);
+        setEditOpen(false);
+        setImageError('');
+        setEditError('');
+
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+
+        setEditData((previous) => ({
+            ...previous,
+            image: tip.image || '',
+        }));
+    };
+
     const handleUpdate = async () => {
+        if (saving || imageProcessing) return;
+
         setSaving(true);
         setEditError('');
 
-        const result = await dispatch(updateAgriTip(tip._id, editData));
+        try {
+            const result = await dispatch(
+                updateAgriTip(tip._id, {
+                    ...editData,
+                    priority: isAdmin
+                        ? editData.priority
+                        : tip.priority || 'Normal',
+                })
+            );
 
-        setSaving(false);
+            if (!result?.success) {
+                setEditError(
+                    result?.message || t('Unable to update tip.')
+                );
+                return;
+            }
 
-        if (!result.success) {
-            setEditError(result.message || t('Unable to update tip.'));
-            return;
+            imageSelectionRef.current += 1;
+            setEditOpen(false);
+        } catch (error) {
+            setEditError(
+                error?.message || t('Unable to update tip.')
+            );
+        } finally {
+            setSaving(false);
         }
-
-        setEditOpen(false);
     };
 
     const handleDelete = async () => {
@@ -210,12 +279,16 @@ const AgriTipCard = ({ tip }) => {
         setCommenting(true);
         setCommentError('');
 
-        const result = await dispatch(addAgriTipComment(tip._id, content));
+        const result = await dispatch(
+            addAgriTipComment(tip._id, content)
+        );
 
         setCommenting(false);
 
         if (!result.success) {
-            setCommentError(result.message || t('Unable to add comment.'));
+            setCommentError(
+                result.message || t('Unable to add comment.')
+            );
             return;
         }
 
@@ -230,7 +303,9 @@ const AgriTipCard = ({ tip }) => {
         );
 
         if (!result.success) {
-            setCommentError(result.message || t('Unable to delete comment.'));
+            setCommentError(
+                result.message || t('Unable to delete comment.')
+            );
         }
     };
 
@@ -255,7 +330,7 @@ const AgriTipCard = ({ tip }) => {
             if (!result.success) {
                 setCommentError(
                     result.message ||
-                        t('Unable to remove this tip from the Community.')
+                    t('Unable to remove this tip from the Community.')
                 );
             }
 
@@ -274,7 +349,7 @@ const AgriTipCard = ({ tip }) => {
         if (!result.success) {
             setCommentError(
                 result.message ||
-                    t('Unable to share this tip to the Community.')
+                t('Unable to share this tip to the Community.')
             );
         }
     };
@@ -286,35 +361,52 @@ const AgriTipCard = ({ tip }) => {
                     <CardMedia
                         component="img"
                         image={tip.image}
-                        alt={tip.title || t("Agricultural tip image")}
+                        alt={tip.title || t('Agricultural tip image')}
                         loading="lazy"
                         decoding="async"
                         onError={(event) => {
-                            event.currentTarget.style.display = "none";
+                            event.currentTarget.style.display = 'none';
                         }}
                         sx={{
-                            display: "block",
-                            width: "100%",
-                            aspectRatio: "16 / 9",
+                            display: 'block',
+                            width: '100%',
+                            aspectRatio: '16 / 9',
                             maxHeight: 260,
-                            objectFit: "cover",
-                            backgroundColor: "action.hover"
+                            objectFit: 'cover',
+                            backgroundColor: 'action.hover',
                         }}
                     />
                 )}
 
                 <CardContent>
-                    <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2} mb={2}>
+                    <Stack
+                        direction="row"
+                        justifyContent="space-between"
+                        alignItems="flex-start"
+                        spacing={2}
+                        mb={2}
+                    >
                         <Typography variant="h6" fontWeight={700}>
                             {tip.title}
                         </Typography>
 
-                        <Stack direction="row" alignItems="center" spacing={1}>
-                            <Chip label={t(tip.priority)} color={priorityColor()} size="small" />
+                        <Stack
+                            direction="row"
+                            alignItems="center"
+                            spacing={1}
+                        >
+                            <Chip
+                                label={t(tip.priority)}
+                                color={priorityColor()}
+                                size="small"
+                            />
+
                             {canManage && (
                                 <IconButton
                                     aria-label={t('Tip options')}
-                                    onClick={(event) => setMenuAnchor(event.currentTarget)}
+                                    onClick={(event) =>
+                                        setMenuAnchor(event.currentTarget)
+                                    }
                                     size="small"
                                 >
                                     <MoreVertIcon />
@@ -329,48 +421,103 @@ const AgriTipCard = ({ tip }) => {
                         onClose={() => setMenuAnchor(null)}
                     >
                         <MenuItem onClick={openEdit}>
-                            <EditOutlinedIcon fontSize="small" sx={{ mr: 1 }} />
+                            <EditOutlinedIcon
+                                fontSize="small"
+                                sx={{ mr: 1 }}
+                            />
                             {t('Edit')}
                         </MenuItem>
+
                         <MenuItem onClick={handleDelete}>
-                            <DeleteOutlineIcon fontSize="small" sx={{ mr: 1 }} />
+                            <DeleteOutlineIcon
+                                fontSize="small"
+                                sx={{ mr: 1 }}
+                            />
                             {t('Delete')}
                         </MenuItem>
                     </Menu>
 
-                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap mb={2}>
-                        <Chip icon={<AgricultureIcon />} label={t(tip.category)} size="small" color="success" variant="outlined" />
-                        <Chip icon={<LanguageIcon />} label={t(tip.language)} size="small" variant="outlined" />
-                        <Chip icon={<LocationOnIcon />} label={t(tip.region)} size="small" variant="outlined" />
+                    <Stack
+                        direction="row"
+                        spacing={1}
+                        flexWrap="wrap"
+                        useFlexGap
+                        mb={2}
+                    >
+                        <Chip
+                            icon={<AgricultureIcon />}
+                            label={t(tip.category)}
+                            size="small"
+                            color="success"
+                            variant="outlined"
+                        />
+                        <Chip
+                            icon={<LanguageIcon />}
+                            label={t(tip.language)}
+                            size="small"
+                            variant="outlined"
+                        />
+                        <Chip
+                            icon={<LocationOnIcon />}
+                            label={t(tip.region)}
+                            size="small"
+                            variant="outlined"
+                        />
                     </Stack>
 
-                    <Typography variant="body1" sx={{ whiteSpace: 'pre-line' }}>
+                    <Typography
+                        variant="body1"
+                        sx={{ whiteSpace: 'pre-line' }}
+                    >
                         {tip.content}
                     </Typography>
 
                     <Box mt={3}>
                         {tip.createdBy?.name && (
-                            <Typography variant="body2" color="text.secondary">
-                                <strong>{t('Shared by')}:</strong> {tip.createdBy.name}
+                            <Typography
+                                variant="body2"
+                                color="text.secondary"
+                            >
+                                <strong>{t('Shared by')}:</strong>{' '}
+                                {tip.createdBy.name}
                             </Typography>
                         )}
 
                         {tip.source && (
-                            <Typography variant="body2" color="text.secondary">
-                                <strong>{t('Source')}:</strong> {tip.source}
+                            <Typography
+                                variant="body2"
+                                color="text.secondary"
+                            >
+                                <strong>{t('Source')}:</strong>{' '}
+                                {tip.source}
                             </Typography>
                         )}
 
-                        <Typography variant="caption" color="text.secondary" display="block" mt={1}>
-                            {tip.createdAt ? new Date(tip.createdAt).toLocaleDateString() : ''}
+                        <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            display="block"
+                            mt={1}
+                        >
+                            {tip.createdAt
+                                ? new Date(tip.createdAt).toLocaleDateString()
+                                : ''}
                         </Typography>
                     </Box>
 
                     <Divider sx={{ my: 2 }} />
 
-                    <Stack direction="row" justifyContent="space-around" alignItems="center">
+                    <Stack
+                        direction="row"
+                        justifyContent="space-around"
+                        alignItems="center"
+                    >
                         <Button
-                            startIcon={liked ? <FavoriteIcon color="error" /> : <FavoriteBorderIcon />}
+                            startIcon={
+                                liked
+                                    ? <FavoriteIcon color="error" />
+                                    : <FavoriteBorderIcon />
+                            }
                             onClick={handleLike}
                             color={liked ? 'error' : 'inherit'}
                         >
@@ -402,81 +549,165 @@ const AgriTipCard = ({ tip }) => {
                 </CardContent>
             </Card>
 
-            <Dialog open={editOpen} onClose={() => setEditOpen(false)} fullWidth maxWidth="sm">
-                <DialogTitle>{t('Edit Agricultural Tip')}</DialogTitle>
+            <Dialog
+                open={editOpen}
+                onClose={handleCloseEdit}
+                fullWidth
+                maxWidth="sm"
+            >
+                <DialogTitle>
+                    {t('Edit Agricultural Tip')}
+                </DialogTitle>
+
                 <DialogContent>
                     <Stack spacing={2} sx={{ pt: 1 }}>
-                        {editError && <Alert severity="error">{editError}</Alert>}
-                        {imageError && <Alert severity="error">{imageError}</Alert>}
+                        {editError && (
+                            <Alert severity="error">
+                                {editError}
+                            </Alert>
+                        )}
+
+                        {imageError && (
+                            <Alert severity="error">
+                                {imageError}
+                            </Alert>
+                        )}
 
                         <TextField
                             label={t('Title')}
                             value={editData.title}
                             inputProps={{ maxLength: 150 }}
-                            onChange={(event) => setEditData({ ...editData, title: event.target.value })}
+                            onChange={(event) =>
+                                setEditData({
+                                    ...editData,
+                                    title: event.target.value,
+                                })
+                            }
                             fullWidth
                             required
                         />
+
                         <TextField
                             label={t('Category')}
                             value={editData.category}
-                            onChange={(event) => setEditData({ ...editData, category: event.target.value })}
+                            onChange={(event) =>
+                                setEditData({
+                                    ...editData,
+                                    category: event.target.value,
+                                })
+                            }
                             fullWidth
                             required
                         />
+
                         <TextField
                             label={t('Content')}
                             value={editData.content}
-                            onChange={(event) => setEditData({ ...editData, content: event.target.value })}
+                            onChange={(event) =>
+                                setEditData({
+                                    ...editData,
+                                    content: event.target.value,
+                                })
+                            }
                             multiline
                             minRows={5}
                             fullWidth
                             required
                         />
+
                         <TextField
                             label={t('Priority')}
-                            value={editData.priority}
-                            onChange={(event) => setEditData({ ...editData, priority: event.target.value })}
+                            value={
+                                isAdmin
+                                    ? editData.priority
+                                    : tip.priority || 'Normal'
+                            }
+                            onChange={(event) =>
+                                setEditData({
+                                    ...editData,
+                                    priority: event.target.value,
+                                })
+                            }
                             select
                             fullWidth
+                            disabled={!isAdmin}
                         >
-                            {['Normal', 'Important', 'Urgent'].map((priority) => (
-                                <MenuItem key={priority} value={priority}>{t(priority)}</MenuItem>
-                            ))}
+                            {['Normal', 'Important', 'Urgent'].map(
+                                (priority) => (
+                                    <MenuItem
+                                        key={priority}
+                                        value={priority}
+                                    >
+                                        {t(priority)}
+                                    </MenuItem>
+                                )
+                            )}
                         </TextField>
+
                         <TextField
                             label={t('Language')}
                             value={editData.language}
-                            onChange={(event) => setEditData({ ...editData, language: event.target.value })}
+                            onChange={(event) =>
+                                setEditData({
+                                    ...editData,
+                                    language: event.target.value,
+                                })
+                            }
                             select
                             fullWidth
                         >
                             {['English', 'Hausa'].map((language) => (
-                                <MenuItem key={language} value={language}>{t(language)}</MenuItem>
+                                <MenuItem
+                                    key={language}
+                                    value={language}
+                                >
+                                    {t(language)}
+                                </MenuItem>
                             ))}
                         </TextField>
+
                         <TextField
                             label={t('Region')}
                             value={editData.region}
-                            onChange={(event) => setEditData({ ...editData, region: event.target.value })}
-                            fullWidth
-                        />
-                        <TextField
-                            label={t('Source')}
-                            value={editData.source}
-                            onChange={(event) => setEditData({ ...editData, source: event.target.value })}
+                            onChange={(event) =>
+                                setEditData({
+                                    ...editData,
+                                    region: event.target.value,
+                                })
+                            }
                             fullWidth
                         />
 
-                        {editData.image && (
+                        <TextField
+                            label={t('Source')}
+                            value={editData.source}
+                            onChange={(event) =>
+                                setEditData({
+                                    ...editData,
+                                    source: event.target.value,
+                                })
+                            }
+                            fullWidth
+                        />
+
+                        {imagePreview && (
                             <Box>
                                 <CardMedia
                                     component="img"
-                                    image={editData.image}
+                                    image={imagePreview}
                                     alt={t('Tip image preview')}
-                                    sx={{ maxHeight: 220, objectFit: 'contain', borderRadius: 2 }}
+                                    sx={{
+                                        maxHeight: 220,
+                                        objectFit: 'contain',
+                                        borderRadius: 2,
+                                    }}
                                 />
-                                <Button color="error" onClick={() => setEditData({ ...editData, image: '' })}>
+
+                                <Button
+                                    color="error"
+                                    onClick={handleRemoveImage}
+                                    disabled={saving}
+                                >
                                     {t('Remove image')}
                                 </Button>
                             </Box>
@@ -485,94 +716,183 @@ const AgriTipCard = ({ tip }) => {
                         <input
                             ref={fileInputRef}
                             type="file"
-                            accept="image/*"
+                            accept="image/jpeg,image/png,image/webp"
                             capture="environment"
                             hidden
                             onChange={handleImageChange}
                         />
+
                         <Button
                             variant="outlined"
-                            startIcon={<CameraAltIcon />}
-                            onClick={() => fileInputRef.current?.click()}
+                            startIcon={
+                                imageProcessing
+                                    ? (
+                                        <CircularProgress
+                                            size={18}
+                                            color="inherit"
+                                        />
+                                    )
+                                    : <CameraAltIcon />
+                            }
+                            onClick={() =>
+                                fileInputRef.current?.click()
+                            }
+                            disabled={saving || imageProcessing}
                         >
-                            {t(editData.image ? 'Change image' : 'Add photo or take a picture')}
+                            {imageProcessing
+                                ? t('Processing image...')
+                                : t(
+                                    editData.image
+                                        ? 'Change image'
+                                        : 'Add photo or take a picture'
+                                )}
                         </Button>
                     </Stack>
                 </DialogContent>
+
                 <DialogActions>
-                    <Button onClick={() => setEditOpen(false)}>{t('Cancel')}</Button>
-                    <Button onClick={handleUpdate} variant="contained" disabled={saving || !editData.title.trim() || !editData.content.trim()}>
-                        {saving ? t('Saving...') : t('Save changes')}
+                    <Button
+                        onClick={handleCloseEdit}
+                        disabled={saving}
+                    >
+                        {t('Cancel')}
+                    </Button>
+
+                    <Button
+                        onClick={handleUpdate}
+                        variant="contained"
+                        disabled={
+                            saving ||
+                            imageProcessing ||
+                            !editData.title.trim() ||
+                            !editData.content.trim()
+                        }
+                    >
+                        {saving
+                            ? t('Saving...')
+                            : t('Save changes')}
                     </Button>
                 </DialogActions>
             </Dialog>
 
-            <Dialog open={commentsOpen} onClose={() => setCommentsOpen(false)} fullWidth maxWidth="sm">
+            <Dialog
+                open={commentsOpen}
+                onClose={() => setCommentsOpen(false)}
+                fullWidth
+                maxWidth="sm"
+            >
                 <DialogTitle>{t('Comments')}</DialogTitle>
+
                 <DialogContent>
                     <Stack spacing={2} sx={{ pt: 1 }}>
-                        {commentError && <Alert severity="error">{commentError}</Alert>}
-
-                        {tip.comments?.length ? tip.comments.map((comment) => {
-                            const commentUserId = getId(comment.user);
-                            const canDelete = Boolean(userId && commentUserId === userId);
-
-                            return (
-                                <Box key={comment._id}>
-                                    <Stack direction="row" spacing={1.5} alignItems="flex-start">
-                                        <Avatar src={comment.user?.profilePhoto}>
-                                            {comment.user?.name?.charAt(0) || '?'}
-                                        </Avatar>
-                                        <Box flex={1}>
-                                            <Typography fontWeight={600}>
-                                                {comment.user?.name || t('User')}
-                                            </Typography>
-                                            <Typography sx={{ whiteSpace: 'pre-line' }}>
-                                                {comment.content}
-                                            </Typography>
-                                            <Typography variant="caption" color="text.secondary">
-                                                {comment.createdAt ? new Date(comment.createdAt).toLocaleString() : ''}
-                                            </Typography>
-                                        </Box>
-                                        {canDelete && (
-                                            <IconButton
-                                                aria-label={t('Delete comment')}
-                                                size="small"
-                                                onClick={() => handleDeleteComment(comment._id)}
-                                            >
-                                                <DeleteOutlineIcon fontSize="small" />
-                                            </IconButton>
-                                        )}
-                                    </Stack>
-                                    <Divider sx={{ mt: 1.5 }} />
-                                </Box>
-                            );
-                        }) : (
-                            <Typography color="text.secondary">
-                                {t('No comments yet. Be the first to comment.')}
-                            </Typography>
+                        {commentError && (
+                            <Alert severity="error">
+                                {commentError}
+                            </Alert>
                         )}
+
+                        {tip.comments?.length
+                            ? tip.comments.map((comment) => {
+                                const commentUserId = getId(comment.user);
+                                const canDelete = Boolean(
+                                    userId && commentUserId === userId
+                                );
+
+                                return (
+                                    <Box key={comment._id}>
+                                        <Stack
+                                            direction="row"
+                                            spacing={1.5}
+                                            alignItems="flex-start"
+                                        >
+                                            <Avatar
+                                                src={comment.user?.profilePhoto}
+                                            >
+                                                {comment.user?.name?.charAt(0) || '?'}
+                                            </Avatar>
+
+                                            <Box flex={1}>
+                                                <Typography fontWeight={600}>
+                                                    {comment.user?.name || t('User')}
+                                                </Typography>
+
+                                                <Typography
+                                                    sx={{
+                                                        whiteSpace: 'pre-line',
+                                                    }}
+                                                >
+                                                    {comment.content}
+                                                </Typography>
+
+                                                <Typography
+                                                    variant="caption"
+                                                    color="text.secondary"
+                                                >
+                                                    {comment.createdAt
+                                                        ? new Date(
+                                                            comment.createdAt
+                                                        ).toLocaleString()
+                                                        : ''}
+                                                </Typography>
+                                            </Box>
+
+                                            {canDelete && (
+                                                <IconButton
+                                                    aria-label={t('Delete comment')}
+                                                    size="small"
+                                                    onClick={() =>
+                                                        handleDeleteComment(
+                                                            comment._id
+                                                        )
+                                                    }
+                                                >
+                                                    <DeleteOutlineIcon fontSize="small" />
+                                                </IconButton>
+                                            )}
+                                        </Stack>
+
+                                        <Divider sx={{ mt: 1.5 }} />
+                                    </Box>
+                                );
+                            })
+                            : (
+                                <Typography color="text.secondary">
+                                    {t(
+                                        'No comments yet. Be the first to comment.'
+                                    )}
+                                </Typography>
+                            )}
 
                         <TextField
                             label={t('Write a comment')}
                             value={commentText}
-                            onChange={(event) => setCommentText(event.target.value)}
+                            onChange={(event) =>
+                                setCommentText(event.target.value)
+                            }
                             multiline
                             minRows={2}
                             fullWidth
                         />
+
                         <Button
                             variant="contained"
                             startIcon={<SendOutlinedIcon />}
                             onClick={handleAddComment}
                             disabled={commenting || !commentText.trim()}
                         >
-                            {commenting ? t('Posting...') : t('Post comment')}
+                            {commenting
+                                ? t('Posting...')
+                                : t('Post comment')}
                         </Button>
                     </Stack>
                 </DialogContent>
+
                 <DialogActions>
-                    <Button onClick={() => setCommentsOpen(false)}>{t('Close')}</Button>
+                    <Button
+                        onClick={() => setCommentsOpen(false)}
+                    >
+                        {t('Close')}
+                    </Button>
                 </DialogActions>
             </Dialog>
         </>

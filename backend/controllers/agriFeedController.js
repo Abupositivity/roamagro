@@ -4,6 +4,10 @@ const CommunityPost = require('../models/CommunityPost');
 const Notification = require('../models/Notification');
 const asyncHandler = require('../middleware/asyncHandler');
 const AppError = require('../utils/AppError');
+const {
+    uploadImage,
+    deleteImage,
+} = require('../utils/cloudinaryStorage');
 
 const PUBLIC_USER_FIELDS = 'name profilePhoto role state lga location';
 
@@ -12,7 +16,7 @@ const MAX_CONTENT_LENGTH = 5000;
 const MAX_CATEGORY_LENGTH = 100;
 const MAX_REGION_LENGTH = 100;
 const MAX_SOURCE_LENGTH = 2048;
-const MAX_IMAGE_LENGTH = 3000000;
+const MAX_IMAGE_LENGTH = 2048;
 const MAX_COMMENT_LENGTH = 1000;
 const MAX_SEARCH_LENGTH = 100;
 const MAX_PAGE_SIZE = 50;
@@ -20,9 +24,7 @@ const MAX_PAGE_SIZE = 50;
 const isAdmin = (req) => req.user?.role === 'admin';
 
 const canManageTip = (req, tip) => {
-    if (isAdmin(req)) {
-        return true;
-    }
+    if (isAdmin(req)) return true;
 
     return Boolean(
         req.user?._id &&
@@ -85,9 +87,7 @@ const validateString = (
 };
 
 const validateEnum = (value, field, allowedValues) => {
-    if (value === undefined) {
-        return undefined;
-    }
+    if (value === undefined) return undefined;
 
     if (
         typeof value !== 'string' ||
@@ -100,28 +100,16 @@ const validateEnum = (value, field, allowedValues) => {
 };
 
 const validateImage = (value) => {
-    if (value === undefined) {
-        return undefined;
-    }
+    if (value === undefined) return undefined;
+    if (value === null || value === '') return '';
 
-    if (value === null || value === '') {
-        return '';
-    }
-
-    if (typeof value !== 'string' || value.length > MAX_IMAGE_LENGTH) {
-        throw new AppError('Image is invalid or too large.', 400);
-    }
-
-    const isJpegDataUrl =
-        /^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/.test(value);
-
-    const isHttpUrl =
-        value.length <= MAX_SOURCE_LENGTH &&
-        /^https?:\/\/\S+$/i.test(value);
-
-    if (!isJpegDataUrl && !isHttpUrl) {
+    if (
+        typeof value !== 'string' ||
+        value.length > MAX_IMAGE_LENGTH ||
+        !/^https:\/\/[^\s]+$/i.test(value)
+    ) {
         throw new AppError(
-            'Image must be a valid JPEG data URL or HTTP(S) URL.',
+            'Image must be a valid HTTPS URL or empty to remove it.',
             400
         );
     }
@@ -234,17 +222,72 @@ const getPagination = (query) => {
     };
 };
 
+const deleteImageIfUnused = async (publicId) => {
+    if (!publicId) return;
+
+    try {
+        const [tipReferences, communityReferences] = await Promise.all([
+            AgriTip.exists({ imagePublicId: publicId }),
+            CommunityPost.exists({ imagePublicId: publicId }),
+        ]);
+
+        if (!tipReferences && !communityReferences) {
+            await deleteImage(publicId);
+        }
+    } catch (error) {
+        console.error(
+            'Cloudinary image cleanup failed:',
+            error.message
+        );
+    }
+};
+
 exports.createTip = asyncHandler(async (req, res) => {
     const fields = validateTipFields(req.body || {});
 
-    const tip = await AgriTip.create({
-        ...fields,
-        createdBy: req.user._id,
-    });
+    if (fields.image) {
+        throw new AppError(
+            'Please upload an image file instead of providing an image URL.',
+            400
+        );
+    }
+
+    let imagePublicId = '';
+
+    if (req.file) {
+        const uploadedImage = await uploadImage(
+            req.file,
+            'roamagro/agri-feed'
+        );
+
+        fields.image = uploadedImage.url;
+        imagePublicId = uploadedImage.publicId;
+    }
+
+    let tip;
+
+    try {
+        tip = await AgriTip.create({
+            ...fields,
+            imagePublicId,
+            createdBy: req.user._id,
+        });
+    } catch (error) {
+        if (imagePublicId) {
+            await deleteImage(imagePublicId).catch((cleanupError) => {
+                console.error(
+                    'Cloudinary cleanup failed:',
+                    cleanupError.message
+                );
+            });
+        }
+
+        throw error;
+    }
 
     await populateTip(tip);
 
-    res.status(201).json({
+    return res.status(201).json({
         success: true,
         message: 'Agricultural tip created successfully.',
         data: tip,
@@ -328,7 +371,6 @@ exports.getTips = asyncHandler(async (req, res) => {
     }
 
     const { page, limit, skip } = getPagination(req.query);
-
     const total = await AgriTip.countDocuments(query);
 
     const tips = await AgriTip.find(query)
@@ -344,7 +386,7 @@ exports.getTips = asyncHandler(async (req, res) => {
 
     const totalPages = Math.ceil(total / limit);
 
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         count: tips.length,
         total,
@@ -366,12 +408,10 @@ exports.getFeaturedTips = asyncHandler(async (req, res) => {
     })
         .populate('createdBy', PUBLIC_USER_FIELDS)
         .populate('comments.user', PUBLIC_USER_FIELDS)
-        .sort({
-            createdAt: -1,
-        })
+        .sort({ createdAt: -1 })
         .limit(6);
 
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         count: tips.length,
         data: tips,
@@ -389,29 +429,81 @@ exports.updateTip = asyncHandler(async (req, res) => {
     }
 
     if (tip.status === 'Archived') {
-        throw new AppError(
-            'Archived tips cannot be edited.',
-            400
-        );
+        throw new AppError('Archived tips cannot be edited.', 400);
     }
 
     const fields = validateTipFields(req.body || {}, {
         partial: true,
     });
 
-    if (Object.keys(fields).length === 0) {
+    if (
+        fields.image !== undefined &&
+        fields.image !== '' &&
+        fields.image !== tip.image
+    ) {
+        throw new AppError(
+            'Please upload a new image instead of providing an image URL.',
+            400
+        );
+    }
+
+    const oldImagePublicId = tip.imagePublicId;
+    let newImagePublicId = '';
+
+    if (req.file) {
+        const uploadedImage = await uploadImage(
+            req.file,
+            'roamagro/agri-feed'
+        );
+
+        fields.image = uploadedImage.url;
+        newImagePublicId = uploadedImage.publicId;
+    }
+
+    if (
+        Object.keys(fields).length === 0 &&
+        !req.file
+    ) {
         throw new AppError(
             'Provide at least one valid field to update.',
             400
         );
     }
 
+    if (
+        Object.prototype.hasOwnProperty.call(fields, 'image') &&
+        !req.file &&
+        fields.image !== tip.image
+    ) {
+        tip.imagePublicId = '';
+    }
+
     Object.assign(tip, fields);
 
-    await tip.save();
+    if (req.file) {
+        tip.imagePublicId = newImagePublicId;
+    }
+
+    try {
+        await tip.save();
+    } catch (error) {
+        if (newImagePublicId) {
+            await deleteImage(newImagePublicId).catch(() => null);
+        }
+
+        throw error;
+    }
+
+    if (
+        oldImagePublicId &&
+        oldImagePublicId !== tip.imagePublicId
+    ) {
+        await deleteImageIfUnused(oldImagePublicId);
+    }
+
     await populateTip(tip);
 
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         message: 'Agricultural tip updated successfully.',
         data: tip,
@@ -431,7 +523,7 @@ exports.deleteTip = asyncHandler(async (req, res) => {
     tip.status = 'Archived';
     await tip.save();
 
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         message: 'Agricultural tip deleted successfully.',
         data: {
@@ -482,7 +574,7 @@ exports.toggleLike = asyncHandler(async (req, res) => {
     await tip.save();
     await populateTip(tip);
 
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         data: tip,
     });
@@ -531,7 +623,7 @@ exports.addComment = asyncHandler(async (req, res) => {
 
     await populateTip(tip);
 
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         message: 'Comment added successfully.',
         data: tip,
@@ -549,9 +641,7 @@ exports.deleteComment = asyncHandler(async (req, res) => {
         throw new AppError('Comment not found.', 404);
     }
 
-    if (
-        comment.user.toString() !== req.user._id.toString()
-    ) {
+    if (comment.user.toString() !== req.user._id.toString()) {
         throw new AppError(
             'You can only delete your own comments.',
             403
@@ -562,7 +652,7 @@ exports.deleteComment = asyncHandler(async (req, res) => {
     await tip.save();
     await populateTip(tip);
 
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         message: 'Comment deleted.',
         data: tip,
@@ -610,6 +700,7 @@ exports.shareTip = asyncHandler(async (req, res) => {
         content: tip.content,
         category: tip.category,
         image: tip.image || '',
+        imagePublicId: tip.imagePublicId || '',
         user: req.user._id,
         agriTip: tip._id,
     });
@@ -628,7 +719,7 @@ exports.shareTip = asyncHandler(async (req, res) => {
 
     await populateTip(tip);
 
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         message: 'Agricultural tip shared to the Community.',
         data: tip,
@@ -671,7 +762,7 @@ exports.unshareTip = asyncHandler(async (req, res) => {
     await tip.save();
     await populateTip(tip);
 
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         message: 'Agricultural tip removed from the Community.',
         data: tip,

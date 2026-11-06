@@ -1,4 +1,3 @@
-
 const errorHandler = require('../../middleware/errorHandler');
 
 describe('errorHandler middleware', () => {
@@ -7,6 +6,14 @@ describe('errorHandler middleware', () => {
     let next;
     let consoleErrorSpy;
     let originalNodeEnv;
+
+    const makeError = (message, properties = {}) =>
+        Object.assign(new Error(message), properties);
+
+    const getResponse = () => res.json.mock.calls[0][0];
+
+    const getLogDetails = () =>
+        consoleErrorSpy.mock.calls[0][1];
 
     beforeEach(() => {
         originalNodeEnv = process.env.NODE_ENV;
@@ -24,6 +31,7 @@ describe('errorHandler middleware', () => {
         };
 
         next = jest.fn();
+
         consoleErrorSpy = jest
             .spyOn(console, 'error')
             .mockImplementation(() => {});
@@ -55,7 +63,7 @@ describe('errorHandler middleware', () => {
 
     describe('HTTP status code handling', () => {
         it('uses a valid statusCode property', () => {
-            const error = Object.assign(new Error('Invalid input'), {
+            const error = makeError('Invalid input', {
                 statusCode: 422
             });
 
@@ -70,10 +78,12 @@ describe('errorHandler middleware', () => {
                     errors: null
                 })
             );
+
+            expect(consoleErrorSpy).not.toHaveBeenCalled();
         });
 
         it('uses status when statusCode is not provided', () => {
-            const error = Object.assign(new Error('Not found'), {
+            const error = makeError('Not found', {
                 status: 404
             });
 
@@ -96,7 +106,7 @@ describe('errorHandler middleware', () => {
             ['fractional status', 400.5],
             ['zero status', 0]
         ])('defaults to 500 for %s', (_description, status) => {
-            const error = Object.assign(new Error('Something failed'), {
+            const error = makeError('Something failed', {
                 status
             });
 
@@ -111,11 +121,12 @@ describe('errorHandler middleware', () => {
                     errors: null
                 })
             );
+
             expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
         });
 
         it('prefers statusCode when both status fields are present', () => {
-            const error = Object.assign(new Error('Validation failed'), {
+            const error = makeError('Validation failed', {
                 statusCode: 422,
                 status: 400
             });
@@ -132,14 +143,67 @@ describe('errorHandler middleware', () => {
 
             expect(res.status).toHaveBeenCalledWith(500);
         });
+
+        it('uses a valid statusCode even when status is invalid', () => {
+            const error = makeError('Invalid request', {
+                statusCode: 409,
+                status: 'invalid'
+            });
+
+            errorHandler(error, req, res, next);
+
+            expect(res.status).toHaveBeenCalledWith(409);
+            expect(getResponse().status).toBe('fail');
+        });
+
+        it('uses 500 when statusCode is invalid and nonzero', () => {
+            const error = makeError('Unexpected failure', {
+                statusCode: '400',
+                status: 404
+            });
+
+            errorHandler(error, req, res, next);
+
+            expect(res.status).toHaveBeenCalledWith(500);
+            expect(getResponse().status).toBe('error');
+        });
+
+        it.each([400, 401, 403, 404, 409, 422, 429])(
+            'classifies HTTP %i as a client error',
+            (statusCode) => {
+                const error = makeError('Request rejected', {
+                    statusCode
+                });
+
+                errorHandler(error, req, res, next);
+
+                expect(res.status).toHaveBeenCalledWith(
+                    statusCode
+                );
+
+                expect(getResponse()).toEqual(
+                    expect.objectContaining({
+                        success: false,
+                        status: 'fail',
+                        message: 'Request rejected'
+                    })
+                );
+
+                expect(consoleErrorSpy).not.toHaveBeenCalled();
+            }
+        );
     });
 
     describe('client errors', () => {
         it('returns validation errors when supplied', () => {
             const validationErrors = [
-                { field: 'email', message: 'Email is required' }
+                {
+                    field: 'email',
+                    message: 'Email is required'
+                }
             ];
-            const error = Object.assign(new Error('Validation failed'), {
+
+            const error = makeError('Validation failed', {
                 statusCode: 400,
                 errors: validationErrors
             });
@@ -153,17 +217,18 @@ describe('errorHandler middleware', () => {
                 errors: validationErrors,
                 stack: expect.any(String)
             });
+
             expect(consoleErrorSpy).not.toHaveBeenCalled();
         });
 
         it('returns null errors when the error has no errors property', () => {
-            const error = Object.assign(new Error('Forbidden'), {
+            const error = makeError('Forbidden', {
                 statusCode: 403
             });
 
             errorHandler(error, req, res, next);
 
-            expect(res.json).toHaveBeenCalledWith(
+            expect(getResponse()).toEqual(
                 expect.objectContaining({
                     success: false,
                     status: 'fail',
@@ -174,38 +239,49 @@ describe('errorHandler middleware', () => {
         });
 
         it('returns null errors when the errors property is falsy', () => {
-            const error = Object.assign(new Error('Bad request'), {
+            const error = makeError('Bad request', {
                 statusCode: 400,
                 errors: undefined
             });
 
             errorHandler(error, req, res, next);
 
-            expect(res.json).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    errors: null
-                })
-            );
+            expect(getResponse().errors).toBeNull();
         });
 
         it('uses a fallback message when the error message is empty', () => {
-            const error = Object.assign(new Error(''), {
+            const error = makeError('', {
                 statusCode: 400
             });
 
             errorHandler(error, req, res, next);
 
-            expect(res.json).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    message: 'Request failed.'
-                })
+            expect(getResponse().message).toBe(
+                'Request failed.'
             );
+        });
+
+        it('does not log validation errors', () => {
+            const error = makeError('Invalid field', {
+                statusCode: 422,
+                errors: [
+                    {
+                        field: 'name',
+                        message: 'Invalid name'
+                    }
+                ]
+            });
+
+            errorHandler(error, req, res, next);
+
+            expect(consoleErrorSpy).not.toHaveBeenCalled();
+            expect(getResponse().status).toBe('fail');
         });
     });
 
     describe('request body errors', () => {
         it('returns a specific message for malformed JSON', () => {
-            const error = Object.assign(new Error('Parser details'), {
+            const error = makeError('Parser details', {
                 status: 400,
                 type: 'entity.parse.failed'
             });
@@ -213,7 +289,8 @@ describe('errorHandler middleware', () => {
             errorHandler(error, req, res, next);
 
             expect(res.status).toHaveBeenCalledWith(400);
-            expect(res.json).toHaveBeenCalledWith(
+
+            expect(getResponse()).toEqual(
                 expect.objectContaining({
                     success: false,
                     status: 'fail',
@@ -224,7 +301,7 @@ describe('errorHandler middleware', () => {
         });
 
         it('returns a specific message for an oversized request body', () => {
-            const error = Object.assign(new Error('Payload too large'), {
+            const error = makeError('Payload too large', {
                 status: 413,
                 type: 'entity.too.large'
             });
@@ -232,7 +309,8 @@ describe('errorHandler middleware', () => {
             errorHandler(error, req, res, next);
 
             expect(res.status).toHaveBeenCalledWith(413);
-            expect(res.json).toHaveBeenCalledWith(
+
+            expect(getResponse()).toEqual(
                 expect.objectContaining({
                     success: false,
                     status: 'fail',
@@ -244,14 +322,17 @@ describe('errorHandler middleware', () => {
     });
 
     describe('server errors in development', () => {
-        it('returns the error message and stack and logs request details', () => {
+        beforeEach(() => {
             process.env.NODE_ENV = 'development';
+        });
 
+        it('returns the error message and stack and logs request details', () => {
             const error = new Error('Database unavailable');
 
             errorHandler(error, req, res, next);
 
             expect(res.status).toHaveBeenCalledWith(500);
+
             expect(res.json).toHaveBeenCalledWith({
                 success: false,
                 status: 'error',
@@ -260,17 +341,41 @@ describe('errorHandler middleware', () => {
                 stack: expect.any(String)
             });
 
-            expect(consoleErrorSpy).toHaveBeenCalledWith('API error:', {
+            expect(consoleErrorSpy).toHaveBeenCalledWith(
+                'API error:',
+                {
+                    method: 'GET',
+                    path: '/api/test',
+                    statusCode: 500,
+                    errorName: 'Error',
+                    errorCode: undefined,
+                    errorMessage: 'Database unavailable',
+                    stack: error.stack
+                }
+            );
+        });
+
+        it('logs the error name and code when provided', () => {
+            const error = makeError('Database connection failed', {
+                name: 'MongoServerError',
+                code: 11000,
+                statusCode: 500
+            });
+
+            errorHandler(error, req, res, next);
+
+            expect(getLogDetails()).toEqual({
                 method: 'GET',
                 path: '/api/test',
                 statusCode: 500,
-                message: 'Database unavailable'
+                errorName: 'MongoServerError',
+                errorCode: 11000,
+                errorMessage: 'Database connection failed',
+                stack: error.stack
             });
         });
 
         it('does not include a stack when the error has no stack', () => {
-            process.env.NODE_ENV = 'development';
-
             const error = {
                 message: 'Server failure',
                 statusCode: 500
@@ -278,22 +383,36 @@ describe('errorHandler middleware', () => {
 
             errorHandler(error, req, res, next);
 
-            const response = res.json.mock.calls[0][0];
-
-            expect(response).not.toHaveProperty('stack');
-            expect(response.message).toBe('Server failure');
+            expect(getResponse()).not.toHaveProperty('stack');
+            expect(getResponse().message).toBe('Server failure');
         });
 
         it('uses the fallback message when a server error has no message', () => {
-            process.env.NODE_ENV = 'development';
-
-            errorHandler({ statusCode: 500 }, req, res, next);
-
-            expect(res.json).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    message: 'Request failed.'
-                })
+            errorHandler(
+                { statusCode: 500 },
+                req,
+                res,
+                next
             );
+
+            expect(getResponse().message).toBe(
+                'Request failed.'
+            );
+        });
+
+        it('does not expose server error validation details', () => {
+            const error = makeError('Internal failure', {
+                statusCode: 500,
+                errors: [
+                    {
+                        secret: 'internal-data'
+                    }
+                ]
+            });
+
+            errorHandler(error, req, res, next);
+
+            expect(getResponse().errors).toBeNull();
         });
     });
 
@@ -303,11 +422,14 @@ describe('errorHandler middleware', () => {
         });
 
         it('hides internal error details and omits the stack', () => {
-            const error = new Error('Sensitive database credentials');
+            const error = new Error(
+                'Sensitive database credentials'
+            );
 
             errorHandler(error, req, res, next);
 
             expect(res.status).toHaveBeenCalledWith(500);
+
             expect(res.json).toHaveBeenCalledWith({
                 success: false,
                 status: 'error',
@@ -315,33 +437,47 @@ describe('errorHandler middleware', () => {
                 errors: null
             });
 
-            expect(res.json.mock.calls[0][0]).not.toHaveProperty('stack');
-            expect(JSON.stringify(res.json.mock.calls[0][0]))
+            expect(getResponse()).not.toHaveProperty('stack');
+
+            expect(JSON.stringify(getResponse()))
                 .not.toContain('Sensitive database credentials');
         });
 
-        it('logs a generic message instead of the internal error message', () => {
+        it('logs the original error details without exposing them in the response', () => {
             const error = new Error('Private internal details');
 
             errorHandler(error, req, res, next);
 
-            expect(consoleErrorSpy).toHaveBeenCalledWith('API error:', {
-                method: 'GET',
-                path: '/api/test',
-                statusCode: 500,
-                message: 'Unexpected server error'
-            });
+            expect(consoleErrorSpy).toHaveBeenCalledWith(
+                'API error:',
+                {
+                    method: 'GET',
+                    path: '/api/test',
+                    statusCode: 500,
+                    errorName: 'Error',
+                    errorCode: undefined,
+                    errorMessage: 'Private internal details',
+                    stack: error.stack
+                }
+            );
+
+            expect(getResponse().message).toBe(
+                'An unexpected server error occurred.'
+            );
+
+            expect(JSON.stringify(getResponse()))
+                .not.toContain('Private internal details');
         });
 
         it('preserves the specific malformed JSON message', () => {
-            const error = Object.assign(new Error('Parser internals'), {
+            const error = makeError('Parser internals', {
                 statusCode: 400,
                 type: 'entity.parse.failed'
             });
 
             errorHandler(error, req, res, next);
 
-            expect(res.json).toHaveBeenCalledWith(
+            expect(getResponse()).toEqual(
                 expect.objectContaining({
                     status: 'fail',
                     message: 'Invalid JSON request body.'
@@ -350,14 +486,14 @@ describe('errorHandler middleware', () => {
         });
 
         it('preserves the specific oversized body message', () => {
-            const error = Object.assign(new Error('Body internals'), {
+            const error = makeError('Body internals', {
                 statusCode: 413,
                 type: 'entity.too.large'
             });
 
             errorHandler(error, req, res, next);
 
-            expect(res.json).toHaveBeenCalledWith(
+            expect(getResponse()).toEqual(
                 expect.objectContaining({
                     status: 'fail',
                     message: 'Request body is too large.'
@@ -366,13 +502,75 @@ describe('errorHandler middleware', () => {
         });
 
         it('does not expose the stack for client errors', () => {
-            const error = Object.assign(new Error('Invalid input'), {
+            const error = makeError('Invalid input', {
                 statusCode: 400
             });
 
             errorHandler(error, req, res, next);
 
-            expect(res.json.mock.calls[0][0]).not.toHaveProperty('stack');
+            expect(getResponse()).not.toHaveProperty('stack');
+        });
+
+        it('preserves safe client error messages', () => {
+            const error = makeError('Access denied', {
+                statusCode: 403
+            });
+
+            errorHandler(error, req, res, next);
+
+            expect(res.status).toHaveBeenCalledWith(403);
+            expect(getResponse().message).toBe('Access denied');
+            expect(consoleErrorSpy).not.toHaveBeenCalled();
+        });
+
+        it('hides validation details for server errors', () => {
+            const error = makeError('Internal validation failed', {
+                statusCode: 500,
+                errors: [
+                    {
+                        field: 'internalSecret',
+                        message: 'Private value'
+                    }
+                ]
+            });
+
+            errorHandler(error, req, res, next);
+
+            expect(getResponse()).toEqual({
+                success: false,
+                status: 'error',
+                message: 'An unexpected server error occurred.',
+                errors: null
+            });
+        });
+
+        it('does not expose error names or codes in the response', () => {
+            const error = makeError('Internal database failure', {
+                statusCode: 503,
+                name: 'MongoServerError',
+                code: 11000
+            });
+
+            errorHandler(error, req, res, next);
+
+            const response = getResponse();
+
+            expect(response).not.toHaveProperty('errorName');
+            expect(response).not.toHaveProperty('errorCode');
+            expect(response).not.toHaveProperty('errorMessage');
+            expect(response).not.toHaveProperty('stack');
+
+            expect(response.message).toBe(
+                'An unexpected server error occurred.'
+            );
+
+            expect(getLogDetails()).toEqual(
+                expect.objectContaining({
+                    errorName: 'MongoServerError',
+                    errorCode: 11000,
+                    errorMessage: 'Internal database failure'
+                })
+            );
         });
     });
 
@@ -380,7 +578,7 @@ describe('errorHandler middleware', () => {
         it.each([500, 502, 503])(
             'logs server errors with status %i',
             (statusCode) => {
-                const error = Object.assign(new Error('Service failed'), {
+                const error = makeError('Service failed', {
                     statusCode
                 });
 
@@ -391,20 +589,64 @@ describe('errorHandler middleware', () => {
                     expect.objectContaining({
                         method: 'GET',
                         path: '/api/test',
-                        statusCode
+                        statusCode,
+                        errorName: 'Error',
+                        errorMessage: 'Service failed',
+                        stack: error.stack
                     })
                 );
             }
         );
 
+        it('logs the request method and path', () => {
+            req.method = 'POST';
+            req.path = '/api/marketplace';
+
+            const error = makeError('Listing creation failed', {
+                statusCode: 500
+            });
+
+            errorHandler(error, req, res, next);
+
+            expect(getLogDetails()).toEqual(
+                expect.objectContaining({
+                    method: 'POST',
+                    path: '/api/marketplace',
+                    statusCode: 500
+                })
+            );
+        });
+
         it('does not log client errors', () => {
-            const error = Object.assign(new Error('Not found'), {
+            const error = makeError('Not found', {
                 statusCode: 404
             });
 
             errorHandler(error, req, res, next);
 
             expect(consoleErrorSpy).not.toHaveBeenCalled();
+        });
+
+        it('logs server errors exactly once', () => {
+            const error = makeError('Unexpected failure', {
+                statusCode: 500
+            });
+
+            errorHandler(error, req, res, next);
+
+            expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
+        });
+
+        it('does not call next after sending an error response', () => {
+            const error = makeError('Unexpected failure', {
+                statusCode: 500
+            });
+
+            errorHandler(error, req, res, next);
+
+            expect(res.status).toHaveBeenCalledWith(500);
+            expect(res.json).toHaveBeenCalledTimes(1);
+            expect(next).not.toHaveBeenCalled();
         });
     });
 });

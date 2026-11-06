@@ -1,5 +1,4 @@
-
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
     Alert,
     Box,
@@ -73,6 +72,33 @@ const ExtensionTipForm = ({ onPublished }) => {
     const [successMessage, setSuccessMessage] = useState("");
     const [imageError, setImageError] = useState("");
     const [imageProcessing, setImageProcessing] = useState(false);
+    const [imagePreview, setImagePreview] = useState("");
+
+    useEffect(() => {
+        if (
+            typeof File !== "undefined" &&
+            formData.image instanceof File
+        ) {
+            const previewUrl = URL.createObjectURL(formData.image);
+            setImagePreview(previewUrl);
+
+            return () => {
+                URL.revokeObjectURL(previewUrl);
+            };
+        }
+
+        setImagePreview(
+            typeof formData.image === "string"
+                ? formData.image
+                : ""
+        );
+    }, [formData.image]);
+
+    useEffect(() => {
+        return () => {
+            imageSelectionRef.current += 1;
+        };
+    }, []);
 
     const handleChange = (event) => {
         const { name, value } = event.target;
@@ -100,14 +126,15 @@ const ExtensionTipForm = ({ onPublished }) => {
         setImageProcessing(true);
 
         try {
-            const image = await compressImage(file);
+            const compressedFile = await compressImage(file);
 
             if (selectionId !== imageSelectionRef.current) return;
 
             setFormData((previous) => ({
                 ...previous,
-                image
+                image: compressedFile
             }));
+            setSuccessMessage("");
         } catch (error) {
             if (selectionId !== imageSelectionRef.current) return;
 
@@ -125,6 +152,10 @@ const ExtensionTipForm = ({ onPublished }) => {
         imageSelectionRef.current += 1;
         setImageProcessing(false);
         setImageError("");
+
+        if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+        }
 
         setFormData((previous) => ({
             ...previous,
@@ -151,6 +182,12 @@ const ExtensionTipForm = ({ onPublished }) => {
             imageSelectionRef.current += 1;
             setFormData({ ...initialFormData });
             setImageError("");
+            setImageProcessing(false);
+
+            if (fileInputRef.current) {
+                fileInputRef.current.value = "";
+            }
+
             setSuccessMessage(
                 t("Agricultural tip published successfully.")
             );
@@ -159,7 +196,7 @@ const ExtensionTipForm = ({ onPublished }) => {
                 onPublished(result.data);
             }
         } catch {
-            // The Redux action should expose publication errors in createError.
+            // The Redux action exposes publication errors in createError.
         }
     };
 
@@ -297,11 +334,11 @@ const ExtensionTipForm = ({ onPublished }) => {
                                 onChange={handleChange}
                             />
 
-                            {formData.image && (
+                            {imagePreview && (
                                 <Box>
                                     <CardMedia
                                         component="img"
-                                        image={formData.image}
+                                        image={imagePreview}
                                         alt={t(
                                             "Agricultural tip image preview"
                                         )}
@@ -317,6 +354,7 @@ const ExtensionTipForm = ({ onPublished }) => {
                                     <Button
                                         color="error"
                                         onClick={handleRemoveImage}
+                                        disabled={creating}
                                     >
                                         {t("Remove image")}
                                     </Button>
@@ -326,7 +364,7 @@ const ExtensionTipForm = ({ onPublished }) => {
                             <input
                                 ref={fileInputRef}
                                 type="file"
-                                accept="image/*"
+                                accept="image/jpeg,image/png,image/webp"
                                 capture="environment"
                                 hidden
                                 onChange={handleImageChange}

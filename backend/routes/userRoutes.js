@@ -1,12 +1,12 @@
-const express=require('express');
+const express = require('express');
+const router = express.Router();
 
-const router=express.Router();
+const ensureAuthenticated = require('../middleware/ensureAuthenticated');
+const ensureAdmin = require('../middleware/ensureAdmin');
+const validateRequest = require('../middleware/validateRequest');
+const upload = require('../middleware/uploadImage');
 
-const ensureAuthenticated=require('../middleware/ensureAuthenticated');
-const ensureAdmin=require('../middleware/ensureAdmin');
-const validateRequest=require('../middleware/validateRequest');
-
-const{
+const {
     getProfile,
     updateProfile,
     searchUsers,
@@ -18,15 +18,15 @@ const{
     updateReport,
     suspendUser,
     restoreUser,
-    updateUserRole
-}=require('../controllers/userController');
+    updateUserRole,
+} = require('../controllers/userController');
 
-const{
+const {
     updateProfileValidator,
     reportUserValidator,
     suspensionValidator,
-    reportStatusValidator
-}=require('../validators/userValidator');
+    reportStatusValidator,
+} = require('../validators/userValidator');
 
 router.get(
     '/profile',
@@ -37,6 +37,7 @@ router.get(
 router.put(
     '/profile',
     ensureAuthenticated,
+    upload.single('profilePhoto'),
     updateProfileValidator,
     validateRequest,
     updateProfile
@@ -114,4 +115,4 @@ router.get(
     getUserById
 );
 
-module.exports=router;
+module.exports = router;

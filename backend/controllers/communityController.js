@@ -5,6 +5,10 @@ const Connection = require('../models/Connection');
 const Notification = require('../models/Notification');
 const asyncHandler = require('../middleware/asyncHandler');
 const AppError = require('../utils/AppError');
+const {
+    uploadImage,
+    deleteImage,
+} = require('../utils/cloudinaryStorage');
 
 const PUBLIC_USER_FIELDS = 'name profilePhoto role state lga location';
 
@@ -13,7 +17,7 @@ const MAX_CATEGORY_LENGTH = 100;
 const MAX_TITLE_LENGTH = 200;
 const MAX_CONTENT_LENGTH = 5000;
 const MAX_COMMENT_LENGTH = 1000;
-const MAX_IMAGE_LENGTH = 3000000;
+const MAX_IMAGE_LENGTH = 2048;
 
 const escapeRegex = (value) =>
     value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -45,6 +49,32 @@ const validateText = (value, field, maxLength, required = true) => {
     return text;
 };
 
+const validateImage = (value, currentImage = '') => {
+    if (value === null || value === '') {
+        return '';
+    }
+
+    if (
+        typeof value !== 'string' ||
+        value.length > MAX_IMAGE_LENGTH ||
+        !/^https:\/\/[^\s]+$/i.test(value)
+    ) {
+        throw new AppError(
+            'Image must be a valid HTTPS URL or empty to remove it.',
+            400
+        );
+    }
+
+    if (!currentImage || value !== currentImage) {
+        throw new AppError(
+            'Please upload a new image instead of providing an image URL.',
+            400
+        );
+    }
+
+    return value;
+};
+
 const getPagination = (query) => {
     const requestedPage = Number.parseInt(query.page, 10);
     const requestedLimit = Number.parseInt(query.limit, 10);
@@ -60,7 +90,7 @@ const getPagination = (query) => {
     return {
         page,
         limit,
-        skip: (page - 1) * limit
+        skip: (page - 1) * limit,
     };
 };
 
@@ -102,6 +132,26 @@ const ensureActivePost = (post) => {
     }
 };
 
+const deleteImageIfUnused = async (publicId) => {
+    if (!publicId) return;
+
+    try {
+        const [communityReferences, tipReferences] = await Promise.all([
+            CommunityPost.exists({ imagePublicId: publicId }),
+            AgriTip.exists({ imagePublicId: publicId }),
+        ]);
+
+        if (!communityReferences && !tipReferences) {
+            await deleteImage(publicId);
+        }
+    } catch (error) {
+        console.error(
+            'Cloudinary image cleanup failed:',
+            error.message
+        );
+    }
+};
+
 exports.createCommunityPost = asyncHandler(async (req, res) => {
     const title = validateText(
         req.body.title,
@@ -115,37 +165,66 @@ exports.createCommunityPost = asyncHandler(async (req, res) => {
         MAX_CONTENT_LENGTH
     );
 
+    if (content.length < 5) {
+        throw new AppError(
+            'Content must be at least 5 characters long.',
+            400
+        );
+    }
+
     const category = validateText(
         req.body.category,
         'Category',
         MAX_CATEGORY_LENGTH
     );
 
-    let image = '';
-
-    if (req.body.image !== undefined && req.body.image !== null) {
-        image = validateText(
-            req.body.image,
-            'Image',
-            MAX_IMAGE_LENGTH,
-            false
-        );
+    if (!req.file && req.body.image !== undefined) {
+        validateImage(req.body.image);
     }
 
-    const post = await CommunityPost.create({
-        title,
-        content,
-        category,
-        image,
-        user: req.user._id
-    });
+    let image = '';
+    let imagePublicId = '';
+
+    if (req.file) {
+        const uploadedImage = await uploadImage(
+            req.file,
+            'roamagro/community'
+        );
+
+        image = uploadedImage.url;
+        imagePublicId = uploadedImage.publicId;
+    }
+
+    let post;
+
+    try {
+        post = await CommunityPost.create({
+            title,
+            content,
+            category,
+            image,
+            imagePublicId,
+            user: req.user._id,
+        });
+    } catch (error) {
+        if (imagePublicId) {
+            await deleteImage(imagePublicId).catch((cleanupError) => {
+                console.error(
+                    'Cloudinary cleanup failed:',
+                    cleanupError.message
+                );
+            });
+        }
+
+        throw error;
+    }
 
     await populatePostUsers(post);
 
     return res.status(201).json({
         success: true,
         message: 'Community post created successfully.',
-        data: post
+        data: post,
     });
 });
 
@@ -171,7 +250,6 @@ exports.getCommunityPosts = asyncHandler(async (req, res) => {
         );
 
     const mine = req.query.mine === 'true' || req.query.mine === '1';
-
     const filter = { status: 'Active' };
 
     if (mine) {
@@ -187,7 +265,7 @@ exports.getCommunityPosts = asyncHandler(async (req, res) => {
 
         filter.$or = [
             { title: searchRegex },
-            { content: searchRegex }
+            { content: searchRegex },
         ];
     }
 
@@ -198,8 +276,8 @@ exports.getCommunityPosts = asyncHandler(async (req, res) => {
             status: 'accepted',
             $or: [
                 { requester: req.user._id },
-                { recipient: req.user._id }
-            ]
+                { recipient: req.user._id },
+            ],
         })
             .select('requester recipient')
             .lean();
@@ -223,31 +301,30 @@ exports.getCommunityPosts = asyncHandler(async (req, res) => {
                     $cond: [
                         { $in: ['$user', connectedUserIds] },
                         1,
-                        0
-                    ]
-                }
-            }
+                        0,
+                    ],
+                },
+            },
         },
         {
             $sort: {
                 connectionPriority: -1,
                 featured: -1,
                 createdAt: -1,
-                _id: -1
-            }
+                _id: -1,
+            },
         },
         { $skip: skip },
         { $limit: limit },
-        { $project: { _id: 1 } }
+        { $project: { _id: 1 } },
     ]);
 
     const postIds = orderedPostIds.map((post) => post._id);
-
     let posts = [];
 
     if (postIds.length) {
         const fetchedPosts = await CommunityPost.find({
-            _id: { $in: postIds }
+            _id: { $in: postIds },
         })
             .populate('user', PUBLIC_USER_FIELDS)
             .populate('comments.user', PUBLIC_USER_FIELDS)
@@ -277,14 +354,14 @@ exports.getCommunityPosts = asyncHandler(async (req, res) => {
         mine,
         connectionsFirst: !mine,
         connectedUsersCount: connectedUserIds.length,
-        data: posts
+        data: posts,
     });
 });
 
 exports.getFeaturedPosts = asyncHandler(async (req, res) => {
     const posts = await CommunityPost.find({
         featured: true,
-        status: 'Active'
+        status: 'Active',
     })
         .populate('user', PUBLIC_USER_FIELDS)
         .populate('comments.user', PUBLIC_USER_FIELDS)
@@ -293,7 +370,7 @@ exports.getFeaturedPosts = asyncHandler(async (req, res) => {
 
     return res.status(200).json({
         success: true,
-        data: posts
+        data: posts,
     });
 });
 
@@ -302,6 +379,9 @@ exports.updateCommunityPost = asyncHandler(async (req, res) => {
 
     ensurePostOwner(post, req.user._id);
     ensureActivePost(post);
+
+    const oldImagePublicId = post.imagePublicId;
+    let newImagePublicId = '';
 
     const allowedFields = ['title', 'content', 'category', 'image'];
 
@@ -324,6 +404,13 @@ exports.updateCommunityPost = asyncHandler(async (req, res) => {
                 'Content',
                 MAX_CONTENT_LENGTH
             );
+
+            if (post.content.length < 5) {
+                throw new AppError(
+                    'Content must be at least 5 characters long.',
+                    400
+                );
+            }
         }
 
         if (field === 'category') {
@@ -334,26 +421,50 @@ exports.updateCommunityPost = asyncHandler(async (req, res) => {
             );
         }
 
-        if (field === 'image') {
-            if (req.body.image === null || req.body.image === '') {
-                post.image = '';
-            } else {
-                post.image = validateText(
-                    req.body.image,
-                    'Image',
-                    MAX_IMAGE_LENGTH
-                );
+        if (field === 'image' && !req.file) {
+            const nextImage = validateImage(
+                req.body.image,
+                post.image
+            );
+
+            if (nextImage !== post.image) {
+                post.image = nextImage;
+                post.imagePublicId = '';
             }
         }
     }
 
-    await post.save();
+    if (req.file) {
+        const uploadedImage = await uploadImage(
+            req.file,
+            'roamagro/community'
+        );
+
+        post.image = uploadedImage.url;
+        post.imagePublicId = uploadedImage.publicId;
+        newImagePublicId = uploadedImage.publicId;
+    }
+
+    try {
+        await post.save();
+    } catch (error) {
+        if (newImagePublicId) {
+            await deleteImage(newImagePublicId).catch(() => null);
+        }
+
+        throw error;
+    }
+
+    if (oldImagePublicId && oldImagePublicId !== post.imagePublicId) {
+        await deleteImageIfUnused(oldImagePublicId);
+    }
+
     await populatePostUsers(post);
 
     return res.status(200).json({
         success: true,
         message: 'Community post updated successfully.',
-        data: post
+        data: post,
     });
 });
 
@@ -366,7 +477,7 @@ exports.archiveCommunityPost = asyncHandler(async (req, res) => {
         return res.status(200).json({
             success: true,
             message: 'Post is already archived.',
-            data: { _id: post._id }
+            data: { _id: post._id },
         });
     }
 
@@ -379,7 +490,6 @@ exports.archiveCommunityPost = asyncHandler(async (req, res) => {
             );
 
             tip.shares = tip.sharedBy.length;
-
             await tip.save();
         }
     }
@@ -390,7 +500,7 @@ exports.archiveCommunityPost = asyncHandler(async (req, res) => {
     return res.status(200).json({
         success: true,
         message: 'Community post archived successfully.',
-        data: { _id: post._id }
+        data: { _id: post._id },
     });
 });
 
@@ -417,7 +527,7 @@ exports.shareCommunityPost = asyncHandler(async (req, res) => {
         message: alreadyShared
             ? 'You have already shared this post.'
             : 'Community post share recorded.',
-        data: post
+        data: post,
     });
 });
 
@@ -434,7 +544,7 @@ exports.addComment = asyncHandler(async (req, res) => {
 
     post.comments.push({
         user: req.user._id,
-        content
+        content,
     });
 
     await post.save();
@@ -446,7 +556,7 @@ exports.addComment = asyncHandler(async (req, res) => {
             type: 'comment',
             title: 'New Comment',
             message: `${req.user.name || 'Someone'} commented on your community post.`,
-            link: `/community/${post._id}`
+            link: `/community/${post._id}`,
         });
     }
 
@@ -455,7 +565,7 @@ exports.addComment = asyncHandler(async (req, res) => {
     return res.status(201).json({
         success: true,
         message: 'Comment added successfully.',
-        data: post
+        data: post,
     });
 });
 
@@ -486,7 +596,7 @@ exports.deleteComment = asyncHandler(async (req, res) => {
     return res.status(200).json({
         success: true,
         message: 'Comment deleted successfully.',
-        data: post
+        data: post,
     });
 });
 
@@ -514,7 +624,7 @@ exports.toggleLike = asyncHandler(async (req, res) => {
                 type: 'like',
                 title: 'New Like',
                 message: `${req.user.name || 'Someone'} liked your community post.`,
-                link: `/community/${post._id}`
+                link: `/community/${post._id}`,
             });
         }
     }
@@ -524,6 +634,6 @@ exports.toggleLike = asyncHandler(async (req, res) => {
 
     return res.status(200).json({
         success: true,
-        data: post
+        data: post,
     });
 });

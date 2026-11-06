@@ -426,6 +426,7 @@ const resources = {
             "Your active produce, equipment and service listings will appear here.": "Kayan amfanin gona, kayan aiki da ayyukan da kake sayarwa za su bayyana a nan.",
             "Your community posts and interactions will appear here.": "Saƙonninka da hulɗarka a dandali za su bayyana a nan.",
             "Your report has been submitted successfully. Thank you for helping keep RoamAgro safe.": "An tura rahotonka cikin nasara. Mun gode da taimaka wa RoamAgro ya kasance cikin aminci.",
+
             "action_taken": "An Dauki Mataki",
             "active": "Mai Aiki",
             "Login with Email": "Shiga ta Imel",
@@ -820,7 +821,32 @@ const resources = {
             "Location request timed out.": "Location request timed out.",
             "Unable to access your current location.": "Unable to access your current location.",
             "Unable to determine your weather location.": "Unable to determine your weather location.",
-            "Weather is currently unavailable for your location.": "Weather is currently unavailable for your location."
+            "Weather is currently unavailable for your location.": "Weather is currently unavailable for your location.",
+
+            "Register with Google": "Yi rajista ta Google",
+            "Sign up with Google": "Yi rajista ta Google",
+            "Continue with Google": "Ci gaba ta Google",
+            "Or continue with email": "Ko kuma ci gaba da email",
+            "Show Password": "Nuna Kalmar Sirri",
+            "Hide Password": "Ɓoye Kalmar Sirri",
+            "Show Confirm Password": "Nuna Kalmar Sirrin Tabbatarwa",
+            "Hide Confirm Password": "Ɓoye Kalmar Sirrin Tabbatarwa",
+            "Confirm your password": "Tabbatar da kalmar sirrinka",
+            "Enter your password again": "Sake shigar da kalmar sirrinka",
+            "Password must be between 6 and 128 characters.": "Kalmar sirri dole ta kasance tsakanin haruffa 6 zuwa 128.",
+            "Password cannot exceed 128 characters.": "Kalmar sirri ba za ta wuce haruffa 128 ba.",
+            "Please confirm your password.": "Da fatan tabbatar da kalmar sirrinka.",
+            "Please enter your name.": "Da fatan shigar da sunanka.",
+            "Name is required.": "Ana buƙatar suna.",
+            "Please enter your email address.": "Da fatan shigar da adireshin email ɗinka.",
+            "Please enter your password.": "Da fatan shigar da kalmar sirrinka.",
+            "Google registration failed. Please try again.": "Rajista ta Google ta gaza. Da fatan a sake gwadawa.",
+            "Google account information could not be retrieved.": "Ba a iya samun bayanan asusun Google ba.",
+            "Account created successfully.": "An ƙirƙiri asusu cikin nasara.",
+            "Your account has been created successfully.": "An ƙirƙiri asusunka cikin nasara.",
+            "Unable to verify your email. Please try again.": "Ba a iya tabbatar da email ɗinka ba. Da fatan a sake gwadawa.",
+            "Something went wrong. Please try again.": "Wani abu ya samu matsala. Da fatan a sake gwadawa.",
+            "An unexpected error occurred. Please try again.": "An samu matsala da ba a zata ba. Da fatan a sake gwadawa.",
         }
     }
 };

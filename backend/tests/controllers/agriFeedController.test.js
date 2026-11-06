@@ -5,21 +5,34 @@ jest.mock('../../models/AgriTip', () => ({
     countDocuments: jest.fn(),
     find: jest.fn(),
     findById: jest.fn(),
+    exists: jest.fn(),
 }));
 
 jest.mock('../../models/CommunityPost', () => ({
     create: jest.fn(),
     findOne: jest.fn(),
     deleteOne: jest.fn(),
+    exists: jest.fn(),
 }));
 
 jest.mock('../../models/Notification', () => ({
     create: jest.fn(),
 }));
 
+jest.mock('../../utils/cloudinaryStorage', () => ({
+    uploadImage: jest.fn(),
+    deleteImage: jest.fn(),
+}));
+
 const AgriTip = require('../../models/AgriTip');
 const CommunityPost = require('../../models/CommunityPost');
 const Notification = require('../../models/Notification');
+
+const {
+    uploadImage,
+    deleteImage,
+} = require('../../utils/cloudinaryStorage');
+
 const controller = require('../../controllers/agriFeedController');
 
 const USER_ID = '507f1f77bcf86cd799439011';
@@ -28,18 +41,43 @@ const TIP_ID = '507f1f77bcf86cd799439012';
 const COMMENT_ID = '507f1f77bcf86cd799439013';
 const COMMUNITY_POST_ID = '507f1f77bcf86cd799439014';
 
+const IMAGE_URL =
+    'https://res.cloudinary.com/test-cloud/image/upload/v1/roamagro/agri-feed/maize.jpg';
+
+const IMAGE_PUBLIC_ID = 'roamagro/agri-feed/maize';
+
+const NEW_IMAGE_URL =
+    'https://res.cloudinary.com/test-cloud/image/upload/v1/roamagro/agri-feed/updated-maize.jpg';
+
+const NEW_IMAGE_PUBLIC_ID = 'roamagro/agri-feed/updated-maize';
+
 const makeObjectId = (id) => new mongoose.Types.ObjectId(id);
 
+const makeFile = () => ({
+    fieldname: 'image',
+    originalname: 'maize.jpg',
+    encoding: '7bit',
+    mimetype: 'image/jpeg',
+    buffer: Buffer.from('mock-image-content'),
+    size: 18,
+});
+
 const makeRequest = ({
-    user = { _id: USER_ID, name: 'Test Farmer', role: 'farmer' },
+    user = {
+        _id: USER_ID,
+        name: 'Test Farmer',
+        role: 'farmer',
+    },
     params = {},
     query = {},
     body = {},
+    file,
 } = {}) => ({
     user,
     params,
     query,
     body,
+    ...(file ? { file } : {}),
 });
 
 const makeResponse = () => {
@@ -63,31 +101,28 @@ const execute = async (handler, req) => {
     return { req, res, next };
 };
 
-const makeTip = (overrides = {}) => {
-    const tip = {
-        _id: makeObjectId(TIP_ID),
-        title: 'Growing Maize',
-        content: 'Use good seeds and prepare the soil before planting.',
-        category: 'Crop Farming',
-        language: 'English',
-        region: 'Northern Nigeria',
-        source: 'Agricultural Extension Service',
-        priority: 'Normal',
-        status: 'Published',
-        image: '',
-        createdBy: makeObjectId(USER_ID),
-        likes: [],
-        comments: [],
-        sharedBy: [],
-        shares: 0,
-        createdAt: new Date('2026-01-01T00:00:00.000Z'),
-        populate: jest.fn().mockResolvedValue(undefined),
-        save: jest.fn().mockResolvedValue(undefined),
-        ...overrides,
-    };
-
-    return tip;
-};
+const makeTip = (overrides = {}) => ({
+    _id: makeObjectId(TIP_ID),
+    title: 'Growing Maize',
+    content: 'Use good seeds and prepare the soil before planting.',
+    category: 'Crop Farming',
+    language: 'English',
+    region: 'Northern Nigeria',
+    source: 'Agricultural Extension Service',
+    priority: 'Normal',
+    status: 'Published',
+    image: '',
+    imagePublicId: '',
+    createdBy: makeObjectId(USER_ID),
+    likes: [],
+    comments: [],
+    sharedBy: [],
+    shares: 0,
+    createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    populate: jest.fn().mockResolvedValue(undefined),
+    save: jest.fn().mockResolvedValue(undefined),
+    ...overrides,
+});
 
 const makeQueryChain = (result) => {
     const chain = {
@@ -116,9 +151,29 @@ const makeComment = ({
     deleteOne: jest.fn(),
 });
 
+const validTipBody = (overrides = {}) => ({
+    title: 'Growing Maize',
+    content: 'This content is long enough.',
+    category: 'Crop Farming',
+    ...overrides,
+});
+
 beforeEach(() => {
     jest.clearAllMocks();
+
     jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    uploadImage.mockResolvedValue({
+        url: IMAGE_URL,
+        publicId: IMAGE_PUBLIC_ID,
+    });
+
+    deleteImage.mockResolvedValue({
+        result: 'ok',
+    });
+
+    AgriTip.exists.mockResolvedValue(null);
+    CommunityPost.exists.mockResolvedValue(null);
 });
 
 afterEach(() => {
@@ -128,6 +183,7 @@ afterEach(() => {
 describe('AgriFeed controller - createTip', () => {
     test('creates a tip, assigns the authenticated user, populates it and returns 201', async () => {
         const tip = makeTip();
+
         AgriTip.create.mockResolvedValue(tip);
 
         const { res, next } = await execute(
@@ -148,6 +204,7 @@ describe('AgriFeed controller - createTip', () => {
         );
 
         expect(next).not.toHaveBeenCalled();
+
         expect(AgriTip.create).toHaveBeenCalledWith({
             title: 'Growing Maize',
             content: 'Use good seeds and prepare the soil.',
@@ -158,24 +215,70 @@ describe('AgriFeed controller - createTip', () => {
             priority: 'Important',
             status: 'Published',
             image: '',
+            imagePublicId: '',
             createdBy: USER_ID,
         });
+
+        expect(uploadImage).not.toHaveBeenCalled();
+
         expect(tip.populate).toHaveBeenNthCalledWith(
             1,
             'createdBy',
             'name profilePhoto role state lga location'
         );
+
         expect(tip.populate).toHaveBeenNthCalledWith(
             2,
             'comments.user',
             'name profilePhoto role state lga location'
         );
+
         expect(res.status).toHaveBeenCalledWith(201);
+
         expect(res.json).toHaveBeenCalledWith({
             success: true,
             message: 'Agricultural tip created successfully.',
             data: tip,
         });
+    });
+
+    test('uploads a new image to Cloudinary when creating a tip', async () => {
+        const file = makeFile();
+
+        const tip = makeTip({
+            image: IMAGE_URL,
+            imagePublicId: IMAGE_PUBLIC_ID,
+        });
+
+        AgriTip.create.mockResolvedValue(tip);
+
+        const { res, next } = await execute(
+            controller.createTip,
+            makeRequest({
+                body: validTipBody(),
+                file,
+            })
+        );
+
+        expect(next).not.toHaveBeenCalled();
+
+        expect(uploadImage).toHaveBeenCalledTimes(1);
+
+        expect(uploadImage).toHaveBeenCalledWith(
+            file,
+            'roamagro/agri-feed'
+        );
+
+        expect(AgriTip.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                title: 'Growing Maize',
+                image: IMAGE_URL,
+                imagePublicId: IMAGE_PUBLIC_ID,
+                createdBy: USER_ID,
+            })
+        );
+
+        expect(res.status).toHaveBeenCalledWith(201);
     });
 
     test('rejects a missing title', async () => {
@@ -191,6 +294,7 @@ describe('AgriFeed controller - createTip', () => {
 
         expect(AgriTip.create).not.toHaveBeenCalled();
         expect(res.json).not.toHaveBeenCalled();
+
         expect(next).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'Title is required.',
@@ -203,11 +307,9 @@ describe('AgriFeed controller - createTip', () => {
         const { next } = await execute(
             controller.createTip,
             makeRequest({
-                body: {
+                body: validTipBody({
                     title: '   ',
-                    content: 'This content is long enough.',
-                    category: 'Crop Farming',
-                },
+                }),
             })
         );
 
@@ -242,11 +344,9 @@ describe('AgriFeed controller - createTip', () => {
         const { next } = await execute(
             controller.createTip,
             makeRequest({
-                body: {
-                    title: 'Growing Maize',
+                body: validTipBody({
                     content: 'abcd',
-                    category: 'Crop Farming',
-                },
+                }),
             })
         );
 
@@ -281,11 +381,9 @@ describe('AgriFeed controller - createTip', () => {
         const { next } = await execute(
             controller.createTip,
             makeRequest({
-                body: {
+                body: validTipBody({
                     title: 123,
-                    content: 'This content is long enough.',
-                    category: 'Crop Farming',
-                },
+                }),
             })
         );
 
@@ -301,11 +399,9 @@ describe('AgriFeed controller - createTip', () => {
         const { next } = await execute(
             controller.createTip,
             makeRequest({
-                body: {
+                body: validTipBody({
                     title: 'T'.repeat(151),
-                    content: 'This content is long enough.',
-                    category: 'Crop Farming',
-                },
+                }),
             })
         );
 
@@ -321,11 +417,9 @@ describe('AgriFeed controller - createTip', () => {
         const { next } = await execute(
             controller.createTip,
             makeRequest({
-                body: {
-                    title: 'Growing Maize',
+                body: validTipBody({
                     content: 'C'.repeat(5001),
-                    category: 'Crop Farming',
-                },
+                }),
             })
         );
 
@@ -341,11 +435,9 @@ describe('AgriFeed controller - createTip', () => {
         const { next } = await execute(
             controller.createTip,
             makeRequest({
-                body: {
-                    title: 'Growing Maize',
-                    content: 'This content is long enough.',
+                body: validTipBody({
                     category: 'C'.repeat(101),
-                },
+                }),
             })
         );
 
@@ -365,12 +457,9 @@ describe('AgriFeed controller - createTip', () => {
         const { next } = await execute(
             controller.createTip,
             makeRequest({
-                body: {
-                    title: 'Growing Maize',
-                    content: 'This content is long enough.',
-                    category: 'Crop Farming',
+                body: validTipBody({
                     [field]: value,
-                },
+                }),
             })
         );
 
@@ -382,90 +471,106 @@ describe('AgriFeed controller - createTip', () => {
         );
     });
 
-    test('rejects an image that is not an HTTP(S) URL or JPEG data URL', async () => {
+    test('rejects an unsafe image URL', async () => {
         const { next } = await execute(
             controller.createTip,
             makeRequest({
-                body: {
-                    title: 'Growing Maize',
-                    content: 'This content is long enough.',
-                    category: 'Crop Farming',
+                body: validTipBody({
                     image: 'javascript:alert(1)',
-                },
+                }),
             })
         );
 
         expect(next).toHaveBeenCalledWith(
             expect.objectContaining({
-                message: 'Image must be a valid JPEG data URL or HTTP(S) URL.',
+                message: 'Image must be a valid HTTPS URL or empty to remove it.',
                 statusCode: 400,
             })
         );
+
+        expect(AgriTip.create).not.toHaveBeenCalled();
+        expect(uploadImage).not.toHaveBeenCalled();
     });
 
-    test('accepts a valid HTTPS image URL', async () => {
-        const tip = makeTip();
-        AgriTip.create.mockResolvedValue(tip);
-
+    test('rejects an externally supplied HTTPS image URL', async () => {
         const { next } = await execute(
             controller.createTip,
             makeRequest({
-                body: {
-                    title: 'Growing Maize',
-                    content: 'This content is long enough.',
-                    category: 'Crop Farming',
+                body: validTipBody({
                     image: 'https://example.com/maize.jpg',
-                },
+                }),
             })
         );
 
-        expect(next).not.toHaveBeenCalled();
-        expect(AgriTip.create).toHaveBeenCalledWith(
+        expect(next).toHaveBeenCalledWith(
             expect.objectContaining({
-                image: 'https://example.com/maize.jpg',
+                message: 'Please upload an image file instead of providing an image URL.',
+                statusCode: 400,
             })
         );
+
+        expect(AgriTip.create).not.toHaveBeenCalled();
+        expect(uploadImage).not.toHaveBeenCalled();
     });
 
-    test('accepts a JPEG base64 data URL', async () => {
-        const tip = makeTip();
-        AgriTip.create.mockResolvedValue(tip);
-
+    test('rejects a JPEG Base64 data URL', async () => {
         const { next } = await execute(
             controller.createTip,
             makeRequest({
-                body: {
-                    title: 'Growing Maize',
-                    content: 'This content is long enough.',
-                    category: 'Crop Farming',
+                body: validTipBody({
                     image: 'data:image/jpeg;base64,SGVsbG8=',
-                },
+                }),
             })
         );
 
-        expect(next).not.toHaveBeenCalled();
-        expect(AgriTip.create).toHaveBeenCalledWith(
+        expect(next).toHaveBeenCalledWith(
             expect.objectContaining({
-                image: 'data:image/jpeg;base64,SGVsbG8=',
+                message: 'Image must be a valid HTTPS URL or empty to remove it.',
+                statusCode: 400,
+            })
+        );
+
+        expect(AgriTip.create).not.toHaveBeenCalled();
+        expect(uploadImage).not.toHaveBeenCalled();
+    });
+
+    test('forwards Cloudinary upload errors', async () => {
+        uploadImage.mockRejectedValue(
+            new Error('Cloudinary upload failed')
+        );
+
+        const { res, next } = await execute(
+            controller.createTip,
+            makeRequest({
+                body: validTipBody(),
+                file: makeFile(),
+            })
+        );
+
+        expect(AgriTip.create).not.toHaveBeenCalled();
+        expect(res.json).not.toHaveBeenCalled();
+
+        expect(next).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Cloudinary upload failed',
             })
         );
     });
 
     test('forwards database errors', async () => {
-        AgriTip.create.mockRejectedValue(new Error('Database unavailable'));
+        AgriTip.create.mockRejectedValue(
+            new Error('Database unavailable')
+        );
 
         const { next, res } = await execute(
             controller.createTip,
             makeRequest({
-                body: {
-                    title: 'Growing Maize',
-                    content: 'This content is long enough.',
-                    category: 'Crop Farming',
-                },
+                body: validTipBody(),
             })
         );
 
         expect(res.json).not.toHaveBeenCalled();
+
         expect(next).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'Database unavailable',
@@ -488,20 +593,26 @@ describe('AgriFeed controller - getTips', () => {
         );
 
         expect(next).not.toHaveBeenCalled();
+
         expect(AgriTip.countDocuments).toHaveBeenCalledWith({
             status: 'Published',
         });
+
         expect(AgriTip.find).toHaveBeenCalledWith({
             status: 'Published',
         });
+
         expect(chain.sort).toHaveBeenCalledWith({
             priority: -1,
             createdAt: -1,
             _id: -1,
         });
+
         expect(chain.skip).toHaveBeenCalledWith(0);
         expect(chain.limit).toHaveBeenCalledWith(15);
+
         expect(res.status).toHaveBeenCalledWith(200);
+
         expect(res.json).toHaveBeenCalledWith({
             success: true,
             count: 1,
@@ -517,6 +628,7 @@ describe('AgriFeed controller - getTips', () => {
 
     test('filters by category, language, region and priority', async () => {
         const chain = makeQueryChain([]);
+
         AgriTip.countDocuments.mockResolvedValue(0);
         AgriTip.find.mockReturnValue(chain);
 
@@ -547,6 +659,7 @@ describe('AgriFeed controller - getTips', () => {
 
     test('returns the authenticated user’s tips when mine=true', async () => {
         const chain = makeQueryChain([]);
+
         AgriTip.countDocuments.mockResolvedValue(0);
         AgriTip.find.mockReturnValue(chain);
 
@@ -558,9 +671,11 @@ describe('AgriFeed controller - getTips', () => {
         );
 
         expect(next).not.toHaveBeenCalled();
+
         expect(AgriTip.find).toHaveBeenCalledWith({
             createdBy: USER_ID,
         });
+
         expect(res.json).toHaveBeenCalledWith(
             expect.objectContaining({
                 mine: true,
@@ -584,6 +699,7 @@ describe('AgriFeed controller - getTips', () => {
 
         expect(AgriTip.find).not.toHaveBeenCalled();
         expect(AgriTip.countDocuments).not.toHaveBeenCalled();
+
         expect(next).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'You must be logged in to view your own tips.',
@@ -594,6 +710,7 @@ describe('AgriFeed controller - getTips', () => {
 
     test('uses a safe case-insensitive search expression', async () => {
         const chain = makeQueryChain([]);
+
         AgriTip.countDocuments.mockResolvedValue(0);
         AgriTip.find.mockReturnValue(chain);
 
@@ -632,6 +749,7 @@ describe('AgriFeed controller - getTips', () => {
         );
 
         expect(AgriTip.find).not.toHaveBeenCalled();
+
         expect(next).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'Search cannot exceed 100 characters.',
@@ -674,6 +792,7 @@ describe('AgriFeed controller - getTips', () => {
 
     test('caps page size at 50 and calculates the correct offset', async () => {
         const chain = makeQueryChain([]);
+
         AgriTip.countDocuments.mockResolvedValue(100);
         AgriTip.find.mockReturnValue(chain);
 
@@ -689,6 +808,7 @@ describe('AgriFeed controller - getTips', () => {
 
         expect(chain.skip).toHaveBeenCalledWith(100);
         expect(chain.limit).toHaveBeenCalledWith(50);
+
         expect(res.json).toHaveBeenCalledWith(
             expect.objectContaining({
                 page: 3,
@@ -702,6 +822,7 @@ describe('AgriFeed controller - getTips', () => {
 
     test('falls back to page 1 and limit 15 for invalid pagination', async () => {
         const chain = makeQueryChain([]);
+
         AgriTip.countDocuments.mockResolvedValue(0);
         AgriTip.find.mockReturnValue(chain);
 
@@ -717,6 +838,7 @@ describe('AgriFeed controller - getTips', () => {
 
         expect(chain.skip).toHaveBeenCalledWith(0);
         expect(chain.limit).toHaveBeenCalledWith(15);
+
         expect(res.json).toHaveBeenCalledWith(
             expect.objectContaining({
                 page: 1,
@@ -727,6 +849,7 @@ describe('AgriFeed controller - getTips', () => {
 
     test('reports additional pages correctly', async () => {
         const chain = makeQueryChain([makeTip()]);
+
         AgriTip.countDocuments.mockResolvedValue(31);
         AgriTip.find.mockReturnValue(chain);
 
@@ -771,6 +894,7 @@ describe('AgriFeed controller - getFeaturedTips', () => {
     test('returns published urgent and important tips, limited to six', async () => {
         const tips = [makeTip()];
         const chain = makeQueryChain(tips);
+
         AgriTip.find.mockReturnValue(chain);
 
         const { res, next } = await execute(
@@ -779,16 +903,20 @@ describe('AgriFeed controller - getFeaturedTips', () => {
         );
 
         expect(next).not.toHaveBeenCalled();
+
         expect(AgriTip.find).toHaveBeenCalledWith({
             status: 'Published',
             priority: {
                 $in: ['Urgent', 'Important'],
             },
         });
+
         expect(chain.sort).toHaveBeenCalledWith({
             createdAt: -1,
         });
+
         expect(chain.limit).toHaveBeenCalledWith(6);
+
         expect(res.json).toHaveBeenCalledWith({
             success: true,
             count: 1,
@@ -817,6 +945,7 @@ describe('AgriFeed controller - getFeaturedTips', () => {
 describe('AgriFeed controller - updateTip', () => {
     test('updates an owned tip with valid fields', async () => {
         const tip = makeTip();
+
         AgriTip.findById.mockResolvedValue(tip);
 
         const { res, next } = await execute(
@@ -833,10 +962,14 @@ describe('AgriFeed controller - updateTip', () => {
 
         expect(next).not.toHaveBeenCalled();
         expect(tip.title).toBe('Updated Maize Guide');
-        expect(tip.content).toBe('Updated content with enough characters.');
+        expect(tip.content).toBe(
+            'Updated content with enough characters.'
+        );
         expect(tip.priority).toBe('Important');
         expect(tip.save).toHaveBeenCalledTimes(1);
+
         expect(res.status).toHaveBeenCalledWith(200);
+
         expect(res.json).toHaveBeenCalledWith({
             success: true,
             message: 'Agricultural tip updated successfully.',
@@ -848,6 +981,7 @@ describe('AgriFeed controller - updateTip', () => {
         const tip = makeTip({
             createdBy: makeObjectId(OTHER_USER_ID),
         });
+
         AgriTip.findById.mockResolvedValue(tip);
 
         const { next } = await execute(
@@ -858,7 +992,9 @@ describe('AgriFeed controller - updateTip', () => {
                     role: 'admin',
                 },
                 params: { id: TIP_ID },
-                body: { title: 'Admin Updated Title' },
+                body: {
+                    title: 'Admin Updated Title',
+                },
             })
         );
 
@@ -871,17 +1007,21 @@ describe('AgriFeed controller - updateTip', () => {
         const tip = makeTip({
             createdBy: makeObjectId(OTHER_USER_ID),
         });
+
         AgriTip.findById.mockResolvedValue(tip);
 
         const { next } = await execute(
             controller.updateTip,
             makeRequest({
                 params: { id: TIP_ID },
-                body: { title: 'Unauthorized Update' },
+                body: {
+                    title: 'Unauthorized Update',
+                },
             })
         );
 
         expect(tip.save).not.toHaveBeenCalled();
+
         expect(next).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'You can only manage agricultural tips that you created.',
@@ -897,7 +1037,9 @@ describe('AgriFeed controller - updateTip', () => {
             controller.updateTip,
             makeRequest({
                 params: { id: TIP_ID },
-                body: { title: 'Updated Title' },
+                body: {
+                    title: 'Updated Title',
+                },
             })
         );
 
@@ -913,12 +1055,17 @@ describe('AgriFeed controller - updateTip', () => {
         const { next } = await execute(
             controller.updateTip,
             makeRequest({
-                params: { id: 'not-an-object-id' },
-                body: { title: 'Updated Title' },
+                params: {
+                    id: 'not-an-object-id',
+                },
+                body: {
+                    title: 'Updated Title',
+                },
             })
         );
 
         expect(AgriTip.findById).not.toHaveBeenCalled();
+
         expect(next).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'Invalid agricultural tip ID.',
@@ -928,18 +1075,24 @@ describe('AgriFeed controller - updateTip', () => {
     });
 
     test('rejects editing an archived tip', async () => {
-        const tip = makeTip({ status: 'Archived' });
+        const tip = makeTip({
+            status: 'Archived',
+        });
+
         AgriTip.findById.mockResolvedValue(tip);
 
         const { next } = await execute(
             controller.updateTip,
             makeRequest({
                 params: { id: TIP_ID },
-                body: { title: 'Updated Title' },
+                body: {
+                    title: 'Updated Title',
+                },
             })
         );
 
         expect(tip.save).not.toHaveBeenCalled();
+
         expect(next).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'Archived tips cannot be edited.',
@@ -950,6 +1103,7 @@ describe('AgriFeed controller - updateTip', () => {
 
     test('rejects an empty update', async () => {
         const tip = makeTip();
+
         AgriTip.findById.mockResolvedValue(tip);
 
         const { next } = await execute(
@@ -961,6 +1115,7 @@ describe('AgriFeed controller - updateTip', () => {
         );
 
         expect(tip.save).not.toHaveBeenCalled();
+
         expect(next).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'Provide at least one valid field to update.',
@@ -971,17 +1126,21 @@ describe('AgriFeed controller - updateTip', () => {
 
     test('rejects invalid update fields', async () => {
         const tip = makeTip();
+
         AgriTip.findById.mockResolvedValue(tip);
 
         const { next } = await execute(
             controller.updateTip,
             makeRequest({
                 params: { id: TIP_ID },
-                body: { priority: 'Critical' },
+                body: {
+                    priority: 'Critical',
+                },
             })
         );
 
         expect(tip.save).not.toHaveBeenCalled();
+
         expect(next).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'Priority has an invalid value.',
@@ -990,16 +1149,172 @@ describe('AgriFeed controller - updateTip', () => {
         );
     });
 
-    test('forwards save errors', async () => {
-        const tip = makeTip();
-        tip.save.mockRejectedValue(new Error('Save failed'));
+    test('keeps an existing Cloudinary image unchanged', async () => {
+        const tip = makeTip({
+            image: IMAGE_URL,
+            imagePublicId: IMAGE_PUBLIC_ID,
+        });
+
         AgriTip.findById.mockResolvedValue(tip);
 
         const { next } = await execute(
             controller.updateTip,
             makeRequest({
                 params: { id: TIP_ID },
-                body: { title: 'Updated Title' },
+                body: {
+                    title: 'Updated Maize Guide',
+                    image: IMAGE_URL,
+                },
+            })
+        );
+
+        expect(next).not.toHaveBeenCalled();
+        expect(tip.image).toBe(IMAGE_URL);
+        expect(tip.imagePublicId).toBe(IMAGE_PUBLIC_ID);
+
+        expect(uploadImage).not.toHaveBeenCalled();
+        expect(deleteImage).not.toHaveBeenCalled();
+
+        expect(tip.save).toHaveBeenCalledTimes(1);
+    });
+
+    test('replaces an existing image using Cloudinary', async () => {
+        const tip = makeTip({
+            image: IMAGE_URL,
+            imagePublicId: IMAGE_PUBLIC_ID,
+        });
+
+        const file = makeFile();
+
+        AgriTip.findById.mockResolvedValue(tip);
+
+        uploadImage.mockResolvedValue({
+            url: NEW_IMAGE_URL,
+            publicId: NEW_IMAGE_PUBLIC_ID,
+        });
+
+        const { next } = await execute(
+            controller.updateTip,
+            makeRequest({
+                params: { id: TIP_ID },
+                body: {
+                    title: 'Updated Maize Guide',
+                },
+                file,
+            })
+        );
+
+        expect(next).not.toHaveBeenCalled();
+
+        expect(uploadImage).toHaveBeenCalledWith(
+            file,
+            'roamagro/agri-feed'
+        );
+
+        expect(tip.image).toBe(NEW_IMAGE_URL);
+        expect(tip.imagePublicId).toBe(NEW_IMAGE_PUBLIC_ID);
+        expect(tip.save).toHaveBeenCalledTimes(1);
+    });
+
+    test('removes an existing image when image is empty', async () => {
+        const tip = makeTip({
+            image: IMAGE_URL,
+            imagePublicId: IMAGE_PUBLIC_ID,
+        });
+
+        AgriTip.findById.mockResolvedValue(tip);
+
+        const { next } = await execute(
+            controller.updateTip,
+            makeRequest({
+                params: { id: TIP_ID },
+                body: {
+                    image: '',
+                },
+            })
+        );
+
+        expect(next).not.toHaveBeenCalled();
+
+        expect(tip.image).toBe('');
+        expect(tip.imagePublicId).toBe('');
+        expect(tip.save).toHaveBeenCalledTimes(1);
+        expect(uploadImage).not.toHaveBeenCalled();
+    });
+
+    test('rejects replacing an image with an arbitrary HTTPS URL', async () => {
+        const tip = makeTip({
+            image: IMAGE_URL,
+            imagePublicId: IMAGE_PUBLIC_ID,
+        });
+
+        AgriTip.findById.mockResolvedValue(tip);
+
+        const { next } = await execute(
+            controller.updateTip,
+            makeRequest({
+                params: { id: TIP_ID },
+                body: {
+                    image: 'https://example.com/replacement.jpg',
+                },
+            })
+        );
+
+        expect(tip.save).not.toHaveBeenCalled();
+        expect(uploadImage).not.toHaveBeenCalled();
+
+        expect(next).toHaveBeenCalledWith(
+            expect.objectContaining({
+                statusCode: 400,
+            })
+        );
+    });
+
+    test('forwards Cloudinary upload errors during updates', async () => {
+        const tip = makeTip();
+
+        AgriTip.findById.mockResolvedValue(tip);
+
+        uploadImage.mockRejectedValue(
+            new Error('Cloudinary upload failed')
+        );
+
+        const { next } = await execute(
+            controller.updateTip,
+            makeRequest({
+                params: { id: TIP_ID },
+                body: {
+                    title: 'Updated Maize Guide',
+                },
+                file: makeFile(),
+            })
+        );
+
+        expect(tip.save).not.toHaveBeenCalled();
+
+        expect(next).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Cloudinary upload failed',
+            })
+        );
+    });
+
+    test('forwards save errors', async () => {
+        const tip = makeTip();
+
+        tip.save.mockRejectedValue(
+            new Error('Save failed')
+        );
+
+        AgriTip.findById.mockResolvedValue(tip);
+
+        const { next } = await execute(
+            controller.updateTip,
+            makeRequest({
+                params: { id: TIP_ID },
+                body: {
+                    title: 'Updated Title',
+                },
             })
         );
 
@@ -1014,6 +1329,7 @@ describe('AgriFeed controller - updateTip', () => {
 describe('AgriFeed controller - deleteTip', () => {
     test('archives an owned tip rather than physically deleting it', async () => {
         const tip = makeTip();
+
         AgriTip.findById.mockResolvedValue(tip);
 
         const { res, next } = await execute(
@@ -1026,6 +1342,7 @@ describe('AgriFeed controller - deleteTip', () => {
         expect(next).not.toHaveBeenCalled();
         expect(tip.status).toBe('Archived');
         expect(tip.save).toHaveBeenCalledTimes(1);
+
         expect(res.json).toHaveBeenCalledWith({
             success: true,
             message: 'Agricultural tip deleted successfully.',
@@ -1036,10 +1353,33 @@ describe('AgriFeed controller - deleteTip', () => {
         });
     });
 
+    test('preserves the image when archiving a tip', async () => {
+        const tip = makeTip({
+            image: IMAGE_URL,
+            imagePublicId: IMAGE_PUBLIC_ID,
+        });
+
+        AgriTip.findById.mockResolvedValue(tip);
+
+        const { next } = await execute(
+            controller.deleteTip,
+            makeRequest({
+                params: { id: TIP_ID },
+            })
+        );
+
+        expect(next).not.toHaveBeenCalled();
+        expect(tip.status).toBe('Archived');
+        expect(tip.image).toBe(IMAGE_URL);
+        expect(tip.imagePublicId).toBe(IMAGE_PUBLIC_ID);
+        expect(deleteImage).not.toHaveBeenCalled();
+    });
+
     test('rejects deletion by a non-owner non-admin', async () => {
         const tip = makeTip({
             createdBy: makeObjectId(OTHER_USER_ID),
         });
+
         AgriTip.findById.mockResolvedValue(tip);
 
         const { next } = await execute(
@@ -1050,6 +1390,7 @@ describe('AgriFeed controller - deleteTip', () => {
         );
 
         expect(tip.save).not.toHaveBeenCalled();
+
         expect(next).toHaveBeenCalledWith(
             expect.objectContaining({
                 statusCode: 403,
@@ -1061,6 +1402,7 @@ describe('AgriFeed controller - deleteTip', () => {
         const tip = makeTip({
             createdBy: makeObjectId(OTHER_USER_ID),
         });
+
         AgriTip.findById.mockResolvedValue(tip);
 
         const { next } = await execute(
@@ -1085,6 +1427,7 @@ describe('AgriFeed controller - toggleLike', () => {
         const tip = makeTip({
             createdBy: makeObjectId(OTHER_USER_ID),
         });
+
         AgriTip.findById.mockResolvedValue(tip);
         Notification.create.mockResolvedValue({});
 
@@ -1098,6 +1441,7 @@ describe('AgriFeed controller - toggleLike', () => {
         expect(next).not.toHaveBeenCalled();
         expect(tip.likes).toHaveLength(1);
         expect(tip.likes[0].toString()).toBe(USER_ID);
+
         expect(Notification.create).toHaveBeenCalledWith({
             recipient: tip.createdBy,
             sender: USER_ID,
@@ -1106,7 +1450,9 @@ describe('AgriFeed controller - toggleLike', () => {
             message: 'Test Farmer liked your agricultural tip.',
             link: '/community',
         });
+
         expect(tip.save).toHaveBeenCalledTimes(1);
+
         expect(res.json).toHaveBeenCalledWith({
             success: true,
             data: tip,
@@ -1117,6 +1463,7 @@ describe('AgriFeed controller - toggleLike', () => {
         const tip = makeTip({
             likes: [makeObjectId(USER_ID)],
         });
+
         AgriTip.findById.mockResolvedValue(tip);
 
         const { next } = await execute(
@@ -1134,6 +1481,7 @@ describe('AgriFeed controller - toggleLike', () => {
 
     test('does not notify when the tip owner likes their own tip', async () => {
         const tip = makeTip();
+
         AgriTip.findById.mockResolvedValue(tip);
 
         await execute(
@@ -1155,7 +1503,9 @@ describe('AgriFeed controller - toggleLike', () => {
         const tip = makeTip({
             createdBy: makeObjectId(OTHER_USER_ID),
         });
+
         AgriTip.findById.mockResolvedValue(tip);
+
         Notification.create.mockRejectedValue(
             new Error('Notification service unavailable')
         );
@@ -1170,6 +1520,7 @@ describe('AgriFeed controller - toggleLike', () => {
         expect(next).not.toHaveBeenCalled();
         expect(tip.save).toHaveBeenCalledTimes(1);
         expect(res.status).toHaveBeenCalledWith(200);
+
         expect(console.error).toHaveBeenCalledWith(
             'Notification creation failed:',
             'Notification service unavailable'
@@ -1177,7 +1528,10 @@ describe('AgriFeed controller - toggleLike', () => {
     });
 
     test('rejects liking a non-published tip', async () => {
-        const tip = makeTip({ status: 'Archived' });
+        const tip = makeTip({
+            status: 'Archived',
+        });
+
         AgriTip.findById.mockResolvedValue(tip);
 
         const { next } = await execute(
@@ -1188,6 +1542,7 @@ describe('AgriFeed controller - toggleLike', () => {
         );
 
         expect(tip.save).not.toHaveBeenCalled();
+
         expect(next).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'This tip is no longer available.',
@@ -1202,29 +1557,37 @@ describe('AgriFeed controller - addComment', () => {
         const tip = makeTip({
             createdBy: makeObjectId(OTHER_USER_ID),
         });
+
         tip.comments = {
             push: jest.fn((comment) => {
                 tip.commentsList.push(comment);
             }),
             list: undefined,
         };
+
         tip.commentsList = [];
+
         AgriTip.findById.mockResolvedValue(tip);
 
         const { res, next } = await execute(
             controller.addComment,
             makeRequest({
                 params: { id: TIP_ID },
-                body: { content: '  This is helpful advice.  ' },
+                body: {
+                    content: '  This is helpful advice.  ',
+                },
             })
         );
 
         expect(next).not.toHaveBeenCalled();
+
         expect(tip.comments.push).toHaveBeenCalledWith({
             user: USER_ID,
             content: 'This is helpful advice.',
         });
+
         expect(tip.save).toHaveBeenCalledTimes(1);
+
         expect(Notification.create).toHaveBeenCalledWith({
             recipient: tip.createdBy,
             sender: USER_ID,
@@ -1233,6 +1596,7 @@ describe('AgriFeed controller - addComment', () => {
             message: 'Test Farmer commented on your agricultural tip.',
             link: '/community',
         });
+
         expect(res.json).toHaveBeenCalledWith({
             success: true,
             message: 'Comment added successfully.',
@@ -1242,17 +1606,21 @@ describe('AgriFeed controller - addComment', () => {
 
     test('rejects a blank comment', async () => {
         const tip = makeTip();
+
         AgriTip.findById.mockResolvedValue(tip);
 
         const { next } = await execute(
             controller.addComment,
             makeRequest({
                 params: { id: TIP_ID },
-                body: { content: '   ' },
+                body: {
+                    content: '   ',
+                },
             })
         );
 
         expect(tip.save).not.toHaveBeenCalled();
+
         expect(next).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'Comment content is required.',
@@ -1263,17 +1631,21 @@ describe('AgriFeed controller - addComment', () => {
 
     test('rejects a comment longer than 1000 characters', async () => {
         const tip = makeTip();
+
         AgriTip.findById.mockResolvedValue(tip);
 
         const { next } = await execute(
             controller.addComment,
             makeRequest({
                 params: { id: TIP_ID },
-                body: { content: 'C'.repeat(1001) },
+                body: {
+                    content: 'C'.repeat(1001),
+                },
             })
         );
 
         expect(tip.save).not.toHaveBeenCalled();
+
         expect(next).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'Comment content cannot exceed 1000 characters.',
@@ -1283,18 +1655,24 @@ describe('AgriFeed controller - addComment', () => {
     });
 
     test('rejects comments on archived tips', async () => {
-        const tip = makeTip({ status: 'Archived' });
+        const tip = makeTip({
+            status: 'Archived',
+        });
+
         AgriTip.findById.mockResolvedValue(tip);
 
         const { next } = await execute(
             controller.addComment,
             makeRequest({
                 params: { id: TIP_ID },
-                body: { content: 'Helpful advice' },
+                body: {
+                    content: 'Helpful advice',
+                },
             })
         );
 
         expect(tip.save).not.toHaveBeenCalled();
+
         expect(next).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'Comments cannot be added to this tip.',
@@ -1305,13 +1683,16 @@ describe('AgriFeed controller - addComment', () => {
 
     test('does not notify when the owner comments on their own tip', async () => {
         const tip = makeTip();
+
         AgriTip.findById.mockResolvedValue(tip);
 
         await execute(
             controller.addComment,
             makeRequest({
                 params: { id: TIP_ID },
-                body: { content: 'My own note' },
+                body: {
+                    content: 'My own note',
+                },
             })
         );
 
@@ -1322,19 +1703,26 @@ describe('AgriFeed controller - addComment', () => {
         const tip = makeTip({
             createdBy: makeObjectId(OTHER_USER_ID),
         });
+
         AgriTip.findById.mockResolvedValue(tip);
-        Notification.create.mockRejectedValue(new Error('Notify failed'));
+
+        Notification.create.mockRejectedValue(
+            new Error('Notify failed')
+        );
 
         const { next } = await execute(
             controller.addComment,
             makeRequest({
                 params: { id: TIP_ID },
-                body: { content: 'Helpful advice' },
+                body: {
+                    content: 'Helpful advice',
+                },
             })
         );
 
         expect(next).not.toHaveBeenCalled();
         expect(tip.save).toHaveBeenCalledTimes(1);
+
         expect(console.error).toHaveBeenCalledWith(
             'Notification creation failed:',
             'Notify failed'
@@ -1345,11 +1733,13 @@ describe('AgriFeed controller - addComment', () => {
 describe('AgriFeed controller - deleteComment', () => {
     test('deletes a comment owned by the authenticated user', async () => {
         const comment = makeComment();
+
         const tip = makeTip({
             comments: {
                 id: jest.fn().mockReturnValue(comment),
             },
         });
+
         AgriTip.findById.mockResolvedValue(tip);
 
         const { res, next } = await execute(
@@ -1365,6 +1755,7 @@ describe('AgriFeed controller - deleteComment', () => {
         expect(next).not.toHaveBeenCalled();
         expect(comment.deleteOne).toHaveBeenCalledTimes(1);
         expect(tip.save).toHaveBeenCalledTimes(1);
+
         expect(res.json).toHaveBeenCalledWith({
             success: true,
             message: 'Comment deleted.',
@@ -1374,6 +1765,7 @@ describe('AgriFeed controller - deleteComment', () => {
 
     test('rejects an invalid comment ID', async () => {
         const tip = makeTip();
+
         AgriTip.findById.mockResolvedValue(tip);
 
         const { next } = await execute(
@@ -1387,6 +1779,7 @@ describe('AgriFeed controller - deleteComment', () => {
         );
 
         expect(tip.save).not.toHaveBeenCalled();
+
         expect(next).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'Invalid comment ID.',
@@ -1401,6 +1794,7 @@ describe('AgriFeed controller - deleteComment', () => {
                 id: jest.fn().mockReturnValue(null),
             },
         });
+
         AgriTip.findById.mockResolvedValue(tip);
 
         const { next } = await execute(
@@ -1422,12 +1816,16 @@ describe('AgriFeed controller - deleteComment', () => {
     });
 
     test('rejects deleting another user’s comment', async () => {
-        const comment = makeComment({ user: OTHER_USER_ID });
+        const comment = makeComment({
+            user: OTHER_USER_ID,
+        });
+
         const tip = makeTip({
             comments: {
                 id: jest.fn().mockReturnValue(comment),
             },
         });
+
         AgriTip.findById.mockResolvedValue(tip);
 
         const { next } = await execute(
@@ -1442,6 +1840,7 @@ describe('AgriFeed controller - deleteComment', () => {
 
         expect(comment.deleteOne).not.toHaveBeenCalled();
         expect(tip.save).not.toHaveBeenCalled();
+
         expect(next).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'You can only delete your own comments.',
@@ -1454,6 +1853,7 @@ describe('AgriFeed controller - deleteComment', () => {
 describe('AgriFeed controller - shareTip', () => {
     test('shares a published tip to the Community', async () => {
         const tip = makeTip();
+
         const communityPost = {
             _id: makeObjectId(COMMUNITY_POST_ID),
         };
@@ -1470,18 +1870,22 @@ describe('AgriFeed controller - shareTip', () => {
         );
 
         expect(next).not.toHaveBeenCalled();
+
         expect(CommunityPost.create).toHaveBeenCalledWith({
             title: tip.title,
             content: tip.content,
             category: tip.category,
             image: '',
+            imagePublicId: '',
             user: USER_ID,
             agriTip: tip._id,
         });
+
         expect(tip.sharedBy).toHaveLength(1);
         expect(tip.sharedBy[0].toString()).toBe(USER_ID);
         expect(tip.shares).toBe(1);
         expect(tip.save).toHaveBeenCalledTimes(1);
+
         expect(res.json).toHaveBeenCalledWith({
             success: true,
             message: 'Agricultural tip shared to the Community.',
@@ -1490,8 +1894,46 @@ describe('AgriFeed controller - shareTip', () => {
         });
     });
 
+    test('preserves Cloudinary image references when sharing', async () => {
+        const tip = makeTip({
+            image: IMAGE_URL,
+            imagePublicId: IMAGE_PUBLIC_ID,
+        });
+
+        const communityPost = {
+            _id: makeObjectId(COMMUNITY_POST_ID),
+        };
+
+        AgriTip.findById.mockResolvedValue(tip);
+        CommunityPost.findOne.mockResolvedValue(null);
+        CommunityPost.create.mockResolvedValue(communityPost);
+
+        const { next } = await execute(
+            controller.shareTip,
+            makeRequest({
+                params: { id: TIP_ID },
+            })
+        );
+
+        expect(next).not.toHaveBeenCalled();
+
+        expect(CommunityPost.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                image: IMAGE_URL,
+                imagePublicId: IMAGE_PUBLIC_ID,
+                agriTip: tip._id,
+            })
+        );
+
+        expect(uploadImage).not.toHaveBeenCalled();
+        expect(deleteImage).not.toHaveBeenCalled();
+    });
+
     test('rejects sharing a non-published tip', async () => {
-        const tip = makeTip({ status: 'Archived' });
+        const tip = makeTip({
+            status: 'Archived',
+        });
+
         AgriTip.findById.mockResolvedValue(tip);
 
         const { next } = await execute(
@@ -1502,6 +1944,7 @@ describe('AgriFeed controller - shareTip', () => {
         );
 
         expect(CommunityPost.create).not.toHaveBeenCalled();
+
         expect(next).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'This agricultural tip is no longer available.',
@@ -1515,6 +1958,7 @@ describe('AgriFeed controller - shareTip', () => {
             sharedBy: [makeObjectId(USER_ID)],
             shares: 1,
         });
+
         AgriTip.findById.mockResolvedValue(tip);
 
         const { next } = await execute(
@@ -1526,6 +1970,7 @@ describe('AgriFeed controller - shareTip', () => {
 
         expect(CommunityPost.findOne).not.toHaveBeenCalled();
         expect(CommunityPost.create).not.toHaveBeenCalled();
+
         expect(next).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'You have already shared this agricultural tip to the Community.',
@@ -1536,7 +1981,9 @@ describe('AgriFeed controller - shareTip', () => {
 
     test('rejects sharing when an active Community post already exists', async () => {
         const tip = makeTip();
+
         AgriTip.findById.mockResolvedValue(tip);
+
         CommunityPost.findOne.mockResolvedValue({
             _id: makeObjectId(COMMUNITY_POST_ID),
         });
@@ -1549,6 +1996,7 @@ describe('AgriFeed controller - shareTip', () => {
         );
 
         expect(CommunityPost.create).not.toHaveBeenCalled();
+
         expect(next).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'You have already shared this agricultural tip to the Community.',
@@ -1559,7 +2007,10 @@ describe('AgriFeed controller - shareTip', () => {
 
     test('deletes the newly created Community post if saving the tip fails', async () => {
         const tip = makeTip();
-        tip.save.mockRejectedValue(new Error('Tip save failed'));
+
+        tip.save.mockRejectedValue(
+            new Error('Tip save failed')
+        );
 
         const communityPost = {
             _id: makeObjectId(COMMUNITY_POST_ID),
@@ -1568,7 +2019,10 @@ describe('AgriFeed controller - shareTip', () => {
         AgriTip.findById.mockResolvedValue(tip);
         CommunityPost.findOne.mockResolvedValue(null);
         CommunityPost.create.mockResolvedValue(communityPost);
-        CommunityPost.deleteOne.mockResolvedValue({ deletedCount: 1 });
+
+        CommunityPost.deleteOne.mockResolvedValue({
+            deletedCount: 1,
+        });
 
         const { next } = await execute(
             controller.shareTip,
@@ -1580,6 +2034,7 @@ describe('AgriFeed controller - shareTip', () => {
         expect(CommunityPost.deleteOne).toHaveBeenCalledWith({
             _id: communityPost._id,
         });
+
         expect(next).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'Tip save failed',
@@ -1591,7 +2046,10 @@ describe('AgriFeed controller - shareTip', () => {
 describe('AgriFeed controller - unshareTip', () => {
     test('archives the active Community post and removes the share', async () => {
         const tip = makeTip({
-            sharedBy: [makeObjectId(USER_ID), makeObjectId(OTHER_USER_ID)],
+            sharedBy: [
+                makeObjectId(USER_ID),
+                makeObjectId(OTHER_USER_ID),
+            ],
             shares: 2,
         });
 
@@ -1611,17 +2069,21 @@ describe('AgriFeed controller - unshareTip', () => {
         );
 
         expect(next).not.toHaveBeenCalled();
+
         expect(CommunityPost.findOne).toHaveBeenCalledWith({
             agriTip: tip._id,
             user: USER_ID,
             status: 'Active',
         });
+
         expect(communityPost.status).toBe('Archived');
         expect(communityPost.save).toHaveBeenCalledTimes(1);
+
         expect(tip.sharedBy).toHaveLength(1);
         expect(tip.sharedBy[0].toString()).toBe(OTHER_USER_ID);
         expect(tip.shares).toBe(1);
         expect(tip.save).toHaveBeenCalledTimes(1);
+
         expect(res.json).toHaveBeenCalledWith({
             success: true,
             message: 'Agricultural tip removed from the Community.',
@@ -1631,6 +2093,7 @@ describe('AgriFeed controller - unshareTip', () => {
 
     test('rejects unsharing when the user has not shared the tip', async () => {
         const tip = makeTip();
+
         AgriTip.findById.mockResolvedValue(tip);
 
         const { next } = await execute(
@@ -1641,6 +2104,7 @@ describe('AgriFeed controller - unshareTip', () => {
         );
 
         expect(CommunityPost.findOne).not.toHaveBeenCalled();
+
         expect(next).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'You have not shared this agricultural tip to the Community.',

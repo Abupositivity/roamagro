@@ -46,6 +46,10 @@ const CommunityPostSchema = new mongoose.Schema(
             default: '',
             maxlength: 3000000
         },
+        imagePublicId: {
+            type: String,
+            default: '',
+        },
         featured: {
             type: Boolean,
             default: false

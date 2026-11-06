@@ -3,6 +3,7 @@ const router = express.Router();
 
 const ensureAuthenticated = require('../middleware/ensureAuthenticated');
 const validateRequest = require('../middleware/validateRequest');
+const upload = require('../middleware/uploadImage');
 
 const {
     createCommunityPost,
@@ -37,6 +38,7 @@ router.get(
 router.post(
     '/',
     ensureAuthenticated,
+    upload.single('image'),
     createCommunityValidator,
     validateRequest,
     createCommunityPost
@@ -45,6 +47,7 @@ router.post(
 router.put(
     '/:id',
     ensureAuthenticated,
+    upload.single('image'),
     updateCommunityValidator,
     validateRequest,
     updateCommunityPost

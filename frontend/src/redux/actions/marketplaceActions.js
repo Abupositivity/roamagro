@@ -27,6 +27,75 @@ const getErrorMessage = (error, fallback) =>
     error.message ||
     fallback;
 
+const prepareMarketplaceRequest = (data) => {
+    if (!Array.isArray(data.images)) {
+        return data;
+    }
+
+    const images = data.images.filter(Boolean);
+
+    const newImages = images.filter(
+        image =>
+            typeof File !== 'undefined' &&
+            image instanceof File
+    );
+
+    const existingImages = images.filter(
+        image => typeof image === 'string'
+    );
+
+    const hasNewImages = newImages.length > 0;
+
+    if (!hasNewImages) {
+        return {
+            ...data,
+            images: existingImages,
+        };
+    }
+
+    const formData = new FormData();
+
+    Object.entries(data).forEach(([key, value]) => {
+        if (
+            key === 'images' ||
+            key === 'imagePublicIds' ||
+            value === undefined ||
+            value === null
+        ) {
+            return;
+        }
+
+        if (key === 'coordinates') {
+            formData.append(
+                key,
+                JSON.stringify(value)
+            );
+            return;
+        }
+
+        if (typeof value === 'object') {
+            formData.append(
+                key,
+                JSON.stringify(value)
+            );
+            return;
+        }
+
+        formData.append(key, value);
+    });
+
+    formData.append(
+        'existingImages',
+        JSON.stringify(existingImages)
+    );
+
+    newImages.forEach(image => {
+        formData.append('images', image);
+    });
+
+    return formData;
+};
+
 export const fetchListings =
     (params = {}, append = false) =>
     async (dispatch) => {
@@ -132,9 +201,12 @@ export const createListing =
         });
 
         try {
+            const requestData =
+                prepareMarketplaceRequest(listing);
+
             const res = await api.post(
                 '/marketplace',
-                listing
+                requestData
             );
 
             dispatch({
@@ -209,9 +281,12 @@ export const updateListing =
         });
 
         try {
+            const requestData =
+                prepareMarketplaceRequest(data);
+
             const res = await api.put(
                 `/marketplace/${id}`,
-                data
+                requestData
             );
 
             dispatch({

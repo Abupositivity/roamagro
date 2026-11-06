@@ -56,6 +56,10 @@ const MarketplaceItemSchema = new mongoose.Schema(
                 type: String,
             },
         ],
+        imagePublicIds: {
+            type: [String],
+            default: [],
+        },
         available: {
             type: Boolean,
             default: true,

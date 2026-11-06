@@ -18,6 +18,19 @@ api.interceptors.request.use(
             config.headers.Authorization = `Bearer ${token}`;
         }
 
+        if (
+            typeof FormData !== 'undefined' &&
+            config.data instanceof FormData
+        ) {
+            if (config.headers?.delete) {
+                config.headers.delete('Content-Type');
+            } else {
+                delete config.headers['Content-Type'];
+            }
+
+            config.timeout = 60000;
+        }
+
         return config;
     },
     (error) => Promise.reject(error)

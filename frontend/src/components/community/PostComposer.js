@@ -1,5 +1,8 @@
-
-import React, { useRef, useState } from "react";
+import React, {
+    useEffect,
+    useRef,
+    useState
+} from "react";
 import {
     Box,
     Button,
@@ -49,6 +52,34 @@ const PostComposer = ({
 
     const [imageError, setImageError] = useState("");
     const [imageProcessing, setImageProcessing] = useState(false);
+    const [imagePreview, setImagePreview] = useState("");
+
+    useEffect(() => {
+        if (
+            typeof File !== "undefined" &&
+            formData.image instanceof File
+        ) {
+            const previewUrl = URL.createObjectURL(formData.image);
+
+            setImagePreview(previewUrl);
+
+            return () => {
+                URL.revokeObjectURL(previewUrl);
+            };
+        }
+
+        setImagePreview(
+            typeof formData.image === "string"
+                ? formData.image
+                : ""
+        );
+    }, [formData.image]);
+
+    useEffect(() => {
+        return () => {
+            imageSelectionRef.current += 1;
+        };
+    }, []);
 
     const handleImageSelect = async (event) => {
         const file = event.target.files?.[0];
@@ -62,14 +93,14 @@ const PostComposer = ({
         setImageProcessing(true);
 
         try {
-            const image = await compressImage(file);
+            const compressedFile = await compressImage(file);
 
             if (selectionId !== imageSelectionRef.current) return;
 
             onChange({
                 target: {
                     name: "image",
-                    value: image
+                    value: compressedFile
                 }
             });
         } catch (error) {
@@ -90,6 +121,10 @@ const PostComposer = ({
         setImageProcessing(false);
         setImageError("");
 
+        if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+        }
+
         onChange({
             target: {
                 name: "image",
@@ -101,7 +136,7 @@ const PostComposer = ({
     const handleSubmit = (event) => {
         event.preventDefault();
 
-        if (posting || imageProcessing) return;
+        if (posting || loading || imageProcessing) return;
 
         onSubmit();
     };
@@ -183,7 +218,7 @@ const PostComposer = ({
                             <input
                                 ref={fileInputRef}
                                 type="file"
-                                accept="image/*"
+                                accept="image/jpeg,image/png,image/webp"
                                 capture="environment"
                                 hidden
                                 onChange={handleImageSelect}
@@ -224,7 +259,7 @@ const PostComposer = ({
                                 </Typography>
                             )}
 
-                            {formData.image && (
+                            {imagePreview && (
                                 <Box
                                     sx={{
                                         position: "relative",
@@ -237,7 +272,7 @@ const PostComposer = ({
                                 >
                                     <Box
                                         component="img"
-                                        src={formData.image}
+                                        src={imagePreview}
                                         alt={t("Community post")}
                                         loading="lazy"
                                         sx={{
@@ -284,7 +319,7 @@ const PostComposer = ({
                             variant="contained"
                             size="large"
                             type="submit"
-                            disabled={posting || imageProcessing}
+                            disabled={posting || loading || imageProcessing}
                         >
                             {posting ? t("Posting...") : t("Post")}
                         </Button>

@@ -1,5 +1,4 @@
 const express = require('express');
-
 const router = express.Router();
 
 const {
@@ -18,6 +17,7 @@ const {
 const ensureAuthenticated = require('../middleware/ensureAuthenticated');
 const authorizeRoles = require('../middleware/authorizeRoles');
 const validateRequest = require('../middleware/validateRequest');
+const upload = require('../middleware/uploadImage');
 
 const {
     createTipValidation,
@@ -26,18 +26,28 @@ const {
 
 const optionalAuthenticate = (req, res, next) => {
     if (!req.headers.authorization) {
-        return next(); }
-        return ensureAuthenticated(req, res, next);
-    };
+        return next();
+    }
 
-router.get('/featured', getFeaturedTips);
+    return ensureAuthenticated(req, res, next);
+};
 
-router.get('/', optionalAuthenticate, getTips);
+router.get(
+    '/featured',
+    getFeaturedTips
+);
+
+router.get(
+    '/',
+    optionalAuthenticate,
+    getTips
+);
 
 router.post(
     '/',
     ensureAuthenticated,
     authorizeRoles('admin', 'extension_officer'),
+    upload.single('image'),
     createTipValidation,
     validateRequest,
     createTip
@@ -47,6 +57,7 @@ router.put(
     '/:id',
     ensureAuthenticated,
     authorizeRoles('admin', 'extension_officer'),
+    upload.single('image'),
     updateTipValidation,
     validateRequest,
     updateTip

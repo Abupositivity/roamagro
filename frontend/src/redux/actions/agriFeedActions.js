@@ -35,6 +35,25 @@ const getErrorMessage = (error, fallback) =>
     error.message ||
     fallback;
 
+const prepareAgriTipRequest = (tipData) => {
+    if (
+        typeof File === 'undefined' ||
+        !(tipData.image instanceof File)
+    ) {
+        return tipData;
+    }
+
+    const formData = new FormData();
+
+    Object.entries(tipData).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+            formData.append(key, value);
+        }
+    });
+
+    return formData;
+};
+
 export const fetchAgriFeed =
     (params = {}, options = {}) =>
     async (dispatch, getState) => {
@@ -161,9 +180,12 @@ export const createAgriTip =
         });
 
         try {
+            const requestData =
+                prepareAgriTipRequest(tipData);
+
             const res = await api.post(
                 '/feed',
-                tipData
+                requestData
             );
 
             dispatch({
@@ -201,9 +223,12 @@ export const updateAgriTip =
         });
 
         try {
+            const requestData =
+                prepareAgriTipRequest(tipData);
+
             const res = await api.put(
                 `/feed/${id}`,
-                tipData
+                requestData
             );
 
             dispatch({

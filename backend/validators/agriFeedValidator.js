@@ -5,7 +5,7 @@ const MAX_CONTENT_LENGTH = 5000;
 const MAX_CATEGORY_LENGTH = 100;
 const MAX_REGION_LENGTH = 100;
 const MAX_SOURCE_LENGTH = 2048;
-const MAX_IMAGE_LENGTH = 3000000;
+const MAX_IMAGE_URL_LENGTH = 2048;
 
 const ALLOWED_FIELDS = [
     'title',
@@ -20,10 +20,10 @@ const ALLOWED_FIELDS = [
 ];
 
 const validateTitle = (required = true) => {
-    const validator = body('title');
+    let validator = body('title');
 
     if (!required) {
-        validator.optional();
+        validator = validator.optional();
     }
 
     return validator
@@ -41,10 +41,10 @@ const validateTitle = (required = true) => {
 };
 
 const validateContent = (required = true) => {
-    const validator = body('content');
+    let validator = body('content');
 
     if (!required) {
-        validator.optional();
+        validator = validator.optional();
     }
 
     return validator
@@ -55,17 +55,20 @@ const validateContent = (required = true) => {
         .notEmpty()
         .withMessage('Content is required.')
         .bail()
-        .isLength({ min: 5, max: MAX_CONTENT_LENGTH })
+        .isLength({
+            min: 5,
+            max: MAX_CONTENT_LENGTH,
+        })
         .withMessage(
             `Content must be between 5 and ${MAX_CONTENT_LENGTH} characters.`
         );
 };
 
 const validateCategory = (required = true) => {
-    const validator = body('category');
+    let validator = body('category');
 
     if (!required) {
-        validator.optional();
+        validator = validator.optional();
     }
 
     return validator
@@ -89,7 +92,9 @@ const validateLanguage = () =>
         .withMessage('Language must be text.')
         .bail()
         .isIn(['English', 'Hausa'])
-        .withMessage('Language must be English or Hausa.');
+        .withMessage(
+            'Language must be English or Hausa.'
+        );
 
 const validatePriority = () =>
     body('priority')
@@ -97,7 +102,11 @@ const validatePriority = () =>
         .isString()
         .withMessage('Priority must be text.')
         .bail()
-        .isIn(['Normal', 'Important', 'Urgent'])
+        .isIn([
+            'Normal',
+            'Important',
+            'Urgent',
+        ])
         .withMessage('Invalid priority.');
 
 const validateStatus = () =>
@@ -106,7 +115,11 @@ const validateStatus = () =>
         .isString()
         .withMessage('Status must be text.')
         .bail()
-        .isIn(['Draft', 'Published', 'Archived'])
+        .isIn([
+            'Draft',
+            'Published',
+            'Archived',
+        ])
         .withMessage('Invalid status.');
 
 const validateRegion = () =>
@@ -123,7 +136,7 @@ const validateRegion = () =>
 
 const validateImage = () =>
     body('image')
-        .optional({ nullable: true })
+        .optional({ values: 'null' })
         .custom((value) => {
             if (value === '') {
                 return true;
@@ -131,21 +144,11 @@ const validateImage = () =>
 
             if (
                 typeof value !== 'string' ||
-                value.length > MAX_IMAGE_LENGTH
+                value.length > MAX_IMAGE_URL_LENGTH ||
+                !/^https:\/\/[^\s]+$/i.test(value)
             ) {
-                throw new Error('Image is invalid or too large.');
-            }
-
-            const isJpegDataUrl =
-                /^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/.test(value);
-
-            const isHttpUrl =
-                value.length <= MAX_SOURCE_LENGTH &&
-                /^https?:\/\/\S+$/i.test(value);
-
-            if (!isJpegDataUrl && !isHttpUrl) {
                 throw new Error(
-                    'Image must be a valid JPEG data URL or HTTP(S) URL.'
+                    'Image must be a valid HTTPS URL or empty to remove it.'
                 );
             }
 
@@ -165,8 +168,9 @@ const validateSource = () =>
         );
 
 const validateAllowedFields = (requireFields = false) =>
-    body().custom((_, { req }) => {
+    body().custom((value, { req }) => {
         const requestBody = req.body || {};
+
         const suppliedFields = Object.keys(requestBody);
 
         const unexpectedFields = suppliedFields.filter(
@@ -181,9 +185,14 @@ const validateAllowedFields = (requireFields = false) =>
 
         if (
             requireFields &&
-            !suppliedFields.some((field) => ALLOWED_FIELDS.includes(field))
+            !suppliedFields.some(
+                (field) => ALLOWED_FIELDS.includes(field)
+            ) &&
+            !req.file
         ) {
-            throw new Error('Provide at least one field to update.');
+            throw new Error(
+                'Provide at least one field to update.'
+            );
         }
 
         return true;

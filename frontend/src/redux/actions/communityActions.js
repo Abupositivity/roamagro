@@ -27,6 +27,25 @@ import {
     SHARE_POST_FAIL,
 } from './types';
 
+const prepareCommunityRequest = postData => {
+    if (
+        typeof File === 'undefined' ||
+        !(postData.image instanceof File)
+    ) {
+        return postData;
+    }
+
+    const formData = new FormData();
+
+    Object.entries(postData).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+            formData.append(key, value);
+        }
+    });
+
+    return formData;
+};
+
 export const fetchTopics=
     (params={})=>
     async(dispatch)=>{
@@ -109,9 +128,10 @@ export const createTopic=
         });
 
         try{
+            const requestData = prepareCommunityRequest(topic);
             const res=await api.post(
                 '/community',
-                topic
+                requestData
             );
 
             dispatch({
@@ -149,9 +169,10 @@ export const updateTopic=
         });
 
         try{
+            const requestData = prepareCommunityRequest(data);
             const res=await api.put(
                 `/community/${postId}`,
-                data
+                requestData
             );
 
             dispatch({

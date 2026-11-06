@@ -11,14 +11,18 @@ const PriceAlert = require('../models/PriceAlert');
 const PriceIndex = require('../models/PriceIndex');
 const asyncHandler = require('../middleware/asyncHandler');
 const AppError = require('../utils/AppError');
+const {
+    uploadImage,
+    deleteImage,
+} = require('../utils/cloudinaryStorage');
 
 const COMMUNITY_USER_FIELDS = 'name profilePhoto role state lga location';
 const MARKETPLACE_USER_FIELDS = 'name phone location state profilePhoto role bio';
 
-const escapeRegex = value =>
+const escapeRegex = (value) =>
     value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-const validateUserId = userId => {
+const validateUserId = (userId) => {
     if (!mongoose.Types.ObjectId.isValid(userId)) {
         throw new AppError('Invalid user ID.', 400);
     }
@@ -26,6 +30,48 @@ const validateUserId = userId => {
 
 const PRIVATE_FIELDS =
     '-password -googleId -emailVerificationToken -emailVerificationExpires -passwordResetToken -passwordResetExpires';
+
+const deleteImageIfUnused = async (publicId) => {
+    if (!publicId) return;
+
+    try {
+        const [
+            userReference,
+            communityReference,
+            tipReference,
+            marketplaceReference,
+        ] = await Promise.all([
+            User.exists({ profilePhotoPublicId: publicId }),
+            CommunityPost.exists({ imagePublicId: publicId }),
+            AgriTip.exists({ imagePublicId: publicId }),
+            MarketplaceItem.exists({
+                imagePublicIds: publicId,
+            }),
+        ]);
+
+        if (
+            !userReference &&
+            !communityReference &&
+            !tipReference &&
+            !marketplaceReference
+        ) {
+            await deleteImage(publicId);
+        }
+    } catch (error) {
+        console.error(
+            'Cloudinary image cleanup failed:',
+            error.message
+        );
+    }
+};
+
+const deleteImagesSafely = async (publicIds = []) => {
+    const uniqueIds = [...new Set(publicIds.filter(Boolean))];
+
+    await Promise.all(
+        uniqueIds.map((publicId) => deleteImageIfUnused(publicId))
+    );
+};
 
 exports.getProfile = asyncHandler(async (req, res) => {
     const userId = req.user._id;
@@ -35,22 +81,22 @@ exports.getProfile = asyncHandler(async (req, res) => {
         communityCount,
         marketplaceCount,
         communityPosts,
-        marketplaceListings
+        marketplaceListings,
     ] = await Promise.all([
         User.findById(userId)
             .select(PRIVATE_FIELDS)
             .lean(),
         CommunityPost.countDocuments({
             user: userId,
-            status: 'Active'
+            status: 'Active',
         }),
         MarketplaceItem.countDocuments({
             user: userId,
-            available: true
+            available: true,
         }),
         CommunityPost.find({
             user: userId,
-            status: 'Active'
+            status: 'Active',
         })
             .populate('user', COMMUNITY_USER_FIELDS)
             .sort({ createdAt: -1 })
@@ -58,19 +104,19 @@ exports.getProfile = asyncHandler(async (req, res) => {
             .lean(),
         MarketplaceItem.find({
             user: userId,
-            available: true
+            available: true,
         })
             .populate('user', MARKETPLACE_USER_FIELDS)
             .sort({ createdAt: -1 })
             .limit(3)
-            .lean()
+            .lean(),
     ]);
 
     if (!user) {
         throw new AppError('User profile not found.', 404);
     }
 
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         data: {
             ...user,
@@ -78,9 +124,9 @@ exports.getProfile = asyncHandler(async (req, res) => {
             marketplaceListings,
             stats: {
                 communityPosts: communityCount,
-                marketplaceListings: marketplaceCount
-            }
-        }
+                marketplaceListings: marketplaceCount,
+            },
+        },
     });
 });
 
@@ -93,18 +139,27 @@ exports.updateProfile = asyncHandler(async (req, res) => {
         'location',
         'language',
         'profilePhoto',
-        'bio'
+        'bio',
     ];
 
     const updates = {};
 
-    allowedFields.forEach(field => {
-        if (Object.prototype.hasOwnProperty.call(req.body, field)) {
+    allowedFields.forEach((field) => {
+        if (
+            Object.prototype.hasOwnProperty.call(req.body, field)
+        ) {
             updates[field] = req.body[field];
         }
     });
 
-    if (Object.keys(updates).length === 0) {
+    if (req.file) {
+        delete updates.profilePhoto;
+    }
+
+    if (
+        Object.keys(updates).length === 0 &&
+        !req.file
+    ) {
         throw new AppError(
             'No profile information was provided.',
             400
@@ -125,7 +180,10 @@ exports.updateProfile = asyncHandler(async (req, res) => {
     }
 
     if (updates.name !== undefined) {
-        if (updates.name.length < 2 || updates.name.length > 100) {
+        if (
+            updates.name.length < 2 ||
+            updates.name.length > 100
+        ) {
             throw new AppError(
                 'Name must be between 2 and 100 characters.',
                 400
@@ -141,10 +199,7 @@ exports.updateProfile = asyncHandler(async (req, res) => {
     }
 
     if (updates.phone !== undefined && updates.phone.length > 30) {
-        throw new AppError(
-            'Phone number is too long.',
-            400
-        );
+        throw new AppError('Phone number is too long.', 400);
     }
 
     if (updates.state !== undefined && updates.state.length > 100) {
@@ -155,12 +210,27 @@ exports.updateProfile = asyncHandler(async (req, res) => {
         throw new AppError('LGA is too long.', 400);
     }
 
-    if (updates.location !== undefined && updates.location.length > 200) {
+    if (
+        updates.location !== undefined &&
+        updates.location.length > 150
+    ) {
         throw new AppError('Location is too long.', 400);
     }
 
-    if (updates.profilePhoto !== undefined && updates.profilePhoto.length > 3_000_000) {
-        throw new AppError('Profile photo data is too large.', 400);
+    if (
+        updates.profilePhoto !== undefined &&
+        (
+            updates.profilePhoto.length > 2048 ||
+            (
+                updates.profilePhoto !== '' &&
+                !/^https:\/\/[^\s]+$/i.test(updates.profilePhoto)
+            )
+        )
+    ) {
+        throw new AppError(
+            'Profile photo must be a valid HTTPS URL or empty to remove it.',
+            400
+        );
     }
 
     if (
@@ -170,29 +240,99 @@ exports.updateProfile = asyncHandler(async (req, res) => {
         throw new AppError('Invalid language.', 400);
     }
 
-    const user = await User.findByIdAndUpdate(
-        req.user._id,
-        { $set: updates },
-        {
-            new: true,
-            runValidators: true
-        }
-    ).select(PRIVATE_FIELDS);
+    const currentUser = await User.findById(req.user._id);
 
-    if (!user) {
+    if (!currentUser) {
         throw new AppError('User profile not found.', 404);
     }
 
-    res.status(200).json({
+    if (
+        updates.profilePhoto !== undefined &&
+        updates.profilePhoto !== '' &&
+        updates.profilePhoto !== currentUser.profilePhoto
+    ) {
+        throw new AppError(
+            'Please upload a new profile photo instead of providing a photo URL.',
+            400
+        );
+    }
+
+    const oldProfilePhotoPublicId =
+        currentUser.profilePhotoPublicId;
+
+    let newProfilePhotoPublicId = '';
+
+    if (req.file) {
+        const uploadedImage = await uploadImage(
+            req.file,
+            'roamagro/profiles'
+        );
+
+        updates.profilePhoto = uploadedImage.url;
+        updates.profilePhotoPublicId = uploadedImage.publicId;
+        newProfilePhotoPublicId = uploadedImage.publicId;
+    } else if (
+        Object.prototype.hasOwnProperty.call(updates, 'profilePhoto')
+    ) {
+        if (updates.profilePhoto !== currentUser.profilePhoto) {
+            updates.profilePhotoPublicId = '';
+        }
+    }
+
+    let user;
+
+    try {
+        user = await User.findByIdAndUpdate(
+            req.user._id,
+            { $set: updates },
+            {
+                new: true,
+                runValidators: true,
+            }
+        ).select(PRIVATE_FIELDS);
+
+        if (!user) {
+            throw new AppError('User profile not found.', 404);
+        }
+    } catch (error) {
+        if (newProfilePhotoPublicId) {
+            await deleteImage(newProfilePhotoPublicId).catch(
+                (cleanupError) => {
+                    console.error(
+                        'New profile photo cleanup failed:',
+                        cleanupError.message
+                    );
+                }
+            );
+        }
+
+        throw error;
+    }
+
+    if (
+        oldProfilePhotoPublicId &&
+        oldProfilePhotoPublicId !== user.profilePhotoPublicId
+    ) {
+        await deleteImageIfUnused(oldProfilePhotoPublicId);
+    }
+
+    return res.status(200).json({
         success: true,
         message: 'Profile updated successfully.',
-        data: user
+        data: user,
     });
 });
 
 exports.searchUsers = asyncHandler(async (req, res) => {
-    const search = String(req.query.search || '').trim().slice(0, 100);
-    const page = Math.max(Number.parseInt(req.query.page, 10) || 1, 1);
+    const search = String(req.query.search || '')
+        .trim()
+        .slice(0, 100);
+
+    const page = Math.max(
+        Number.parseInt(req.query.page, 10) || 1,
+        1
+    );
+
     const limit = Math.min(
         Math.max(Number.parseInt(req.query.limit, 10) || 20, 1),
         50
@@ -206,8 +346,8 @@ exports.searchUsers = asyncHandler(async (req, res) => {
                 page,
                 limit,
                 total: 0,
-                pages: 0
-            }
+                pages: 0,
+            },
         });
     }
 
@@ -220,8 +360,8 @@ exports.searchUsers = asyncHandler(async (req, res) => {
             { name: regex },
             { state: regex },
             { lga: regex },
-            { location: regex }
-        ]
+            { location: regex },
+        ],
     };
 
     const total = await User.countDocuments(query);
@@ -233,25 +373,27 @@ exports.searchUsers = asyncHandler(async (req, res) => {
         .limit(limit)
         .lean();
 
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         data: users,
         pagination: {
             page,
             limit,
             total,
-            pages: Math.ceil(total / limit)
-        }
+            pages: Math.ceil(total / limit),
+        },
     });
 });
 
 exports.searchAdminUsers = asyncHandler(async (req, res) => {
-    const search = String(req.query.search || '').trim().slice(0, 100);
+    const search = String(req.query.search || '')
+        .trim()
+        .slice(0, 100);
 
     if (!search) {
         return res.status(200).json({
             success: true,
-            data: []
+            data: [],
         });
     }
 
@@ -267,17 +409,19 @@ exports.searchAdminUsers = asyncHandler(async (req, res) => {
     const users = await User.find({
         $or: [
             { name: regex },
-            { email: regex }
-        ]
+            { email: regex },
+        ],
     })
-        .select('name email profilePhoto role isVerified accountStatus createdAt')
+        .select(
+            'name email profilePhoto role isVerified accountStatus createdAt'
+        )
         .sort({ name: 1 })
         .limit(25)
         .lean();
 
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
-        data: users
+        data: users,
     });
 });
 
@@ -293,7 +437,7 @@ exports.getUserById = asyncHandler(async (req, res) => {
 
     const user = await User.findOne({
         _id: userId,
-        accountStatus: 'active'
+        accountStatus: 'active',
     })
         .select(fields)
         .lean();
@@ -302,12 +446,12 @@ exports.getUserById = asyncHandler(async (req, res) => {
         throw new AppError('User not found.', 404);
     }
 
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         data: {
             ...user,
-            isSelf
-        }
+            isSelf,
+        },
     });
 });
 
@@ -326,7 +470,7 @@ exports.reportUser = asyncHandler(async (req, res) => {
 
     const reportedUser = await User.findOne({
         _id: reportedUserId,
-        accountStatus: 'active'
+        accountStatus: 'active',
     });
 
     if (!reportedUser) {
@@ -337,7 +481,7 @@ exports.reportUser = asyncHandler(async (req, res) => {
 
     const existingReport = await UserReport.findOne({
         reporter: reporterId,
-        reportedUser: reportedUserId
+        reportedUser: reportedUserId,
     });
 
     if (existingReport) {
@@ -351,21 +495,26 @@ exports.reportUser = asyncHandler(async (req, res) => {
         reporter: reporterId,
         reportedUser: reportedUserId,
         reason,
-        details: String(details).trim()
+        details: String(details).trim(),
     });
 
-    res.status(201).json({
+    return res.status(201).json({
         success: true,
         message: 'Report submitted successfully.',
         data: {
-            id: report._id
-        }
+            id: report._id,
+        },
     });
 });
 
 exports.deleteAccount = asyncHandler(async (req, res) => {
     const userId = req.user._id;
     const session = await mongoose.startSession();
+
+    let profilePhotoPublicId = '';
+    let marketplaceImagePublicIds = [];
+    let communityImagePublicIds = [];
+    let tipImagePublicIds = [];
 
     try {
         await session.withTransaction(async () => {
@@ -375,25 +524,52 @@ exports.deleteAccount = asyncHandler(async (req, res) => {
                 throw new AppError('User account not found.', 404);
             }
 
+            profilePhotoPublicId =
+                user.profilePhotoPublicId || '';
+
             const ownTips = await AgriTip.find({
-                createdBy: userId
+                createdBy: userId,
             })
-                .select('_id')
+                .select('_id imagePublicId')
                 .session(session);
 
-            const ownTipIds = ownTips.map(tip => tip._id);
+            const ownTipIds = ownTips.map((tip) => tip._id);
+
+            tipImagePublicIds = ownTips
+                .map((tip) => tip.imagePublicId)
+                .filter(Boolean);
 
             const affectedTips = await AgriTip.find({
-                sharedBy: userId
+                sharedBy: userId,
             })
                 .select('_id sharedBy')
                 .session(session);
 
             const affectedPosts = await CommunityPost.find({
-                sharedBy: userId
+                sharedBy: userId,
             })
                 .select('_id sharedBy')
                 .session(session);
+
+            const ownPosts = await CommunityPost.find({
+                user: userId,
+            })
+                .select('_id imagePublicId')
+                .session(session);
+
+            const ownMarketplaceItems = await MarketplaceItem.find({
+                user: userId,
+            })
+                .select('_id imagePublicIds')
+                .session(session);
+
+            communityImagePublicIds = ownPosts
+                .map((post) => post.imagePublicId)
+                .filter(Boolean);
+
+            marketplaceImagePublicIds = ownMarketplaceItems
+                .flatMap((item) => item.imagePublicIds || [])
+                .filter(Boolean);
 
             await FarmProject.deleteMany(
                 { user: userId },
@@ -430,8 +606,8 @@ exports.deleteAccount = asyncHandler(async (req, res) => {
                         sharedBy: userId,
                         likes: userId,
                         bookmarks: userId,
-                        comments: { user: userId }
-                    }
+                        comments: { user: userId },
+                    },
                 },
                 { session }
             );
@@ -442,15 +618,15 @@ exports.deleteAccount = asyncHandler(async (req, res) => {
                     $pull: {
                         sharedBy: userId,
                         likes: userId,
-                        comments: { user: userId }
-                    }
+                        comments: { user: userId },
+                    },
                 },
                 { session }
             );
 
             for (const tip of affectedTips) {
                 const remainingShares = tip.sharedBy.filter(
-                    id => String(id) !== String(userId)
+                    (id) => String(id) !== String(userId)
                 ).length;
 
                 await AgriTip.updateOne(
@@ -462,7 +638,7 @@ exports.deleteAccount = asyncHandler(async (req, res) => {
 
             for (const post of affectedPosts) {
                 const remainingShares = post.sharedBy.filter(
-                    id => String(id) !== String(userId)
+                    (id) => String(id) !== String(userId)
                 ).length;
 
                 await CommunityPost.updateOne(
@@ -476,8 +652,8 @@ exports.deleteAccount = asyncHandler(async (req, res) => {
                 {
                     $or: [
                         { requester: userId },
-                        { recipient: userId }
-                    ]
+                        { recipient: userId },
+                    ],
                 },
                 { session }
             );
@@ -486,8 +662,8 @@ exports.deleteAccount = asyncHandler(async (req, res) => {
                 {
                     $or: [
                         { recipient: userId },
-                        { sender: userId }
-                    ]
+                        { sender: userId },
+                    ],
                 },
                 { session }
             );
@@ -497,8 +673,8 @@ exports.deleteAccount = asyncHandler(async (req, res) => {
                     $or: [
                         { reporter: userId },
                         { reportedUser: userId },
-                        { reviewedBy: userId }
-                    ]
+                        { reviewedBy: userId },
+                    ],
                 },
                 { session }
             );
@@ -519,9 +695,16 @@ exports.deleteAccount = asyncHandler(async (req, res) => {
             );
         });
 
-        res.status(200).json({
+        await deleteImagesSafely([
+            profilePhotoPublicId,
+            ...marketplaceImagePublicIds,
+            ...communityImagePublicIds,
+            ...tipImagePublicIds,
+        ]);
+
+        return res.status(200).json({
             success: true,
-            message: 'Your RoamAgro account has been deleted successfully.'
+            message: 'Your RoamAgro account has been deleted successfully.',
         });
     } finally {
         await session.endSession();
@@ -543,7 +726,7 @@ exports.getReports = asyncHandler(async (req, res) => {
         'Pending',
         'Reviewed',
         'Dismissed',
-        'Action Taken'
+        'Action Taken',
     ];
 
     const filter = {};
@@ -559,24 +742,27 @@ exports.getReports = asyncHandler(async (req, res) => {
     const [reports, total] = await Promise.all([
         UserReport.find(filter)
             .populate('reporter', 'name email profilePhoto role')
-            .populate('reportedUser', 'name email profilePhoto role accountStatus')
+            .populate(
+                'reportedUser',
+                'name email profilePhoto role accountStatus'
+            )
             .populate('reviewedBy', 'name email')
             .sort({ createdAt: -1 })
             .skip((page - 1) * limit)
             .limit(limit)
             .lean(),
-        UserReport.countDocuments(filter)
+        UserReport.countDocuments(filter),
     ]);
 
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         data: reports,
         pagination: {
             page,
             limit,
             total,
-            pages: Math.ceil(total / limit)
-        }
+            pages: Math.ceil(total / limit),
+        },
     });
 });
 
@@ -587,7 +773,7 @@ exports.updateReport = asyncHandler(async (req, res) => {
         'Pending',
         'Reviewed',
         'Dismissed',
-        'Action Taken'
+        'Action Taken',
     ];
 
     if (!allowedStatuses.includes(status)) {
@@ -603,11 +789,11 @@ exports.updateReport = asyncHandler(async (req, res) => {
         {
             status,
             reviewedBy: req.user._id,
-            reviewedAt: new Date()
+            reviewedAt: new Date(),
         },
         {
             new: true,
-            runValidators: true
+            runValidators: true,
         }
     );
 
@@ -615,10 +801,10 @@ exports.updateReport = asyncHandler(async (req, res) => {
         throw new AppError('Report not found.', 404);
     }
 
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         message: 'Report updated successfully.',
-        data: report
+        data: report,
     });
 });
 
@@ -630,7 +816,7 @@ exports.updateUserRole = asyncHandler(async (req, res) => {
         'farmer',
         'buyer',
         'extension_officer',
-        'admin'
+        'admin',
     ];
 
     validateUserId(userId);
@@ -658,15 +844,15 @@ exports.updateUserRole = asyncHandler(async (req, res) => {
                 name: user.name,
                 email: user.email,
                 role: user.role,
-                accountStatus: user.accountStatus
-            }
+                accountStatus: user.accountStatus,
+            },
         });
     }
 
     user.role = role;
     await user.save();
 
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         message: 'User role updated successfully.',
         data: {
@@ -674,8 +860,8 @@ exports.updateUserRole = asyncHandler(async (req, res) => {
             name: user.name,
             email: user.email,
             role: user.role,
-            accountStatus: user.accountStatus
-        }
+            accountStatus: user.accountStatus,
+        },
     });
 });
 
@@ -732,14 +918,14 @@ exports.suspendUser = asyncHandler(async (req, res) => {
 
     await user.save({ validateBeforeSave: false });
 
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         message: 'User suspended successfully.',
         data: {
             userId: user._id,
             accountStatus: user.accountStatus,
-            suspendedUntil: user.suspendedUntil
-        }
+            suspendedUntil: user.suspendedUntil,
+        },
     });
 });
 
@@ -759,12 +945,12 @@ exports.restoreUser = asyncHandler(async (req, res) => {
 
     await user.save({ validateBeforeSave: false });
 
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         message: 'User account restored successfully.',
         data: {
             userId: user._id,
-            accountStatus: user.accountStatus
-        }
+            accountStatus: user.accountStatus,
+        },
     });
 });

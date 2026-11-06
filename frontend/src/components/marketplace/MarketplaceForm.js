@@ -1,4 +1,3 @@
-
 import React, {
     useEffect,
     useRef,
@@ -14,6 +13,7 @@ import {
     IconButton,
     Stack,
     Alert,
+    CircularProgress,
 } from '@mui/material';
 import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -24,6 +24,7 @@ import {
     useForm,
     Controller,
 } from 'react-hook-form';
+import compressImage from '../../utils/compressImage';
 
 const categories = [
     'Crop',
@@ -55,82 +56,6 @@ const units = [
 ];
 
 const MAX_IMAGES = 3;
-const MAX_IMAGE_SIZE = 1200;
-const IMAGE_QUALITY = 0.75;
-
-const compressImage = file =>
-    new Promise((resolve, reject) => {
-        if (!file?.type?.startsWith('image/')) {
-            reject(new Error('Please select an image file.'));
-            return;
-        }
-
-        const reader = new FileReader();
-
-        reader.onload = event => {
-            const image = new Image();
-
-            image.onload = () => {
-                let width = image.width;
-                let height = image.height;
-
-                if (
-                    width > MAX_IMAGE_SIZE ||
-                    height > MAX_IMAGE_SIZE
-                ) {
-                    if (width > height) {
-                        height = (height / width) * MAX_IMAGE_SIZE;
-                        width = MAX_IMAGE_SIZE;
-                    } else {
-                        width = (width / height) * MAX_IMAGE_SIZE;
-                        height = MAX_IMAGE_SIZE;
-                    }
-                }
-
-                const canvas = document.createElement('canvas');
-                canvas.width = Math.round(width);
-                canvas.height = Math.round(height);
-
-                const context = canvas.getContext('2d');
-
-                if (!context) {
-                    reject(new Error('Unable to process image.'));
-                    return;
-                }
-
-                context.drawImage(
-                    image,
-                    0,
-                    0,
-                    canvas.width,
-                    canvas.height
-                );
-
-                try {
-                    resolve(
-                        canvas.toDataURL(
-                            'image/jpeg',
-                            IMAGE_QUALITY
-                        )
-                    );
-                } catch {
-                    reject(new Error('Unable to compress image.'));
-                }
-            };
-
-            image.onerror = () => {
-                reject(new Error('Unable to process image.'));
-            };
-
-            image.src = event.target.result;
-        };
-
-        reader.onerror = () => {
-            reject(new Error('Unable to read image.'));
-        };
-
-        reader.readAsDataURL(file);
-    });
 
 const getCoordinates = values => {
     const latitude = Number(values?.latitude);
@@ -164,13 +89,17 @@ const MarketplaceForm = ({
 }) => {
     const { t } = useTranslation();
     const fileInputRef = useRef(null);
+    const imageSelectionRef = useRef(0);
+    const imagesRef = useRef([]);
 
     const [images, setImages] = useState(
         Array.isArray(initialValues.images)
             ? initialValues.images.filter(Boolean)
             : []
     );
+    const [imagePreviews, setImagePreviews] = useState([]);
     const [imageError, setImageError] = useState('');
+    const [imageProcessing, setImageProcessing] = useState(false);
     const [coordinates, setCoordinates] = useState(
         getCoordinates(initialValues.coordinates)
     );
@@ -208,16 +137,56 @@ const MarketplaceForm = ({
             ...initialValues,
         });
 
-        setImages(
-            Array.isArray(initialValues.images)
-                ? initialValues.images.filter(Boolean)
-                : []
-        );
+        imageSelectionRef.current += 1;
+
+        const initialImages = Array.isArray(initialValues.images)
+            ? initialValues.images.filter(Boolean)
+            : [];
+
+        imagesRef.current = initialImages;
+        setImages(initialImages);
+        setImageProcessing(false);
         setCoordinates(getCoordinates(initialValues.coordinates));
         setImageError('');
         setLocationError('');
         setLocationLoading(false);
+
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
     }, [initialValues, reset]);
+
+    useEffect(() => {
+        const previews = images.map(image => {
+            if (
+                typeof File !== 'undefined' &&
+                image instanceof File
+            ) {
+                return URL.createObjectURL(image);
+            }
+
+            return typeof image === 'string' ? image : '';
+        });
+
+        setImagePreviews(previews);
+
+        return () => {
+            images.forEach((image, index) => {
+                if (
+                    typeof File !== 'undefined' &&
+                    image instanceof File
+                ) {
+                    URL.revokeObjectURL(previews[index]);
+                }
+            });
+        };
+    }, [images]);
+
+    useEffect(() => {
+        return () => {
+            imageSelectionRef.current += 1;
+        };
+    }, []);
 
     const handleUseMyLocation = () => {
         if (!navigator.geolocation) {
@@ -259,6 +228,7 @@ const MarketplaceForm = ({
 
     const handleImageSelect = async event => {
         const files = Array.from(event.target.files || []);
+        event.target.value = '';
 
         if (!files.length) {
             return;
@@ -266,54 +236,85 @@ const MarketplaceForm = ({
 
         setImageError('');
 
-        const remainingSlots = MAX_IMAGES - images.length;
+        const remainingSlots = MAX_IMAGES - imagesRef.current.length;
 
         if (remainingSlots <= 0) {
             setImageError(t('You can add up to 3 images.'));
-            event.target.value = '';
             return;
         }
 
         const selectedFiles = files.slice(0, remainingSlots);
+        const selectionId = ++imageSelectionRef.current;
+
+        setImageProcessing(true);
 
         try {
             const processedImages = await Promise.all(
-                selectedFiles.map(compressImage)
+                selectedFiles.map(file => compressImage(file))
             );
 
-            setImages(previous => [
-                ...previous,
+            if (selectionId !== imageSelectionRef.current) {
+                return;
+            }
+
+            const updatedImages = [
+                ...imagesRef.current,
                 ...processedImages,
-            ]);
-        } catch (error) {
-            setImageError(
-                error.message ||
-                t('Unable to add the selected image.')
-            );
-        }
+            ].slice(0, MAX_IMAGES);
 
-        event.target.value = '';
+            imagesRef.current = updatedImages;
+            setImages(updatedImages);
+        } catch (error) {
+            if (selectionId !== imageSelectionRef.current) {
+                return;
+            }
+
+            setImageError(
+                t(
+                    error.message ||
+                    'Unable to add the selected image.'
+                )
+            );
+        } finally {
+            if (selectionId === imageSelectionRef.current) {
+                setImageProcessing(false);
+            }
+        }
     };
 
     const handleRemoveImage = index => {
-        setImages(previous =>
-            previous.filter((_, imageIndex) => imageIndex !== index)
+        imageSelectionRef.current += 1;
+        setImageProcessing(false);
+
+        const updatedImages = imagesRef.current.filter(
+            (_, imageIndex) => imageIndex !== index
         );
+
+        imagesRef.current = updatedImages;
+        setImages(updatedImages);
         setImageError('');
+
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
     };
 
     const submitForm = data => {
+        if (loading || imageProcessing || locationLoading) {
+            return;
+        }
+
         const cleanedData = {
             ...data,
             price: Number(data.price),
             quantity: Number(data.quantity),
-            images: images.filter(Boolean),
+            images: imagesRef.current.filter(Boolean),
         };
 
         if (coordinates) {
             cleanedData.coordinates = coordinates;
         } else {
-            delete cleanedData.coordinates;
+            cleanedData.coordinates = null;
         }
 
         onSubmit(cleanedData);
@@ -503,9 +504,7 @@ const MarketplaceForm = ({
                         >
                             <Button
                                 variant="outlined"
-                                startIcon={
-                                    <MyLocationIcon />
-                                }
+                                startIcon={<MyLocationIcon />}
                                 onClick={handleUseMyLocation}
                                 disabled={loading || locationLoading}
                             >
@@ -565,7 +564,7 @@ const MarketplaceForm = ({
                         <input
                             ref={fileInputRef}
                             type="file"
-                            accept="image/*"
+                            accept="image/jpeg,image/png,image/webp"
                             capture="environment"
                             multiple
                             hidden
@@ -574,13 +573,23 @@ const MarketplaceForm = ({
 
                         <Button
                             variant="outlined"
-                            startIcon={<CameraAltIcon />}
+                            startIcon={
+                                imageProcessing
+                                    ? <CircularProgress size={18} color="inherit" />
+                                    : <CameraAltIcon />
+                            }
                             onClick={() => fileInputRef.current?.click()}
-                            disabled={loading || images.length >= MAX_IMAGES}
+                            disabled={
+                                loading ||
+                                imageProcessing ||
+                                images.length >= MAX_IMAGES
+                            }
                         >
-                            {images.length >= MAX_IMAGES
-                                ? t('3 Photos Added')
-                                : t('Add Photo')}
+                            {imageProcessing
+                                ? t('Processing images...')
+                                : images.length >= MAX_IMAGES
+                                    ? t('3 Photos Added')
+                                    : t('Add Photo')}
                         </Button>
 
                         {imageError && (
@@ -605,7 +614,7 @@ const MarketplaceForm = ({
                             >
                                 {images.map((image, index) => (
                                     <Box
-                                        key={`${index}-${image.slice(0, 20)}`}
+                                        key={index}
                                         sx={{
                                             position: 'relative',
                                             minWidth: 100,
@@ -619,7 +628,7 @@ const MarketplaceForm = ({
                                     >
                                         <Box
                                             component="img"
-                                            src={image}
+                                            src={imagePreviews[index] || ''}
                                             alt={`${t('Product')} ${index + 1}`}
                                             sx={{
                                                 width: '100%',
@@ -659,7 +668,11 @@ const MarketplaceForm = ({
                     <Button
                         type="submit"
                         variant="contained"
-                        disabled={loading || locationLoading}
+                        disabled={
+                            loading ||
+                            locationLoading ||
+                            imageProcessing
+                        }
                         fullWidth
                         size="large"
                     >

@@ -34,6 +34,10 @@ const UserSchema=new mongoose.Schema(
         type:String,
         default:''
     },
+        profilePhotoPublicId: {
+        type: String,
+        default: '',
+    },
     bio:{
         type:String,
         default:'',

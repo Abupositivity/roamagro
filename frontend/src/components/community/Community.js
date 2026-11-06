@@ -278,7 +278,8 @@ const Community=()=>{
         selectedCategory,
         showMyPosts,
     ]);
-        useEffect(()=>{
+
+    useEffect(()=>{
         const target=loadMoreRef.current;
 
         if(!target){

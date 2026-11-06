@@ -270,46 +270,54 @@ export const resetPassword=(token,password)=>async dispatch=>{
     }
 };
 
-export const updateProfile=profileData=>async dispatch=>{
-    dispatch({
-        type:UPDATE_PROFILE_REQUEST
-    });
+export const updateProfile = profileData => async dispatch => {
+    dispatch({ type: UPDATE_PROFILE_REQUEST });
 
-    try{
-        const res=await api.put(
-            '/users/profile',
-            profileData
-        );
+    try {
+        let requestData = profileData;
 
-        const user=res.data.data;
+        const hasNewProfilePhoto =
+            typeof File !== 'undefined' &&
+            profileData.profilePhoto instanceof File;
 
-        localStorage.setItem(
-            'user',
-            JSON.stringify(user)
-        );
+        if (hasNewProfilePhoto) {
+            requestData = new FormData();
+
+            Object.entries(profileData).forEach(([key, value]) => {
+                if (value !== undefined && value !== null) {
+                    requestData.append(key, value);
+                }
+            });
+        }
+
+        const res = await api.put('/users/profile', requestData);
+
+        const user = res.data.data;
+
+        localStorage.setItem('user', JSON.stringify(user));
 
         dispatch({
-            type:UPDATE_PROFILE_SUCCESS,
-            payload:user
+            type: UPDATE_PROFILE_SUCCESS,
+            payload: user,
         });
 
-        return{
-            success:true,
-            user
+        return {
+            success: true,
+            user,
         };
-    }catch(error){
-        const message=
-            error.response?.data?.message||
+    } catch (error) {
+        const message =
+            error.response?.data?.message ||
             'Unable to update profile.';
 
         dispatch({
-            type:UPDATE_PROFILE_FAIL,
-            payload:message
+            type: UPDATE_PROFILE_FAIL,
+            payload: message,
         });
 
-        return{
-            success:false,
-            message
+        return {
+            success: false,
+            message,
         };
     }
 };

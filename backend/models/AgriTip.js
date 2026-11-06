@@ -1,4 +1,3 @@
-
 const mongoose = require('mongoose');
 
 const CommentSchema = new mongoose.Schema(
@@ -58,6 +57,10 @@ const AgriTipSchema = new mongoose.Schema(
             type: String,
             default: '',
             maxlength: 3000000
+        },
+        imagePublicId: {
+            type: String,
+            default: '',
         },
         source: {
             type: String,

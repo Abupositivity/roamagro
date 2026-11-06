@@ -1,4 +1,3 @@
-
 import React,{useEffect,useRef,useState}from'react';
 import{Alert,Avatar,Box,Button,Card,CardActionArea,CardContent,Chip,CircularProgress,Dialog,DialogActions,DialogContent,DialogTitle,Divider,Grid,IconButton,MenuItem,Snackbar,Stack,TextField,Typography}from'@mui/material';
 import EditIcon from'@mui/icons-material/Edit';
@@ -30,12 +29,7 @@ const MAX_BIO_LENGTH=500;
 
 const getRoleLabel=role=>{
     if(!role)return'Farmer';
-    const labels={
-        farmer:'Farmer',
-        buyer:'Buyer',
-        extension_officer:'Extension Officer',
-        admin:'Administrator'
-    };
+    const labels={farmer:'Farmer',buyer:'Buyer',extension_officer:'Extension Officer',admin:'Administrator'};
     return labels[role]||role.charAt(0).toUpperCase()+role.slice(1);
 };
 
@@ -170,6 +164,7 @@ const Profile=()=>{
     const[success,setSuccess]=useState(false);
     const[publicProfileId,setPublicProfileId]=useState(null);
     const[profileActivity,setProfileActivity]=useState({communityPosts:[],marketplaceListings:[],stats:{communityPosts:0,marketplaceListings:0}});
+    const[profilePhotoPreview,setProfilePhotoPreview]=useState('');
     const[activityLoading,setActivityLoading]=useState(false);
     const[activityError,setActivityError]=useState('');
     const[form,setForm]=useState({name:'',bio:'',phone:'',state:'',lga:'',location:'',language:'English',profilePhoto:''});
@@ -230,7 +225,18 @@ const Profile=()=>{
         return()=>{mounted=false;};
     },[user?._id,t]);
 
+    useEffect(()=>{
+        return()=>{
+            if(profilePhotoPreview.startsWith('blob:')){
+                URL.revokeObjectURL(profilePhotoPreview);
+            }
+        };
+    },[profilePhotoPreview]);
+
     const handleOpenEdit=()=>{
+        imageSelectionRef.current+=1;
+        setImageProcessing(false);
+        setProfilePhotoPreview('');
         setLocalError('');
         setImageError('');
         if(user){
@@ -251,9 +257,13 @@ const Profile=()=>{
     const handleCloseEdit=()=>{
         if(loading||imageProcessing)return;
         imageSelectionRef.current+=1;
+        setProfilePhotoPreview('');
         setOpenEdit(false);
         setLocalError('');
         setImageError('');
+        if(user){
+            setForm(previous=>({...previous,profilePhoto:user.profilePhoto||''}));
+        }
     };
 
     const handleChange=event=>{
@@ -265,21 +275,30 @@ const Profile=()=>{
     const handleImageSelect=async event=>{
         const file=event.target.files?.[0];
         event.target.value='';
+
         if(!file)return;
 
         const selectionId=++imageSelectionRef.current;
         setImageError('');
+        setLocalError('');
         setImageProcessing(true);
 
         try{
-            const image=await compressImage(file);
+            const compressedFile=await compressImage(file);
+
             if(selectionId!==imageSelectionRef.current)return;
-            setForm(previous=>({...previous,profilePhoto:image}));
-        }catch(imageUploadError){
+
+            const previewUrl=URL.createObjectURL(compressedFile);
+
+            setForm(previous=>({...previous,profilePhoto:compressedFile}));
+            setProfilePhotoPreview(previewUrl);
+        }catch(processingError){
             if(selectionId!==imageSelectionRef.current)return;
-            setImageError(imageUploadError.message||t('Unable to add profile photo.'));
+            setImageError(processingError.message||t('Unable to process the selected image.'));
         }finally{
-            if(selectionId===imageSelectionRef.current)setImageProcessing(false);
+            if(selectionId===imageSelectionRef.current){
+                setImageProcessing(false);
+            }
         }
     };
 
@@ -287,12 +306,17 @@ const Profile=()=>{
         imageSelectionRef.current+=1;
         setImageProcessing(false);
         setForm(previous=>({...previous,profilePhoto:''}));
+        setProfilePhotoPreview('');
         setImageError('');
+
+        if(fileInputRef.current)fileInputRef.current.value='';
+        if(cameraInputRef.current)cameraInputRef.current.value='';
     };
 
     const handleSubmit=async event=>{
         event.preventDefault();
         setLocalError('');
+
         if(imageProcessing){
             setLocalError(t('Please wait for image processing to finish.'));
             return;
@@ -309,6 +333,7 @@ const Profile=()=>{
             setLocalError(t('Bio must not exceed 500 characters.'));
             return;
         }
+
         try{
             const result=await dispatch(updateProfile({
                 ...form,
@@ -319,7 +344,9 @@ const Profile=()=>{
                 lga:form.lga.trim(),
                 location:form.location.trim()
             }));
+
             if(result?.success){
+                setProfilePhotoPreview('');
                 setOpenEdit(false);
                 setSuccess(true);
                 setLocalError('');
@@ -460,13 +487,13 @@ const Profile=()=>{
                         {(localError||error)&&<Alert severity="error">{localError||error}</Alert>}
                         <Stack alignItems="center" spacing={1.5} sx={{py:1}}>
                             <Box sx={{position:'relative'}}>
-                                <Avatar src={form.profilePhoto||undefined} sx={{width:112,height:112,bgcolor:'primary.main',fontSize:38,border:'3px solid',borderColor:'primary.main'}}>{!form.profilePhoto&&initials}</Avatar>
-                                {form.profilePhoto&&<IconButton size="small" onClick={handleRemoveImage} disabled={loading} aria-label={t('Remove profile photo')} sx={{position:'absolute',right:-6,top:-6,bgcolor:'background.paper',boxShadow:2,'&:hover':{bgcolor:'background.paper'}}}><DeleteIcon fontSize="small" color="error"/></IconButton>}
+                                <Avatar src={profilePhotoPreview||(typeof form.profilePhoto==='string'?form.profilePhoto:'')||undefined} sx={{width:112,height:112,bgcolor:'primary.main',fontSize:38,border:'3px solid',borderColor:'primary.main'}}>{!profilePhotoPreview&&!form.profilePhoto&&initials}</Avatar>
+                                {form.profilePhoto&&<IconButton size="small" onClick={handleRemoveImage} disabled={loading||imageProcessing} aria-label={t('Remove profile photo')} sx={{position:'absolute',right:-6,top:-6,bgcolor:'background.paper',boxShadow:2,'&:hover':{bgcolor:'background.paper'}}}><DeleteIcon fontSize="small" color="error"/></IconButton>}
                             </Box>
                             <Typography variant="body2" color="text.secondary" textAlign="center">{t('Add a profile photo or capture one with your camera.')}</Typography>
                             <Stack direction={{xs:'column',sm:'row'}} spacing={1} width="100%" justifyContent="center">
-                                <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={handleImageSelect}/>
-                                <input ref={cameraInputRef} type="file" accept="image/*" capture="user" hidden onChange={handleImageSelect}/>
+                                <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={handleImageSelect}/>
+                                <input ref={cameraInputRef} type="file" accept="image/jpeg,image/png,image/webp" capture="user" hidden onChange={handleImageSelect}/>
                                 <Button variant="outlined" startIcon={<AddPhotoAlternateOutlinedIcon/>} onClick={()=>fileInputRef.current?.click()} disabled={loading||imageProcessing} fullWidth>{t('Choose Photo')}</Button>
                                 <Button variant="outlined" startIcon={<CameraAltIcon/>} onClick={()=>cameraInputRef.current?.click()} disabled={loading||imageProcessing} fullWidth>{t('Take Photo')}</Button>
                             </Stack>
