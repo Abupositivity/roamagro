@@ -16,6 +16,7 @@ import {
     MenuItem
 } from "@mui/material";
 import CameraAltIcon from "@mui/icons-material/CameraAlt";
+import AddPhotoAlternateOutlinedIcon from "@mui/icons-material/AddPhotoAlternateOutlined";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { useTranslation } from "react-i18next";
 import compressImage from "../../utils/compressImage";
@@ -47,7 +48,9 @@ const PostComposer = ({
     error
 }) => {
     const { t } = useTranslation();
+
     const fileInputRef = useRef(null);
+    const cameraInputRef = useRef(null);
     const imageSelectionRef = useRef(0);
 
     const [imageError, setImageError] = useState("");
@@ -95,7 +98,9 @@ const PostComposer = ({
         try {
             const compressedFile = await compressImage(file);
 
-            if (selectionId !== imageSelectionRef.current) return;
+            if (selectionId !== imageSelectionRef.current) {
+                return;
+            }
 
             onChange({
                 target: {
@@ -103,11 +108,16 @@ const PostComposer = ({
                     value: compressedFile
                 }
             });
-        } catch (error) {
-            if (selectionId !== imageSelectionRef.current) return;
+        } catch (processingError) {
+            if (selectionId !== imageSelectionRef.current) {
+                return;
+            }
 
             setImageError(
-                t(error.message || "Unable to add image.")
+                t(
+                    processingError.message ||
+                    "Unable to add image."
+                )
             );
         } finally {
             if (selectionId === imageSelectionRef.current) {
@@ -125,6 +135,10 @@ const PostComposer = ({
             fileInputRef.current.value = "";
         }
 
+        if (cameraInputRef.current) {
+            cameraInputRef.current.value = "";
+        }
+
         onChange({
             target: {
                 name: "image",
@@ -136,7 +150,9 @@ const PostComposer = ({
     const handleSubmit = (event) => {
         event.preventDefault();
 
-        if (posting || loading || imageProcessing) return;
+        if (posting || loading || imageProcessing) {
+            return;
+        }
 
         onSubmit();
     };
@@ -190,7 +206,10 @@ const PostComposer = ({
                             disabled={posting}
                         >
                             {categories.map((category) => (
-                                <MenuItem key={category} value={category}>
+                                <MenuItem
+                                    key={category}
+                                    value={category}
+                                >
                                     {t(category)}
                                 </MenuItem>
                             ))}
@@ -215,8 +234,18 @@ const PostComposer = ({
                                 )}
                             </Typography>
 
+                            {/* Gallery input: no capture attribute */}
                             <input
                                 ref={fileInputRef}
+                                type="file"
+                                accept="image/jpeg,image/png,image/webp"
+                                hidden
+                                onChange={handleImageSelect}
+                            />
+
+                            {/* Camera input: rear camera */}
+                            <input
+                                ref={cameraInputRef}
                                 type="file"
                                 accept="image/jpeg,image/png,image/webp"
                                 capture="environment"
@@ -224,7 +253,10 @@ const PostComposer = ({
                                 onChange={handleImageSelect}
                             />
 
-                            {!formData.image && (
+                            <Stack
+                                direction={{ xs: "column", sm: "row" }}
+                                spacing={1}
+                            >
                                 <Button
                                     variant="outlined"
                                     startIcon={
@@ -234,19 +266,44 @@ const PostComposer = ({
                                                 color="inherit"
                                             />
                                         ) : (
-                                            <CameraAltIcon />
+                                            <AddPhotoAlternateOutlinedIcon />
                                         )
                                     }
                                     onClick={() =>
                                         fileInputRef.current?.click()
                                     }
-                                    disabled={posting || imageProcessing}
+                                    disabled={
+                                        posting ||
+                                        loading ||
+                                        imageProcessing
+                                    }
+                                    fullWidth
                                 >
                                     {imageProcessing
                                         ? t("Processing image...")
-                                        : t("Add Photo")}
+                                        : t(
+                                              formData.image
+                                                  ? "Change Photo"
+                                                  : "Choose Photo"
+                                          )}
                                 </Button>
-                            )}
+
+                                <Button
+                                    variant="outlined"
+                                    startIcon={<CameraAltIcon />}
+                                    onClick={() =>
+                                        cameraInputRef.current?.click()
+                                    }
+                                    disabled={
+                                        posting ||
+                                        loading ||
+                                        imageProcessing
+                                    }
+                                    fullWidth
+                                >
+                                    {t("Take Photo")}
+                                </Button>
+                            </Stack>
 
                             {imageError && (
                                 <Typography
@@ -286,7 +343,11 @@ const PostComposer = ({
                                     <IconButton
                                         size="small"
                                         onClick={handleRemoveImage}
-                                        disabled={posting}
+                                        disabled={
+                                            posting ||
+                                            loading ||
+                                            imageProcessing
+                                        }
                                         aria-label={t("Remove photo")}
                                         sx={{
                                             position: "absolute",
@@ -319,9 +380,15 @@ const PostComposer = ({
                             variant="contained"
                             size="large"
                             type="submit"
-                            disabled={posting || loading || imageProcessing}
+                            disabled={
+                                posting ||
+                                loading ||
+                                imageProcessing
+                            }
                         >
-                            {posting ? t("Posting...") : t("Post")}
+                            {posting
+                                ? t("Posting...")
+                                : t("Post")}
                         </Button>
                     </Stack>
                 </Box>

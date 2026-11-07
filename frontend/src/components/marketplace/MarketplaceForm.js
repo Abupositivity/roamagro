@@ -16,6 +16,7 @@ import {
     CircularProgress,
 } from '@mui/material';
 import CameraAltIcon from '@mui/icons-material/CameraAlt';
+import AddPhotoAlternateOutlinedIcon from '@mui/icons-material/AddPhotoAlternateOutlined';
 import DeleteIcon from '@mui/icons-material/Delete';
 import MyLocationIcon from '@mui/icons-material/MyLocation';
 import LocationOffIcon from '@mui/icons-material/LocationOff';
@@ -88,7 +89,9 @@ const MarketplaceForm = ({
     onSubmit,
 }) => {
     const { t } = useTranslation();
+
     const fileInputRef = useRef(null);
+    const cameraInputRef = useRef(null);
     const imageSelectionRef = useRef(0);
     const imagesRef = useRef([]);
 
@@ -97,12 +100,15 @@ const MarketplaceForm = ({
             ? initialValues.images.filter(Boolean)
             : []
     );
+
     const [imagePreviews, setImagePreviews] = useState([]);
     const [imageError, setImageError] = useState('');
     const [imageProcessing, setImageProcessing] = useState(false);
+
     const [coordinates, setCoordinates] = useState(
         getCoordinates(initialValues.coordinates)
     );
+
     const [locationLoading, setLocationLoading] = useState(false);
     const [locationError, setLocationError] = useState('');
 
@@ -153,6 +159,10 @@ const MarketplaceForm = ({
 
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
+        }
+
+        if (cameraInputRef.current) {
+            cameraInputRef.current.value = '';
         }
     }, [initialValues, reset]);
 
@@ -209,7 +219,9 @@ const MarketplaceForm = ({
             },
             () => {
                 setLocationError(
-                    t('Could not access your location. You can enter your town or village instead.')
+                    t(
+                        'Could not access your location. You can enter your town or village instead.'
+                    )
                 );
                 setLocationLoading(false);
             },
@@ -264,14 +276,14 @@ const MarketplaceForm = ({
 
             imagesRef.current = updatedImages;
             setImages(updatedImages);
-        } catch (error) {
+        } catch (processingError) {
             if (selectionId !== imageSelectionRef.current) {
                 return;
             }
 
             setImageError(
                 t(
-                    error.message ||
+                    processingError.message ||
                     'Unable to add the selected image.'
                 )
             );
@@ -297,6 +309,10 @@ const MarketplaceForm = ({
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
         }
+
+        if (cameraInputRef.current) {
+            cameraInputRef.current.value = '';
+        }
     };
 
     const submitForm = data => {
@@ -309,16 +325,13 @@ const MarketplaceForm = ({
             price: Number(data.price),
             quantity: Number(data.quantity),
             images: imagesRef.current.filter(Boolean),
+            coordinates: coordinates || null,
         };
-
-        if (coordinates) {
-            cleanedData.coordinates = coordinates;
-        } else {
-            cleanedData.coordinates = null;
-        }
 
         onSubmit(cleanedData);
     };
+
+    const imageLimitReached = images.length >= MAX_IMAGES;
 
     return (
         <form onSubmit={handleSubmit(submitForm)}>
@@ -561,42 +574,90 @@ const MarketplaceForm = ({
                             {t('Add up to 3 photos of your product.')}
                         </Typography>
 
+                        {/* Gallery: allows multiple photos */}
                         <input
                             ref={fileInputRef}
                             type="file"
                             accept="image/jpeg,image/png,image/webp"
-                            capture="environment"
                             multiple
                             hidden
                             onChange={handleImageSelect}
                         />
 
-                        <Button
-                            variant="outlined"
-                            startIcon={
-                                imageProcessing
-                                    ? <CircularProgress size={18} color="inherit" />
-                                    : <CameraAltIcon />
-                            }
-                            onClick={() => fileInputRef.current?.click()}
-                            disabled={
-                                loading ||
-                                imageProcessing ||
-                                images.length >= MAX_IMAGES
-                            }
+                        {/* Camera: captures one photo at a time */}
+                        <input
+                            ref={cameraInputRef}
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            capture="environment"
+                            hidden
+                            onChange={handleImageSelect}
+                        />
+
+                        <Stack
+                            direction={{
+                                xs: 'column',
+                                sm: 'row',
+                            }}
+                            spacing={1}
                         >
-                            {imageProcessing
-                                ? t('Processing images...')
-                                : images.length >= MAX_IMAGES
-                                    ? t('3 Photos Added')
-                                    : t('Add Photo')}
-                        </Button>
+                            <Button
+                                variant="outlined"
+                                startIcon={
+                                    imageProcessing
+                                        ? (
+                                            <CircularProgress
+                                                size={18}
+                                                color="inherit"
+                                            />
+                                        )
+                                        : <AddPhotoAlternateOutlinedIcon />
+                                }
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={
+                                    loading ||
+                                    imageProcessing ||
+                                    imageLimitReached
+                                }
+                                fullWidth
+                            >
+                                {imageProcessing
+                                    ? t('Processing images...')
+                                    : imageLimitReached
+                                        ? t('3 Photos Added')
+                                        : t('Choose Photos')}
+                            </Button>
+
+                            <Button
+                                variant="outlined"
+                                startIcon={<CameraAltIcon />}
+                                onClick={() => cameraInputRef.current?.click()}
+                                disabled={
+                                    loading ||
+                                    imageProcessing ||
+                                    imageLimitReached
+                                }
+                                fullWidth
+                            >
+                                {t('Take Photo')}
+                            </Button>
+                        </Stack>
+
+                        <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            display="block"
+                            mt={1}
+                        >
+                            {images.length}/{MAX_IMAGES} {t('photos added')}
+                        </Typography>
 
                         {imageError && (
                             <Typography
                                 variant="body2"
                                 color="error"
                                 mt={1}
+                                role="alert"
                             >
                                 {imageError}
                             </Typography>
@@ -642,14 +703,17 @@ const MarketplaceForm = ({
                                             size="small"
                                             aria-label={t('Remove photo')}
                                             onClick={() => handleRemoveImage(index)}
-                                            disabled={loading}
+                                            disabled={
+                                                loading || imageProcessing
+                                            }
                                             sx={{
                                                 position: 'absolute',
                                                 top: 2,
                                                 right: 2,
                                                 width: 28,
                                                 height: 28,
-                                                backgroundColor: 'rgba(255,255,255,0.9)',
+                                                backgroundColor:
+                                                    'rgba(255,255,255,0.9)',
                                                 '&:hover': {
                                                     backgroundColor: 'white',
                                                 },
