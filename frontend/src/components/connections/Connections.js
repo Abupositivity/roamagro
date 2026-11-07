@@ -121,11 +121,11 @@ const Connections=()=>{
         }
     };
 
-    const getIncomingUser=request=>
-        request?.requester||request;
+    const getIncomingUser = request =>
+        request?.user || request?.requester || request;
 
-    const getOutgoingUser=request=>
-        request?.recipient||request;
+    const getOutgoingUser = request =>
+        request?.user || request?.recipient || request;
 
 //    const displayedUsers=
 //        search.trim().length>=2
@@ -196,17 +196,21 @@ const Connections=()=>{
 
         return(
             <Stack spacing={1.5}>
-                {connections.map(user=>(
-                    <UserCard
-                        key={user._id}
-                        user={user}
-                        connectionStatus="connected"
-                        onOpenProfile={setSelectedProfileId}
-                        onConnectionChange={
-                            refreshConnections
-                        }
-                    />
-                ))}
+                {connections.map(connection => {
+                    const user = connection?.user || connection;
+                    if (!user?._id) {
+                        return null;
+                    }
+                    return (
+                        <UserCard
+                            key={connection.connectionId || user._id}
+                            user={user}
+                            connectionStatus="connected"
+                            onOpenProfile={setSelectedProfileId}
+                            onConnectionChange={refreshConnections}
+                        />
+                    );
+                })}
             </Stack>
         );
     };

@@ -143,7 +143,7 @@ const connectionReducer=(
                 ...state,
                 loading:false,
                 connectionStatus:
-                    action.payload.status||
+                    action.payload.connectionStatus||
                     'none',
                 error:null
             };

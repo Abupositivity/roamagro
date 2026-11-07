@@ -61,6 +61,7 @@ const resources = {
             "Cancelling...": "Ana sokewa...",
             "Category": "Rukuni",
             "Choose Photo": "Zaɓi Hoto",
+            "Choose Photos": "Zaɓi Hotuna",
             "Choose how RoamAgro looks on your device.": "Zaɓi yadda RoamAgro zai bayyana a na'urarka.",
             "Clear location": "Share Wuri",
             "Climate": "Yanayin Duniya",
