@@ -41,6 +41,7 @@ import FarmProject from './components/farmProjects/FarmProject';
 import FinancialDashboard from './components/financial/FinancialDashboard';
 
 import PageLayout from './components/layout/PageLayout';
+import ConnectivityNotice from './components/layout/ConnectivityNotice';
 
 import ThemeSwitcher from './components/ThemeSwitcher';
 import LanguageSwitcher from './components/LanguageSwitcher';
@@ -169,6 +170,8 @@ const AppContent = () => {
     return (
         <ThemeProvider theme={theme}>
             <CssBaseline />
+
+            <ConnectivityNotice />
 
             {showSwitchers && (
                 <Box

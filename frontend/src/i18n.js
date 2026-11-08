@@ -848,6 +848,11 @@ const resources = {
             "Unable to verify your email. Please try again.": "Ba a iya tabbatar da email ɗinka ba. Da fatan a sake gwadawa.",
             "Something went wrong. Please try again.": "Wani abu ya samu matsala. Da fatan a sake gwadawa.",
             "An unexpected error occurred. Please try again.": "An samu matsala da ba a zata ba. Da fatan a sake gwadawa.",
+
+            "You are offline. Please check your internet connection.": "Ba ka da haɗin intanet. Da fatan za ka duba haɗin intanet ɗinka.",
+            "Connection restored. You are back online.": "Haɗin intanet ya dawo. Yanzu kana kan intanet.",
+            "The request is taking too long. Please try again.": "Buƙatar tana ɗaukar lokaci mai tsawo. Da fatan za ka sake gwadawa.",
+            "Unable to connect. Please check your connection and try again.": "An kasa haɗawa. Da fatan za ka duba haɗin intanet ɗinka sannan ka sake gwadawa."
         }
     }
 };

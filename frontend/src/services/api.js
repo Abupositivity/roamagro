@@ -1,5 +1,25 @@
 import axios from 'axios';
 
+const getFriendlyNetworkMessage = (error) => {
+    if (error.response) {
+        return null;
+    }
+
+    if (!navigator.onLine) {
+        return 'You are offline. Please check your internet connection.';
+    }
+
+    if (error.code === 'ECONNABORTED') {
+        return 'The request is taking too long. Please try again.';
+    }
+
+    if (error.code === 'ERR_NETWORK') {
+        return 'Unable to connect. Please check your connection and try again.';
+    }
+
+    return null;
+};
+
 const api = axios.create({
     baseURL:
         process.env.REACT_APP_API_URL ||
@@ -60,6 +80,12 @@ api.interceptors.response.use(
             if (window.location.pathname !== '/login') {
                 window.location.replace('/login');
             }
+        }
+
+        const friendlyMessage = getFriendlyNetworkMessage(error);
+
+        if (friendlyMessage) {
+            error.message = friendlyMessage;
         }
 
         return Promise.reject(error);

@@ -1,5 +1,10 @@
-
-import React, { memo, useCallback, useEffect, useRef, useState } from "react";
+import React, {
+    memo,
+    useCallback,
+    useEffect,
+    useRef,
+    useState
+} from "react";
 import {
     AppBar,
     Toolbar,
@@ -38,6 +43,7 @@ const TopAppBar = () => {
     const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
 
     const lastFetchAt = useRef(0);
+    const lastAttemptAt = useRef(0);
     const requestInProgress = useRef(false);
 
     const user = useSelector((state) => state.auth?.user);
@@ -55,19 +61,24 @@ const TopAppBar = () => {
         async (force = false) => {
             if (
                 !userKey ||
+                !navigator.onLine ||
                 document.visibilityState !== "visible" ||
                 requestInProgress.current
             ) {
                 return;
             }
 
-            const elapsed = Date.now() - lastFetchAt.current;
+            const now = Date.now();
 
-            if (!force && elapsed < POLL_INTERVAL) {
+            if (
+                !force &&
+                now - lastAttemptAt.current < POLL_INTERVAL
+            ) {
                 return;
             }
 
             requestInProgress.current = true;
+            lastAttemptAt.current = now;
 
             try {
                 const result = await dispatch(fetchUnreadCount());
@@ -76,7 +87,7 @@ const TopAppBar = () => {
                     lastFetchAt.current = Date.now();
                 }
             } catch {
-                // A later polling cycle can retry if the request fails.
+                // Retry during a later polling cycle.
             } finally {
                 requestInProgress.current = false;
             }
@@ -87,8 +98,12 @@ const TopAppBar = () => {
     useEffect(() => {
         if (!userKey) {
             lastFetchAt.current = 0;
+            lastAttemptAt.current = 0;
             return undefined;
         }
+
+        lastFetchAt.current = 0;
+        lastAttemptAt.current = 0;
 
         refreshUnreadCount(true);
 
@@ -97,13 +112,16 @@ const TopAppBar = () => {
         }, POLL_INTERVAL);
 
         const handleVisibilityChange = () => {
-            if (document.visibilityState !== "visible") {
-                return;
+            if (
+                document.visibilityState === "visible" &&
+                navigator.onLine
+            ) {
+                refreshUnreadCount();
             }
+        };
 
-            const elapsed = Date.now() - lastFetchAt.current;
-
-            if (!lastFetchAt.current || elapsed >= POLL_INTERVAL) {
+        const handleOnline = () => {
+            if (document.visibilityState === "visible") {
                 refreshUnreadCount(true);
             }
         };
@@ -113,12 +131,17 @@ const TopAppBar = () => {
             handleVisibilityChange
         );
 
+        window.addEventListener("online", handleOnline);
+
         return () => {
             window.clearInterval(intervalId);
+
             document.removeEventListener(
                 "visibilitychange",
                 handleVisibilityChange
             );
+
+            window.removeEventListener("online", handleOnline);
         };
     }, [userKey, refreshUnreadCount]);
 
@@ -229,7 +252,9 @@ const TopAppBar = () => {
                             id="account-menu-button"
                             onClick={handleOpen}
                             aria-label={t("Account")}
-                            aria-controls={open ? "account-menu" : undefined}
+                            aria-controls={
+                                open ? "account-menu" : undefined
+                            }
                             aria-haspopup="true"
                             aria-expanded={open ? "true" : undefined}
                             sx={{
@@ -288,11 +313,15 @@ const TopAppBar = () => {
                             {user?.name || t("Profile")}
                         </MenuItem>
 
-                        <MenuItem onClick={() => handleNavigate("/profile")}>
+                        <MenuItem
+                            onClick={() => handleNavigate("/profile")}
+                        >
                             {t("Profile")}
                         </MenuItem>
 
-                        <MenuItem onClick={() => handleNavigate("/financial")}>
+                        <MenuItem
+                            onClick={() => handleNavigate("/financial")}
+                        >
                             <AccountBalanceWalletIcon
                                 fontSize="small"
                                 sx={{ mr: 1 }}
@@ -300,7 +329,9 @@ const TopAppBar = () => {
                             {t("Financial Tracking")}
                         </MenuItem>
 
-                        <MenuItem onClick={() => handleNavigate("/settings")}>
+                        <MenuItem
+                            onClick={() => handleNavigate("/settings")}
+                        >
                             <SettingsIcon
                                 fontSize="small"
                                 sx={{ mr: 1 }}

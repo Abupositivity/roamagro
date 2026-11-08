@@ -8,12 +8,110 @@ const SUPPORTED_TYPES = [
     'image/webp',
 ];
 
+const getFileType = file => {
+    const type = (file.type || '').toLowerCase();
+
+    if (SUPPORTED_TYPES.includes(type)) {
+        return type;
+    }
+
+    const extension = (file.name || '')
+        .split('.')
+        .pop()
+        .toLowerCase();
+
+    const extensionTypes = {
+        jpg: 'image/jpeg',
+        jpeg: 'image/jpeg',
+        png: 'image/png',
+        webp: 'image/webp',
+    };
+
+    return extensionTypes[extension] || type;
+};
+
+const loadImage = async file => {
+    if (typeof createImageBitmap === 'function') {
+        try {
+            const bitmap = await createImageBitmap(file);
+
+            if (bitmap.width && bitmap.height) {
+                return {
+                    image: bitmap,
+                    width: bitmap.width,
+                    height: bitmap.height,
+                    cleanup: () => bitmap.close(),
+                };
+            }
+
+            bitmap.close();
+        } catch (error) {
+            // Fall back to HTMLImageElement.
+        }
+    }
+
+    const imageUrl = URL.createObjectURL(file);
+
+    try {
+        const image = await new Promise((resolve, reject) => {
+            const img = new Image();
+
+            img.onload = () => resolve(img);
+
+            img.onerror = () => {
+                reject(
+                    new Error(
+                        'Unable to read this image on your device. Try another JPG or PNG photo.'
+                    )
+                );
+            };
+
+            img.src = imageUrl;
+        });
+
+        return {
+            image,
+            width: image.naturalWidth,
+            height: image.naturalHeight,
+            cleanup: () => URL.revokeObjectURL(imageUrl),
+        };
+    } catch (error) {
+        URL.revokeObjectURL(imageUrl);
+        throw error;
+    }
+};
+
+const canvasToBlob = canvas => {
+    return new Promise((resolve, reject) => {
+        canvas.toBlob(
+            blob => {
+                if (!blob) {
+                    reject(
+                        new Error(
+                            'Unable to compress the selected image.'
+                        )
+                    );
+                    return;
+                }
+
+                resolve(blob);
+            },
+            'image/jpeg',
+            JPEG_QUALITY
+        );
+    });
+};
+
 const compressImage = async file => {
-    if (!file || !(file instanceof File)) {
+    if (
+        !file ||
+        typeof File === 'undefined' ||
+        !(file instanceof File)
+    ) {
         throw new Error('Please select a valid image.');
     }
 
-    const fileType = (file.type || '').toLowerCase();
+    const fileType = getFileType(file);
 
     if (!SUPPORTED_TYPES.includes(fileType)) {
         throw new Error(
@@ -29,61 +127,54 @@ const compressImage = async file => {
         throw new Error('Image size must not exceed 12MB.');
     }
 
-    const imageUrl = URL.createObjectURL(file);
+    // Small JPEGs do not require browser-side decoding.
+    // This avoids unnecessary failures on some mobile devices.
+    if (
+        fileType === 'image/jpeg' &&
+        file.size <= 1024 * 1024
+    ) {
+        return file;
+    }
+
+    const loaded = await loadImage(file);
 
     try {
-        const image = await new Promise((resolve, reject) => {
-            const img = new Image();
+        const { image, width, height } = loaded;
 
-            img.onload = () => resolve(img);
-
-            img.onerror = () => reject(
-                new Error(
-                    'Unable to read this image on your device. Try another JPG or PNG photo.'
-                )
-            );
-
-            img.src = imageUrl;
-        });
-
-        const originalWidth = image.naturalWidth;
-        const originalHeight = image.naturalHeight;
-
-        if (!originalWidth || !originalHeight) {
+        if (!width || !height) {
             throw new Error(
                 'The selected image has invalid dimensions.'
             );
         }
 
         const needsResize =
-            originalWidth > MAX_IMAGE_DIMENSION ||
-            originalHeight > MAX_IMAGE_DIMENSION;
+            width > MAX_IMAGE_DIMENSION ||
+            height > MAX_IMAGE_DIMENSION;
 
-        // Small JPEG files can be uploaded without recompression.
         if (!needsResize && fileType === 'image/jpeg') {
             return file;
         }
 
         const scale = Math.min(
             1,
-            MAX_IMAGE_DIMENSION / originalWidth,
-            MAX_IMAGE_DIMENSION / originalHeight
+            MAX_IMAGE_DIMENSION / width,
+            MAX_IMAGE_DIMENSION / height
         );
 
-        const width = Math.max(
+        const outputWidth = Math.max(
             1,
-            Math.round(originalWidth * scale)
+            Math.round(width * scale)
         );
 
-        const height = Math.max(
+        const outputHeight = Math.max(
             1,
-            Math.round(originalHeight * scale)
+            Math.round(height * scale)
         );
 
         const canvas = document.createElement('canvas');
 
-        canvas.width = width;
-        canvas.height = height;
+        canvas.width = outputWidth;
+        canvas.height = outputHeight;
 
         const context = canvas.getContext('2d');
 
@@ -94,36 +185,48 @@ const compressImage = async file => {
         }
 
         context.fillStyle = '#FFFFFF';
-        context.fillRect(0, 0, width, height);
-        context.drawImage(image, 0, 0, width, height);
+        context.fillRect(
+            0,
+            0,
+            outputWidth,
+            outputHeight
+        );
 
-        const blob = await new Promise((resolve, reject) => {
-            canvas.toBlob(
-                result => {
-                    if (!result) {
-                        reject(
-                            new Error('Unable to compress the selected image.')
-                        );
-                        return;
-                    }
+        context.drawImage(
+            image,
+            0,
+            0,
+            outputWidth,
+            outputHeight
+        );
 
-                    resolve(result);
-                },
-                'image/jpeg',
-                JPEG_QUALITY
-            );
-        });
+        const blob = await canvasToBlob(canvas);
+
+        const originalName = file.name || 'photo';
+
+        const baseName = originalName.replace(
+            /\.[^/.]+$/,
+            ''
+        );
 
         return new File(
             [blob],
-            `${file.name.replace(/\.[^/.]+$/, '')}.jpg`,
+            `${baseName}.jpg`,
             {
                 type: 'image/jpeg',
                 lastModified: Date.now(),
             }
         );
+    } catch (error) {
+        if (error.name === 'SecurityError') {
+            throw new Error(
+                'This image could not be processed securely.'
+            );
+        }
+
+        throw error;
     } finally {
-        URL.revokeObjectURL(imageUrl);
+        loaded.cleanup();
     }
 };
 

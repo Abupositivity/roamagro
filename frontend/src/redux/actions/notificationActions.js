@@ -123,23 +123,31 @@ export const fetchUnreadCount=()=>async dispatch=>{
                 success:true,
                 count
             };
-        }catch(error){
-            const message=
-                error.response?.data?.message||
-                error.message||
+        } catch (error) {
+            const isNetworkFailure = !error.response;
+
+            if (isNetworkFailure) {
+                return {
+                    success: false,
+                    error: error.message,
+                    networkError: true
+                };
+            }
+
+            const message =
+                error.response?.data?.message ||
+                error.message ||
                 'Unable to load notification count.';
 
             dispatch({
-                type:FETCH_UNREAD_COUNT_FAIL,
-                payload:message
+                type: FETCH_UNREAD_COUNT_FAIL,
+                payload: message
             });
 
-            return{
-                success:false,
-                error:message
+            return {
+                success: false,
+                error: message
             };
-        }finally{
-            unreadCountRequest=null;
         }
     })();
 
