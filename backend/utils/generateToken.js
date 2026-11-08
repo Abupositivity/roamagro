@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 
-const generateToken = id => {
+const generateToken = (id, tokenVersion) => {
     const secret = process.env.JWT_SECRET;
 
     if (!secret || secret.trim().length < 32) {
@@ -9,10 +9,20 @@ const generateToken = id => {
         );
     }
 
+    if (
+        !Number.isSafeInteger(tokenVersion) ||
+        tokenVersion < 0
+    ) {
+        throw new Error('A valid token version is required.');
+    }
+
     const expiresIn = process.env.JWT_EXPIRE || '7d';
 
     return jwt.sign(
-        { id: String(id) },
+        {
+            id: String(id),
+            tokenVersion
+        },
         secret,
         {
             expiresIn,

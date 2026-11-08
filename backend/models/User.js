@@ -1,130 +1,141 @@
-const mongoose=require('mongoose');
-const bcrypt=require('bcryptjs');
+const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 
-const UserSchema=new mongoose.Schema(
-{
-    name:{
-        type:String,
-        required:true,
-        trim:true,
-        minlength:2,
-        maxlength:100
-    },
-    email:{
-        type:String,
-        required:true,
-        unique:true,
-        lowercase:true,
-        trim:true,
-        index:true
-    },
-    password:{
-        type:String,
-        required:function(){
-            return !this.googleId;
+const UserSchema = new mongoose.Schema(
+    {
+        name: {
+            type: String,
+            required: true,
+            trim: true,
+            minlength: 2,
+            maxlength: 100
         },
-        minlength:6
-    },
-    googleId:{
-        type:String,
-        unique:true,
-        sparse:true
-    },
-    profilePhoto:{
-        type:String,
-        default:''
-    },
+        email: {
+            type: String,
+            required: true,
+            unique: true,
+            lowercase: true,
+            trim: true,
+            index: true
+        },
+        password: {
+            type: String,
+            required: function () {
+                return !this.googleId;
+            },
+            minlength: 6
+        },
+        googleId: {
+            type: String,
+            unique: true,
+            sparse: true
+        },
+        profilePhoto: {
+            type: String,
+            default: ''
+        },
         profilePhotoPublicId: {
-        type: String,
-        default: '',
+            type: String,
+            default: ''
+        },
+        bio: {
+            type: String,
+            default: '',
+            trim: true,
+            maxlength: 500
+        },
+        phone: {
+            type: String,
+            default: ''
+        },
+        state: {
+            type: String,
+            default: ''
+        },
+        location: {
+            type: String,
+            default: ''
+        },
+        lga: {
+            type: String,
+            default: ''
+        },
+        language: {
+            type: String,
+            enum: ['English', 'Hausa'],
+            default: 'English'
+        },
+        role: {
+            type: String,
+            enum: [
+                'farmer',
+                'buyer',
+                'extension_officer',
+                'admin'
+            ],
+            default: 'farmer'
+        },
+        isVerified: {
+            type: Boolean,
+            default: false
+        },
+        accountStatus: {
+            type: String,
+            enum: ['active', 'suspended'],
+            default: 'active',
+            index: true
+        },
+        suspensionReason: {
+            type: String,
+            default: ''
+        },
+        suspendedAt: {
+            type: Date,
+            default: null
+        },
+        suspendedUntil: {
+            type: Date,
+            default: null
+        },
+        emailVerificationToken: {
+            type: String,
+            default: null
+        },
+        emailVerificationExpires: {
+            type: Date,
+            default: null
+        },
+        passwordResetToken: {
+            type: String,
+            default: null
+        },
+        passwordResetExpires: {
+            type: Date,
+            default: null
+        },
+        tokenVersion: {
+            type: Number,
+            default: 0,
+            min: 0
+        }
     },
-    bio:{
-        type:String,
-        default:'',
-        trim:true,
-        maxlength:500
-    },
-    phone:{
-        type:String,
-        default:''
-    },
-    state:{
-        type:String,
-        default:''
-    },
-    location:{
-        type:String,
-        default:''
-    },
-    lga:{
-        type:String,
-        default:''
-    },
-    language:{
-        type:String,
-        enum:['English','Hausa'],
-        default:'English'
-    },
-    role:{
-        type:String,
-        enum:['farmer','buyer','extension_officer','admin'],
-        default:'farmer'
-    },
-    isVerified:{
-        type:Boolean,
-        default:false
-    },
-    accountStatus:{
-        type:String,
-        enum:['active','suspended'],
-        default:'active',
-        index:true
-    },
-    suspensionReason:{
-        type:String,
-        default:''
-    },
-    suspendedAt:{
-        type:Date,
-        default:null
-    },
-    suspendedUntil:{
-        type:Date,
-        default:null
-    },
-    emailVerificationToken:{
-        type:String,
-        default:null
-    },
-    emailVerificationExpires:{
-        type:Date,
-        default:null
-    },
-    passwordResetToken:{
-        type:String,
-        default:null
-    },
-    passwordResetExpires:{
-        type:Date,
-        default:null
+    {
+        timestamps: true
     }
-},
-{
-    timestamps:true
-});
+);
 
-UserSchema.pre('save',async function(next){
-    if(!this.isModified('password')){
+UserSchema.pre('save', async function (next) {
+    if (!this.isModified('password')) {
         return next();
     }
 
-    const salt=await bcrypt.genSalt(10);
-    this.password=await bcrypt.hash(this.password,salt);
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
     next();
 });
 
-UserSchema.methods.matchPassword=async function(enteredPassword){
-    return await bcrypt.compare(enteredPassword,this.password);
+UserSchema.methods.matchPassword = async function (enteredPassword) {
+    return await bcrypt.compare(enteredPassword, this.password);
 };
 
-module.exports=mongoose.model('User',UserSchema);
+module.exports = mongoose.model('User', UserSchema);

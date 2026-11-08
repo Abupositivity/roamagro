@@ -1,96 +1,143 @@
-import React from 'react';
+import React from "react";
+
 import {
-Paper,
-Typography,
-Table,
-TableBody,
-TableCell,
-TableContainer,
-TableHead,
-TableRow,
-} from '@mui/material';
-import { useTranslation } from 'react-i18next';
+    Box,
+    Paper,
+    Typography,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+} from "@mui/material";
+
+import { useTranslation } from "react-i18next";
 
 const MarketComparison = ({
     prices = [],
 }) => {
-
     const { t } = useTranslation();
 
     return (
-        <TableContainer
-            component={Paper}
-            sx={{ mt: 4 }}
+        <Paper
+            elevation={2}
+            sx={{
+                mt: 4,
+                borderRadius: 3,
+                overflow: "hidden",
+                minWidth: 0,
+            }}
         >
             <Typography
                 variant="h6"
-                sx={{ p: 2 }}
+                fontWeight={700}
+                sx={{
+                    p: {
+                        xs: 1.5,
+                        sm: 2,
+                    },
+                }}
             >
-                {t('Market Comparison')}
+                {t("Market Comparison")}
             </Typography>
 
-            <Table size="small">
+            <Box
+                sx={{
+                    width: "100%",
+                    minWidth: 0,
+                }}
+            >
+                <TableContainer
+                    sx={{
+                        maxWidth: "100%",
+                        overflowX: "auto",
+                        WebkitOverflowScrolling: "touch",
+                    }}
+                >
+                    <Table
+                        size="small"
+                        sx={{
+                            minWidth: 520,
+                            "& .MuiTableCell-root": {
+                                px: {
+                                    xs: 1.5,
+                                    sm: 2,
+                                },
+                                py: 1.5,
+                            },
+                        }}
+                    >
+                        <TableHead>
+                            <TableRow>
+                                <TableCell>
+                                    {t("Product")}
+                                </TableCell>
 
-                <TableHead>
+                                <TableCell>
+                                    {t("Market")}
+                                </TableCell>
 
-                    <TableRow>
+                                <TableCell>
+                                    {t("Location")}
+                                </TableCell>
 
-                        <TableCell>
-                            {t('Product')}
-                        </TableCell>
+                                <TableCell align="right">
+                                    {t("Price")}
+                                </TableCell>
+                            </TableRow>
+                        </TableHead>
 
-                        <TableCell>
-                            {t('Market')}
-                        </TableCell>
+                        <TableBody>
+                            {prices.map((price) => (
+                                <TableRow
+                                    key={price._id}
+                                    hover
+                                >
+                                    <TableCell
+                                        sx={{
+                                            overflowWrap: "anywhere",
+                                        }}
+                                    >
+                                        {price.product}
+                                    </TableCell>
 
-                        <TableCell>
-                            {t('Location')}
-                        </TableCell>
+                                    <TableCell
+                                        sx={{
+                                            overflowWrap: "anywhere",
+                                        }}
+                                    >
+                                        {price.market || "-"}
+                                    </TableCell>
 
-                        <TableCell align="right">
-                            {t('Price')}
-                        </TableCell>
+                                    <TableCell
+                                        sx={{
+                                            overflowWrap: "anywhere",
+                                        }}
+                                    >
+                                        {price.location}
+                                    </TableCell>
 
-                    </TableRow>
-
-                </TableHead>
-
-                <TableBody>
-
-                    {prices.map((price) => (
-
-                        <TableRow
-                            key={price._id}
-                        >
-
-                            <TableCell>
-                                {price.product}
-                            </TableCell>
-
-                            <TableCell>
-                                {price.market || '-'}
-                            </TableCell>
-
-                            <TableCell>
-                                {price.location}
-                            </TableCell>
-
-                            <TableCell align="right">
-                                ₦
-                                {Number(
-                                    price.price
-                                ).toLocaleString()}
-                            </TableCell>
-
-                        </TableRow>
-
-                    ))}
-
-                </TableBody>
-
-            </Table>
-
-        </TableContainer>
+                                    <TableCell
+                                        align="right"
+                                        sx={{
+                                            whiteSpace: "nowrap",
+                                            fontVariantNumeric:
+                                                "tabular-nums",
+                                        }}
+                                    >
+                                        ₦
+                                        {Number(
+                                            price.price
+                                        ).toLocaleString("en-NG")}
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+            </Box>
+        </Paper>
     );
 };
 

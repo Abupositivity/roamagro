@@ -1,7 +1,21 @@
-import React, { useCallback, useEffect, useRef } from "react";
-import { Box, Stack, Typography, CircularProgress, Alert } from "@mui/material";
+
+import React, {
+    useCallback,
+    useEffect,
+    useRef,
+} from "react";
+
+import {
+    Box,
+    Stack,
+    Typography,
+    CircularProgress,
+    Alert,
+} from "@mui/material";
+
 import { useTranslation } from "react-i18next";
 import { useDispatch, useSelector } from "react-redux";
+
 import PageLayout from "../components/layout/PageLayout";
 import DashboardHeader from "../components/dashboard/DashboardHeader";
 import SummaryCards from "../components/dashboard/SummaryCards";
@@ -10,7 +24,10 @@ import RecentProjects from "../components/dashboard/RecentProjects";
 import MarketplacePreview from "../components/dashboard/MarketplacePreview";
 import PriceTicker from "../components/dashboard/PriceTicker";
 import AgriFeed from "../components/community/AgriFeed";
-import { refreshDashboard } from "../redux/actions/dashboardActions";
+
+import {
+    refreshDashboard,
+} from "../redux/actions/dashboardActions";
 
 const REFRESH_INTERVAL = 60 * 1000;
 const STALE_TIME = 30 * 1000;
@@ -18,9 +35,15 @@ const STALE_TIME = 30 * 1000;
 const Dashboard = () => {
     const { t } = useTranslation();
     const dispatch = useDispatch();
-    const { loading, error, dashboard, lastUpdated } = useSelector(
+
+    const {
+        loading,
+        error,
+        lastUpdated,
+    } = useSelector(
         (state) => state.dashboard
     );
+
     const refreshInProgress = useRef(false);
 
     const refresh = useCallback(
@@ -35,7 +58,9 @@ const Dashboard = () => {
             refreshInProgress.current = true;
 
             try {
-                await dispatch(refreshDashboard({ silent }));
+                await dispatch(
+                    refreshDashboard({ silent })
+                );
             } finally {
                 refreshInProgress.current = false;
             }
@@ -52,18 +77,24 @@ const Dashboard = () => {
             refresh(true);
         }, REFRESH_INTERVAL);
 
-        return () => window.clearInterval(interval);
+        return () =>
+            window.clearInterval(interval);
     }, [refresh]);
 
     useEffect(() => {
         const handleVisibilityChange = () => {
-            if (document.visibilityState !== "visible") {
+            if (
+                document.visibilityState !== "visible"
+            ) {
                 return;
             }
 
             const updatedAt = lastUpdated || 0;
 
-            if (!updatedAt || Date.now() - updatedAt >= STALE_TIME) {
+            if (
+                !updatedAt ||
+                Date.now() - updatedAt >= STALE_TIME
+            ) {
                 refresh(true);
             }
         };
@@ -83,7 +114,9 @@ const Dashboard = () => {
 
     useEffect(() => {
         const handleRefresh = (event) => {
-            if (event.detail?.route !== "/dashboard") {
+            if (
+                event.detail?.route !== "/dashboard"
+            ) {
                 return;
             }
 
@@ -103,7 +136,13 @@ const Dashboard = () => {
         };
     }, [refresh]);
 
-    if (loading && !dashboard) {
+    // The reducer initializes dashboard as an object,
+    // so lastUpdated indicates whether the initial
+    // dashboard request has completed successfully.
+    const hasLoadedDashboard =
+        Boolean(lastUpdated);
+
+    if (loading && !hasLoadedDashboard) {
         return (
             <PageLayout>
                 <Stack
@@ -117,10 +156,12 @@ const Dashboard = () => {
         );
     }
 
-    if (error && !dashboard) {
+    if (error && !hasLoadedDashboard) {
         return (
             <PageLayout>
-                <Alert severity="error">{error}</Alert>
+                <Alert severity="error">
+                    {error}
+                </Alert>
             </PageLayout>
         );
     }
@@ -134,6 +175,7 @@ const Dashboard = () => {
                 <RecentProjects />
                 <MarketplacePreview />
                 <PriceTicker />
+
                 <Box>
                     <Typography
                         variant="h6"
@@ -142,6 +184,7 @@ const Dashboard = () => {
                     >
                         {t("Agri-Feed")}🌱
                     </Typography>
+
                     <Typography
                         variant="body2"
                         color="text.secondary"
@@ -151,6 +194,7 @@ const Dashboard = () => {
                             "Daily agricultural tips and best practices shared by agricultural experts."
                         )}
                     </Typography>
+
                     <AgriFeed />
                 </Box>
             </Stack>

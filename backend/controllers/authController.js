@@ -184,7 +184,10 @@ exports.loginUser = asyncHandler(async (req, res) => {
         success: true,
         message: 'Login successful.',
         data: {
-            token: generateToken(user._id),
+            token: generateToken(
+                user._id,
+                user.tokenVersion ?? 0
+            ),
             user: getSafeUser(user)
         }
     });
@@ -211,7 +214,10 @@ exports.googleAuth = asyncHandler(async (req, res) => {
 
         payload = ticket.getPayload();
     } catch (error) {
-        throw new AppError('Google sign-in token is invalid or expired.', 401);
+        throw new AppError(
+            'Google sign-in token is invalid or expired.',
+            401
+        );
     }
 
     if (
@@ -278,7 +284,10 @@ exports.googleAuth = asyncHandler(async (req, res) => {
         success: true,
         message: 'Google login successful.',
         data: {
-            token: generateToken(user._id),
+            token: generateToken(
+                user._id,
+                user.tokenVersion ?? 0
+            ),
             user: getSafeUser(user)
         }
     });
@@ -328,17 +337,34 @@ exports.forgotPassword = asyncHandler(async (req, res) => {
     });
 });
 
+
 exports.resetPassword = asyncHandler(async (req, res) => {
     const { token, password } = req.body;
 
     if (typeof token !== 'string' || !token.trim()) {
-        throw new AppError('Password reset token is required.', 400);
+        throw new AppError(
+            'Password reset token is required.',
+            400
+        );
     }
 
-    const user = await User.findOne({
-        passwordResetToken: hashToken(token),
-        passwordResetExpires: { $gt: new Date() }
-    });
+    const hashedToken = hashToken(token);
+
+    const user = await User.findOneAndUpdate(
+        {
+            passwordResetToken: hashedToken,
+            passwordResetExpires: { $gt: new Date() }
+        },
+        {
+            $set: {
+                passwordResetToken: null,
+                passwordResetExpires: null
+            }
+        },
+        {
+            new: true
+        }
+    );
 
     if (!user) {
         throw new AppError(
@@ -348,8 +374,8 @@ exports.resetPassword = asyncHandler(async (req, res) => {
     }
 
     user.password = password;
-    user.passwordResetToken = null;
-    user.passwordResetExpires = null;
+
+    user.tokenVersion = (user.tokenVersion ?? 0) + 1;
 
     await user.save();
 
@@ -358,6 +384,7 @@ exports.resetPassword = asyncHandler(async (req, res) => {
         message: 'Password reset successfully.'
     });
 });
+
 
 exports.getCurrentUser = asyncHandler(async (req, res) => {
     res.json({

@@ -2,7 +2,6 @@ import api from '../../services/api';
 import { fetchFarmProjects } from './farmProjectsActions';
 import { fetchListings } from './marketplaceActions';
 import { fetchPriceIndex } from './priceIndexActions';
-import { fetchAgriFeed } from './agriFeedActions';
 import {
     DASHBOARD_REQUEST,
     DASHBOARD_SUCCESS,
@@ -16,23 +15,19 @@ const getError = (error) =>
     error?.message ||
     'Unable to load dashboard.';
 
-const CACHE_TIME = 60 * 1000;
-
-const isFresh = (timestamp, maxAge = CACHE_TIME) =>
-    timestamp &&
-    Date.now() - timestamp < maxAge;
-
-const hasData = (value) =>
-    Array.isArray(value) && value.length > 0;
+const getEndpoint = (type = '') =>
+    type ? `/dashboard${type}` : '/dashboard';
 
 export const fetchDashboard =
     (type = '', options = {}) =>
     async (dispatch, getState) => {
         const { silent = false } = options;
 
+        const dashboardState = getState().dashboard;
+
         if (
-            silent &&
-            getState().dashboard?.refreshing
+            dashboardState?.loading ||
+            dashboardState?.refreshing
         ) {
             return {
                 success: false,
@@ -46,11 +41,9 @@ export const fetchDashboard =
         });
 
         try {
-            const endpoint = type
-                ? `/dashboard${type}`
-                : '/dashboard';
-
-            const res = await api.get(endpoint);
+            const res = await api.get(
+                getEndpoint(type)
+            );
 
             dispatch({
                 type: DASHBOARD_SUCCESS,
@@ -90,6 +83,7 @@ export const refreshDashboard =
         const state = getState();
 
         if (
+            state.dashboard?.loading ||
             state.dashboard?.refreshing
         ) {
             return {
@@ -98,72 +92,35 @@ export const refreshDashboard =
             };
         }
 
+        // Load supporting datasets on the first refresh.
+        // Subsequent polling refreshes the dashboard endpoint.
+        // A forced refresh also reloads supporting datasets.
+        const loadSupportingData =
+            force ||
+            !state.dashboard?.lastUpdated;
+
         dispatch({
             type: DASHBOARD_REQUEST,
             meta: { silent },
         });
 
-        try {
-            const endpoint = type
-                ? `/dashboard${type}`
-                : '/dashboard';
+        const supportingRequests = [];
 
-            const dashboardRequest =
-                api.get(endpoint);
-
-            const farmProjects =
-                state.farmProjects;
-
-            const marketplace =
-                state.marketplace;
-
-            const priceIndex =
-                state.priceIndex;
-
-            const agriFeed =
-                state.agriFeed;
-
-            const requests = [
-                dashboardRequest,
-            ];
-
-            const shouldFetchProjects =
+        if (loadSupportingData) {
+            if (
                 force ||
-                !hasData(
-                    farmProjects?.projects
-                );
-
-            const shouldFetchListings =
-                force ||
-                !hasData(
-                    marketplace?.listings
-                );
-
-            const shouldFetchPrices =
-                force ||
-                !hasData(
-                    priceIndex?.priceIndex
-                );
-
-            const shouldFetchFeed =
-                force ||
-                !hasData(
-                    agriFeed?.tips
-                ) ||
-                !isFresh(
-                    agriFeed?.lastUpdated
-                );
-
-            if (shouldFetchProjects) {
-                requests.push(
-                    dispatch(
-                        fetchFarmProjects()
-                    )
+                !state.farmProjects?.projects?.length
+            ) {
+                supportingRequests.push(
+                    dispatch(fetchFarmProjects())
                 );
             }
 
-            if (shouldFetchListings) {
-                requests.push(
+            if (
+                force ||
+                !state.marketplace?.listings?.length
+            ) {
+                supportingRequests.push(
                     dispatch(
                         fetchListings({
                             page: 1,
@@ -173,8 +130,11 @@ export const refreshDashboard =
                 );
             }
 
-            if (shouldFetchPrices) {
-                requests.push(
+            if (
+                force ||
+                !state.priceIndex?.priceIndex?.length
+            ) {
+                supportingRequests.push(
                     dispatch(
                         fetchPriceIndex({
                             page: 1,
@@ -183,37 +143,31 @@ export const refreshDashboard =
                     )
                 );
             }
+        }
 
-            if (shouldFetchFeed) {
-                requests.push(
-                    dispatch(
-                        fetchAgriFeed(
-                            {},
-                            { silent: true }
-                        )
-                    )
-                );
-            }
-
-            const results =
-                await Promise.all(
-                    requests
-                );
-
-            const dashboardResponse =
-                results[0];
+        try {
+            const res = await api.get(
+                getEndpoint(type)
+            );
 
             dispatch({
                 type: DASHBOARD_SUCCESS,
-                payload:
-                    dashboardResponse.data.data,
+                payload: res.data.data,
                 meta: { silent },
             });
 
+            // Supporting requests are independent of the
+            // main dashboard request. Their failures should
+            // not cause a successful dashboard load to fail.
+            if (supportingRequests.length > 0) {
+                await Promise.allSettled(
+                    supportingRequests
+                );
+            }
+
             return {
                 success: true,
-                data:
-                    dashboardResponse.data.data,
+                data: res.data.data,
             };
         } catch (error) {
             const message = getError(error);

@@ -1,3 +1,4 @@
+
 import React, {
     useCallback,
     useEffect,
@@ -24,7 +25,6 @@ import { useDispatch, useSelector } from "react-redux";
 import { useTranslation } from "react-i18next";
 
 import PageLayout from "../components/layout/PageLayout";
-
 import DashboardHeader from "../components/dashboard/DashboardHeader";
 import SummaryCards from "../components/dashboard/SummaryCards";
 import QuickActions from "../components/dashboard/QuickActions";
@@ -56,7 +56,6 @@ const ExtensionDashboard = () => {
     );
 
     const refreshInProgress = useRef(false);
-    const mountedRef = useRef(true);
 
     const [
         feedRefreshKey,
@@ -82,49 +81,21 @@ const ExtensionDashboard = () => {
                     })
                 );
             } finally {
-                if (mountedRef.current) {
-                    refreshInProgress.current = false;
-                }
+                refreshInProgress.current = false;
             }
         },
         [dispatch]
     );
 
     useEffect(() => {
-        mountedRef.current = true;
-
-        const loadDashboard = async () => {
-            if (refreshInProgress.current) {
-                return;
-            }
-
-            refreshInProgress.current = true;
-
-            try {
-                await dispatch(
-                    refreshDashboard({
-                        type: "/extension",
-                        silent: false,
-                    })
-                );
-            } finally {
-                if (mountedRef.current) {
-                    refreshInProgress.current = false;
-                }
-            }
-        };
-
-        loadDashboard();
-
-        return () => {
-            mountedRef.current = false;
-        };
-    }, [dispatch]);
+        refresh(false);
+    }, [refresh]);
 
     useEffect(() => {
-        const interval = window.setInterval(() => {
-            refresh(true);
-        }, REFRESH_INTERVAL);
+        const interval = window.setInterval(
+            () => refresh(true),
+            REFRESH_INTERVAL
+        );
 
         return () => {
             window.clearInterval(interval);
@@ -165,13 +136,11 @@ const ExtensionDashboard = () => {
     useEffect(() => {
         const handleRefresh = (event) => {
             if (
-                event.detail?.route !==
+                event.detail?.route ===
                 "/extension/dashboard"
             ) {
-                return;
+                refresh(true);
             }
-
-            refresh(true);
         };
 
         window.addEventListener(
@@ -195,7 +164,13 @@ const ExtensionDashboard = () => {
         await refresh(true);
     };
 
-    if (loading && !dashboard) {
+    const hasLoadedDashboard =
+        Boolean(lastUpdated);
+
+    if (
+        loading &&
+        !hasLoadedDashboard
+    ) {
         return (
             <PageLayout>
                 <Box
@@ -210,7 +185,10 @@ const ExtensionDashboard = () => {
         );
     }
 
-    if (error && !dashboard) {
+    if (
+        error &&
+        !hasLoadedDashboard
+    ) {
         return (
             <PageLayout>
                 <Alert severity="error">
@@ -229,29 +207,20 @@ const ExtensionDashboard = () => {
         {
             title: t("Total Farmers"),
             value:
-                summary.totalFarmers ||
-                0,
-            icon: (
-                <GroupsOutlinedIcon />
-            ),
+                summary.totalFarmers || 0,
+            icon: <GroupsOutlinedIcon />,
         },
         {
             title: t("Community Posts"),
             value:
-                summary.communityPosts ||
-                0,
-            icon: (
-                <ForumOutlinedIcon />
-            ),
+                summary.communityPosts || 0,
+            icon: <ForumOutlinedIcon />,
         },
         {
             title: t("Published Tips"),
             value:
-                summary.publishedTips ||
-                0,
-            icon: (
-                <LightbulbOutlinedIcon />
-            ),
+                summary.publishedTips || 0,
+            icon: <LightbulbOutlinedIcon />,
         },
     ];
 
@@ -259,15 +228,10 @@ const ExtensionDashboard = () => {
         <PageLayout>
             <Stack spacing={3}>
                 <DashboardHeader />
-
                 <SummaryCards />
-
                 <QuickActions />
-
                 <RecentProjects />
-
                 <MarketplacePreview />
-
                 <PriceTicker />
 
                 <Box>
@@ -318,10 +282,8 @@ const ExtensionDashboard = () => {
                                     >
                                         <Box
                                             sx={{
-                                                display:
-                                                    "flex",
-                                                alignItems:
-                                                    "center",
+                                                display: "flex",
+                                                alignItems: "center",
                                                 justifyContent:
                                                     "center",
                                                 width: 45,
@@ -329,8 +291,7 @@ const ExtensionDashboard = () => {
                                                 borderRadius: 2,
                                                 bgcolor:
                                                     "primary.main",
-                                                color:
-                                                    "white",
+                                                color: "white",
                                             }}
                                         >
                                             {card.icon}
@@ -341,18 +302,14 @@ const ExtensionDashboard = () => {
                                                 variant="body2"
                                                 color="text.secondary"
                                             >
-                                                {
-                                                    card.title
-                                                }
+                                                {card.title}
                                             </Typography>
 
                                             <Typography
                                                 variant="h5"
                                                 fontWeight={700}
                                             >
-                                                {
-                                                    card.value
-                                                }
+                                                {card.value}
                                             </Typography>
                                         </Box>
                                     </Stack>

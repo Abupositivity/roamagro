@@ -101,6 +101,9 @@ const buildExtensionDashboard =
             }),
 
             FarmProject.find()
+                .select(
+                    'name crop farmType status progress location startDate createdAt user'
+                )
                 .populate(
                     'user',
                     'name profilePhoto location state lga'
