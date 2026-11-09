@@ -1,4 +1,3 @@
-
 import React, {
     useCallback,
     useEffect,
@@ -9,16 +8,17 @@ import {
     Box,
     Stack,
     Typography,
-    CircularProgress,
     Alert,
+    Button,
 } from "@mui/material";
+
+import RefreshIcon from "@mui/icons-material/Refresh";
 
 import { useTranslation } from "react-i18next";
 import { useDispatch, useSelector } from "react-redux";
 
 import PageLayout from "../components/layout/PageLayout";
 import DashboardHeader from "../components/dashboard/DashboardHeader";
-import SummaryCards from "../components/dashboard/SummaryCards";
 import QuickActions from "../components/dashboard/QuickActions";
 import RecentProjects from "../components/dashboard/RecentProjects";
 import MarketplacePreview from "../components/dashboard/MarketplacePreview";
@@ -69,7 +69,7 @@ const Dashboard = () => {
     );
 
     useEffect(() => {
-        refresh(false);
+        refresh(true);
     }, [refresh]);
 
     useEffect(() => {
@@ -136,44 +136,42 @@ const Dashboard = () => {
         };
     }, [refresh]);
 
-    // The reducer initializes dashboard as an object,
-    // so lastUpdated indicates whether the initial
-    // dashboard request has completed successfully.
-    const hasLoadedDashboard =
-        Boolean(lastUpdated);
-
-    if (loading && !hasLoadedDashboard) {
-        return (
-            <PageLayout>
-                <Stack
-                    alignItems="center"
-                    justifyContent="center"
-                    sx={{ minHeight: "50vh" }}
-                >
-                    <CircularProgress />
-                </Stack>
-            </PageLayout>
-        );
-    }
-
-    if (error && !hasLoadedDashboard) {
-        return (
-            <PageLayout>
-                <Alert severity="error">
-                    {error}
-                </Alert>
-            </PageLayout>
-        );
-    }
+    const handleRetry = () => {
+        refresh(true);
+    };
 
     return (
         <PageLayout>
             <Stack spacing={3}>
+                {error && (
+                    <Alert
+                        severity="warning"
+                        action={
+                            <Button
+                                color="inherit"
+                                size="small"
+                                startIcon={<RefreshIcon />}
+                                disabled={loading}
+                                onClick={handleRetry}
+                            >
+                                {t("Retry")}
+                            </Button>
+                        }
+                    >
+                        {t(
+                            "Some dashboard information could not be updated."
+                        )}
+                    </Alert>
+                )}
+
                 <DashboardHeader />
-                <SummaryCards />
+
                 <QuickActions />
+
                 <RecentProjects />
+
                 <MarketplacePreview />
+
                 <PriceTicker />
 
                 <Box>
@@ -182,7 +180,7 @@ const Dashboard = () => {
                         fontWeight={700}
                         gutterBottom
                     >
-                        {t("Agri-Feed")}🌱
+                        {t("Agri-Feed")} 🌱
                     </Typography>
 
                     <Typography

@@ -189,18 +189,6 @@ const FarmProject = () => {
     // REFRESH SELECTED PROJECT
     // ============================================================
 
-    /*
-     * ProjectDialog uses this after child resources are changed.
-     *
-     * The existing child actions already return the complete
-     * updated project, so FarmProject can update selectedProject
-     * immediately without making another request.
-     *
-     * When ProjectDialog explicitly requests a server refresh,
-     * fetchFarmProjects() is used because the current action set
-     * does not contain a dedicated get-project-by-id action.
-     */
-
     const refreshProject = async projectId => {
 
         if (!projectId) {
@@ -247,14 +235,6 @@ const FarmProject = () => {
     // ============================================================
     // UPDATE SELECTED PROJECT
     // ============================================================
-
-    /*
-     * Child CRUD actions return the updated project.
-     *
-     * Updating selectedProject here keeps ProjectDialog in sync
-     * immediately after creating, editing, deleting or toggling
-     * activities, tasks, expenses, harvests and reminders.
-     */
 
     const updateSelectedProject = result => {
 
@@ -448,13 +428,6 @@ const FarmProject = () => {
                 ? t('Activity deleted successfully.')
                 : result.message
         );
-
-
-        /*
-         * deleteActivity currently returns success without the
-         * updated project. ProjectDialog can therefore use the
-         * refreshProject callback when it needs the latest copy.
-         */
 
         return result;
     };
@@ -962,10 +935,6 @@ const FarmProject = () => {
                 onClose={closeDialog}
                 onSubmit={handleSubmit}
 
-                /*
-                 * ProjectDialog can request a complete server refresh
-                 * when an operation does not return the updated project.
-                 */
                 onRefreshProject={refreshProject}
 
                 onCreateActivity={handleCreateActivity}

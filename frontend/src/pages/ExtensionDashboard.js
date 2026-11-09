@@ -1,4 +1,3 @@
-
 import React, {
     useCallback,
     useEffect,
@@ -9,9 +8,9 @@ import React, {
 import {
     Alert,
     Box,
+    Button,
     Card,
     CardContent,
-    CircularProgress,
     Grid,
     Stack,
     Typography,
@@ -20,6 +19,7 @@ import {
 import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
 import LightbulbOutlinedIcon from "@mui/icons-material/LightbulbOutlined";
 import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
+import RefreshIcon from "@mui/icons-material/Refresh";
 
 import { useDispatch, useSelector } from "react-redux";
 import { useTranslation } from "react-i18next";
@@ -88,7 +88,7 @@ const ExtensionDashboard = () => {
     );
 
     useEffect(() => {
-        refresh(false);
+        refresh(true);
     }, [refresh]);
 
     useEffect(() => {
@@ -164,39 +164,9 @@ const ExtensionDashboard = () => {
         await refresh(true);
     };
 
-    const hasLoadedDashboard =
-        Boolean(lastUpdated);
-
-    if (
-        loading &&
-        !hasLoadedDashboard
-    ) {
-        return (
-            <PageLayout>
-                <Box
-                    display="flex"
-                    justifyContent="center"
-                    alignItems="center"
-                    minHeight="60vh"
-                >
-                    <CircularProgress />
-                </Box>
-            </PageLayout>
-        );
-    }
-
-    if (
-        error &&
-        !hasLoadedDashboard
-    ) {
-        return (
-            <PageLayout>
-                <Alert severity="error">
-                    {error}
-                </Alert>
-            </PageLayout>
-        );
-    }
+    const handleRetry = () => {
+        refresh(true);
+    };
 
     const summary =
         dashboard?.extension?.summary ||
@@ -206,20 +176,17 @@ const ExtensionDashboard = () => {
     const cards = [
         {
             title: t("Total Farmers"),
-            value:
-                summary.totalFarmers || 0,
+            value: summary.totalFarmers ?? 0,
             icon: <GroupsOutlinedIcon />,
         },
         {
             title: t("Community Posts"),
-            value:
-                summary.communityPosts || 0,
+            value: summary.communityPosts ?? 0,
             icon: <ForumOutlinedIcon />,
         },
         {
             title: t("Published Tips"),
-            value:
-                summary.publishedTips || 0,
+            value: summary.publishedTips ?? 0,
             icon: <LightbulbOutlinedIcon />,
         },
     ];
@@ -227,11 +194,37 @@ const ExtensionDashboard = () => {
     return (
         <PageLayout>
             <Stack spacing={3}>
+                {error && (
+                    <Alert
+                        severity="warning"
+                        action={
+                            <Button
+                                color="inherit"
+                                size="small"
+                                startIcon={<RefreshIcon />}
+                                disabled={loading}
+                                onClick={handleRetry}
+                            >
+                                {t("Retry")}
+                            </Button>
+                        }
+                    >
+                        {t(
+                            "Some dashboard information could not be updated."
+                        )}
+                    </Alert>
+                )}
+
                 <DashboardHeader />
+
                 <SummaryCards />
+
                 <QuickActions />
+
                 <RecentProjects />
+
                 <MarketplacePreview />
+
                 <PriceTicker />
 
                 <Box>
@@ -257,7 +250,7 @@ const ExtensionDashboard = () => {
 
                 <Grid
                     container
-                    spacing={2}
+                    spacing={{ xs: 1.5, sm: 2 }}
                 >
                     {cards.map((card) => (
                         <Grid
@@ -288,6 +281,7 @@ const ExtensionDashboard = () => {
                                                     "center",
                                                 width: 45,
                                                 height: 45,
+                                                flexShrink: 0,
                                                 borderRadius: 2,
                                                 bgcolor:
                                                     "primary.main",
@@ -297,10 +291,18 @@ const ExtensionDashboard = () => {
                                             {card.icon}
                                         </Box>
 
-                                        <Box>
+                                        <Box
+                                            sx={{
+                                                minWidth: 0,
+                                            }}
+                                        >
                                             <Typography
                                                 variant="body2"
                                                 color="text.secondary"
+                                                sx={{
+                                                    overflowWrap:
+                                                        "anywhere",
+                                                }}
                                             >
                                                 {card.title}
                                             </Typography>
@@ -331,7 +333,7 @@ const ExtensionDashboard = () => {
                         fontWeight={700}
                         gutterBottom
                     >
-                        {t("Agri-Feed")}🌱
+                        {t("Agri-Feed")} 🌱
                     </Typography>
 
                     <Typography

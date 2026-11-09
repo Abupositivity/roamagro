@@ -75,7 +75,7 @@ const QuickActions = () => {
                 fontWeight={700}
                 sx={{ mb: 1 }}
             >
-                {t("Shortcuts")}
+                {t("Quick Actions")}
             </Typography>
 
             <Grid container spacing={{ xs: 1.5, sm: 2 }}>

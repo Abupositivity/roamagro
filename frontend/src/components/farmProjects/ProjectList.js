@@ -1,5 +1,5 @@
 import React from "react";
-import { Box, Button, Grid, Typography } from "@mui/material";
+import { Box, Grid, Typography } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import FarmProjectCard from "./FarmProjectCard";
 
@@ -18,10 +18,6 @@ const ProjectList = ({ projects = [], onView, onEdit, onDelete, onCreate }) => {
             "Create your first farm project to begin tracking activities, expenses and harvests.",
           )}
         </Typography>
-
-        <Button variant="contained" onClick={onCreate}>
-          {t("Create Project")}
-        </Button>
       </Box>
     );
   }

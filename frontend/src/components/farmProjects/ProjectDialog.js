@@ -10,6 +10,8 @@ import {
   Stack,
   Typography,
   Box,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import AddIcon from "@mui/icons-material/Add";
@@ -62,6 +64,9 @@ const ProjectDialog = ({
   onToggleReminder,
 }) => {
   const { t } = useTranslation();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
   const [tab, setTab] = useState(0);
 
   const [activityDialogOpen, setActivityDialogOpen] = useState(false);
@@ -418,31 +423,87 @@ const ProjectDialog = ({
     return t("Edit Farm Project");
   };
 
+  const sectionHeader = (title, onAdd, addLabel) => (
+    <Stack
+      direction={{ xs: "column", sm: "row" }}
+      justifyContent="space-between"
+      alignItems={{ xs: "stretch", sm: "center" }}
+      spacing={{ xs: 1.5, sm: 2 }}
+      mb={2}
+    >
+      <Typography
+        variant="h6"
+        fontWeight={700}
+        sx={{ fontSize: { xs: "1.05rem", sm: "1.25rem" } }}
+      >
+        {t(title)}
+      </Typography>
+      {!isReadOnly && (
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          disabled={loading}
+          onClick={onAdd}
+          fullWidth={isMobile}
+          sx={{ minHeight: 42, flexShrink: 0 }}
+        >
+          {t(addLabel)}
+        </Button>
+      )}
+    </Stack>
+  );
+
   return (
     <Dialog
       open={open}
       onClose={loading ? undefined : onClose}
       fullWidth
+      fullScreen={isMobile}
       maxWidth="lg"
       scroll="paper"
+      PaperProps={{
+        sx: {
+          m: { xs: 0, sm: 2 },
+          width: { xs: "100%", sm: "calc(100% - 32px)" },
+          maxHeight: { xs: "100dvh", sm: "calc(100% - 64px)" },
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+        },
+      }}
     >
       <DialogTitle
         sx={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
+          gap: 1,
+          flexShrink: 0,
           px: { xs: 2, sm: 3 },
-          py: 2,
+          py: { xs: 1.5, sm: 2 },
         }}
       >
-        <Typography component="span" variant="h6" fontWeight={700}>
+        <Typography
+          component="span"
+          variant="h6"
+          fontWeight={700}
+          sx={{
+            fontSize: { xs: "1.05rem", sm: "1.25rem" },
+            minWidth: 0,
+            overflowWrap: "anywhere",
+          }}
+        >
           {getTitle()}
         </Typography>
         <IconButton
-          size="small"
           disabled={loading}
           onClick={onClose}
           aria-label={t("Close")}
+          sx={{
+            flexShrink: 0,
+            width: 44,
+            height: 44,
+          }}
         >
           <CloseIcon />
         </IconButton>
@@ -453,6 +514,8 @@ const ProjectDialog = ({
           sx={{
             borderBottom: 1,
             borderColor: "divider",
+            flexShrink: 0,
+            minWidth: 0,
             px: { xs: 0, sm: 2 },
           }}
         >
@@ -461,6 +524,19 @@ const ProjectDialog = ({
             onChange={(event, value) => setTab(value)}
             variant="scrollable"
             scrollButtons="auto"
+            allowScrollButtonsMobile
+            aria-label={t("Farm Project Sections")}
+            sx={{
+              minHeight: 44,
+              maxWidth: "100%",
+              "& .MuiTab-root": {
+                minHeight: 44,
+                minWidth: { xs: 90, sm: 120 },
+                px: { xs: 1.5, sm: 2 },
+                fontSize: { xs: "0.8rem", sm: "0.875rem" },
+                textTransform: "none",
+              },
+            }}
           >
             <Tab label={t("Project Details")} />
             <Tab label={t("Activities")} />
@@ -472,7 +548,21 @@ const ProjectDialog = ({
         </Box>
       )}
 
-      <DialogContent dividers sx={{ p: { xs: 2, sm: 3 } }}>
+      <DialogContent
+        dividers
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          minWidth: 0,
+          overflowY: "auto",
+          overflowX: "hidden",
+          p: { xs: 1.5, sm: 3 },
+          pb: { xs: 3, sm: 3 },
+          "& > *": {
+            minWidth: 0,
+          },
+        }}
+      >
         {tab === 0 && (
           <FarmProjectForm
             loading={loading}
@@ -485,28 +575,8 @@ const ProjectDialog = ({
         )}
 
         {tab === 1 && project && (
-          <Box>
-            <Stack
-              direction={{ xs: "column", sm: "row" }}
-              justifyContent="space-between"
-              alignItems={{ xs: "stretch", sm: "center" }}
-              spacing={2}
-              mb={2}
-            >
-              <Typography variant="h6" fontWeight={700}>
-                {t("Activities")}
-              </Typography>
-              {!isReadOnly && (
-                <Button
-                  variant="contained"
-                  startIcon={<AddIcon />}
-                  disabled={loading}
-                  onClick={openCreateActivity}
-                >
-                  {t("Add Activity")}
-                </Button>
-              )}
-            </Stack>
+          <Box sx={{ minWidth: 0 }}>
+            {sectionHeader("Activities", openCreateActivity, "Add Activity")}
             <ActivityList
               activities={project.activities || []}
               loading={loading}
@@ -518,28 +588,8 @@ const ProjectDialog = ({
         )}
 
         {tab === 2 && project && (
-          <Box>
-            <Stack
-              direction={{ xs: "column", sm: "row" }}
-              justifyContent="space-between"
-              alignItems={{ xs: "stretch", sm: "center" }}
-              spacing={2}
-              mb={2}
-            >
-              <Typography variant="h6" fontWeight={700}>
-                {t("Tasks")}
-              </Typography>
-              {!isReadOnly && (
-                <Button
-                  variant="contained"
-                  startIcon={<AddIcon />}
-                  disabled={loading}
-                  onClick={openCreateTask}
-                >
-                  {t("Add Task")}
-                </Button>
-              )}
-            </Stack>
+          <Box sx={{ minWidth: 0 }}>
+            {sectionHeader("Tasks", openCreateTask, "Add Task")}
             <TaskList
               tasks={project.tasks || []}
               loading={loading}
@@ -551,28 +601,8 @@ const ProjectDialog = ({
         )}
 
         {tab === 3 && project && (
-          <Box>
-            <Stack
-              direction={{ xs: "column", sm: "row" }}
-              justifyContent="space-between"
-              alignItems={{ xs: "stretch", sm: "center" }}
-              spacing={2}
-              mb={2}
-            >
-              <Typography variant="h6" fontWeight={700}>
-                {t("Expenses")}
-              </Typography>
-              {!isReadOnly && (
-                <Button
-                  variant="contained"
-                  startIcon={<AddIcon />}
-                  disabled={loading}
-                  onClick={openCreateExpense}
-                >
-                  {t("Add Expense")}
-                </Button>
-              )}
-            </Stack>
+          <Box sx={{ minWidth: 0 }}>
+            {sectionHeader("Expenses", openCreateExpense, "Add Expense")}
             <ExpenseSummary project={project} />
             <ExpenseList
               expenses={project.expenses || []}
@@ -584,28 +614,8 @@ const ProjectDialog = ({
         )}
 
         {tab === 4 && project && (
-          <Box>
-            <Stack
-              direction={{ xs: "column", sm: "row" }}
-              justifyContent="space-between"
-              alignItems={{ xs: "stretch", sm: "center" }}
-              spacing={2}
-              mb={2}
-            >
-              <Typography variant="h6" fontWeight={700}>
-                {t("Harvests")}
-              </Typography>
-              {!isReadOnly && (
-                <Button
-                  variant="contained"
-                  startIcon={<AddIcon />}
-                  disabled={loading}
-                  onClick={openCreateHarvest}
-                >
-                  {t("Add Harvest")}
-                </Button>
-              )}
-            </Stack>
+          <Box sx={{ minWidth: 0 }}>
+            {sectionHeader("Harvests", openCreateHarvest, "Add Harvest")}
             <HarvestSummary project={project} />
             <HarvestList
               harvests={project.harvests || []}
@@ -617,28 +627,8 @@ const ProjectDialog = ({
         )}
 
         {tab === 5 && project && (
-          <Box>
-            <Stack
-              direction={{ xs: "column", sm: "row" }}
-              justifyContent="space-between"
-              alignItems={{ xs: "stretch", sm: "center" }}
-              spacing={2}
-              mb={2}
-            >
-              <Typography variant="h6" fontWeight={700}>
-                {t("Reminders")}
-              </Typography>
-              {!isReadOnly && (
-                <Button
-                  variant="contained"
-                  startIcon={<AddIcon />}
-                  disabled={loading}
-                  onClick={openCreateReminder}
-                >
-                  {t("Add Reminder")}
-                </Button>
-              )}
-            </Stack>
+          <Box sx={{ minWidth: 0 }}>
+            {sectionHeader("Reminders", openCreateReminder, "Add Reminder")}
             <ReminderSummary project={project} />
             <ReminderList
               reminders={project.reminders || []}
