@@ -26,7 +26,6 @@ import { useTranslation } from "react-i18next";
 
 import PageLayout from "../components/layout/PageLayout";
 import DashboardHeader from "../components/dashboard/DashboardHeader";
-import SummaryCards from "../components/dashboard/SummaryCards";
 import QuickActions from "../components/dashboard/QuickActions";
 import RecentProjects from "../components/dashboard/RecentProjects";
 import MarketplacePreview from "../components/dashboard/MarketplacePreview";
@@ -216,15 +215,9 @@ const ExtensionDashboard = () => {
                 )}
 
                 <DashboardHeader />
-
-                <SummaryCards />
-
                 <QuickActions />
-
                 <RecentProjects />
-
                 <MarketplacePreview />
-
                 <PriceTicker />
 
                 <Box>
