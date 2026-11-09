@@ -32,6 +32,7 @@ import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined';
 import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
+import RefreshIcon from '@mui/icons-material/Refresh';
 
 import { useDispatch, useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
@@ -144,10 +145,11 @@ const AdminDashboard = () => {
     useEffect(() => {
         mountedRef.current = true;
 
-        refresh(false);
+        refresh(true);
 
         return () => {
             mountedRef.current = false;
+            searchRequestId.current += 1;
         };
     }, [refresh]);
 
@@ -442,6 +444,9 @@ const AdminDashboard = () => {
                     xs: 'stretch',
                     sm: 'center',
                 }}
+                sx={{
+                    minWidth: 0,
+                }}
             >
                 <FormControl
                     size="small"
@@ -493,6 +498,7 @@ const AdminDashboard = () => {
                     }
                     sx={{
                         minWidth: 90,
+                        minHeight: 40,
                         borderRadius: 2,
                     }}
                 >
@@ -518,10 +524,11 @@ const AdminDashboard = () => {
             <Box
                 key={user._id}
                 sx={{
-                    p: 2,
+                    p: { xs: 1.5, sm: 2 },
                     border: '1px solid',
                     borderColor: 'divider',
                     borderRadius: 2.5,
+                    minWidth: 0,
                 }}
             >
                 <Stack
@@ -545,8 +552,7 @@ const AdminDashboard = () => {
                         <Typography
                             fontWeight={600}
                             sx={{
-                                wordBreak:
-                                    'break-word',
+                                wordBreak: 'break-word',
                             }}
                         >
                             {user.name}
@@ -556,8 +562,7 @@ const AdminDashboard = () => {
                             variant="body2"
                             color="text.secondary"
                             sx={{
-                                wordBreak:
-                                    'break-word',
+                                wordBreak: 'break-word',
                             }}
                         >
                             {user.email}
@@ -569,7 +574,7 @@ const AdminDashboard = () => {
                                 color="text.secondary"
                                 display="block"
                             >
-                                {t('Status')}:{' '}
+                                {t('Status')}: {' '}
                                 {user.accountStatus}
                             </Typography>
                         )}
@@ -593,40 +598,6 @@ const AdminDashboard = () => {
         );
     };
 
-    const hasLoadedDashboard =
-        Boolean(lastUpdated);
-
-    if (
-        loading &&
-        !hasLoadedDashboard
-    ) {
-        return (
-            <PageLayout>
-                <Box
-                    display="flex"
-                    justifyContent="center"
-                    alignItems="center"
-                    minHeight="60vh"
-                >
-                    <CircularProgress />
-                </Box>
-            </PageLayout>
-        );
-    }
-
-    if (
-        error &&
-        !hasLoadedDashboard
-    ) {
-        return (
-            <PageLayout>
-                <Alert severity="error">
-                    {error}
-                </Alert>
-            </PageLayout>
-        );
-    }
-
     const summary =
         dashboard?.admin?.summary ||
         dashboard?.summary ||
@@ -635,42 +606,37 @@ const AdminDashboard = () => {
     const cards = [
         {
             title: t('Total Users'),
-            value: summary.totalUsers || 0,
+            value: summary.totalUsers ?? 0,
             icon: <PeopleOutlinedIcon />,
         },
         {
             title: t('Farmers'),
-            value: summary.farmers || 0,
+            value: summary.farmers ?? 0,
             icon: <AgricultureOutlinedIcon />,
         },
         {
             title: t('Extension Officers'),
-            value:
-                summary.extensionOfficers || 0,
+            value: summary.extensionOfficers ?? 0,
             icon: <GroupsOutlinedIcon />,
         },
         {
             title: t('Farm Projects'),
-            value:
-                summary.totalProjects || 0,
+            value: summary.totalProjects ?? 0,
             icon: <AgricultureOutlinedIcon />,
         },
         {
             title: t('Marketplace Listings'),
-            value:
-                summary.totalListings || 0,
+            value: summary.totalListings ?? 0,
             icon: <StorefrontOutlinedIcon />,
         },
         {
             title: t('Community Posts'),
-            value:
-                summary.communityPosts || 0,
+            value: summary.communityPosts ?? 0,
             icon: <GroupsOutlinedIcon />,
         },
         {
             title: t('Published Tips'),
-            value:
-                summary.publishedTips || 0,
+            value: summary.publishedTips ?? 0,
             icon: <LightbulbOutlinedIcon />,
         },
     ];
@@ -683,9 +649,34 @@ const AdminDashboard = () => {
         await refresh(true);
     };
 
+    const handleRetry = () => {
+        refresh(true);
+    };
+
     return (
         <PageLayout>
             <Stack spacing={3}>
+                {error && (
+                    <Alert
+                        severity="warning"
+                        action={
+                            <Button
+                                color="inherit"
+                                size="small"
+                                startIcon={<RefreshIcon />}
+                                disabled={loading}
+                                onClick={handleRetry}
+                            >
+                                {t('Retry')}
+                            </Button>
+                        }
+                    >
+                        {t(
+                            'Some dashboard information could not be updated.'
+                        )}
+                    </Alert>
+                )}
+
                 <DashboardHeader />
                 <SummaryCards />
                 <QuickActions />
@@ -697,6 +688,13 @@ const AdminDashboard = () => {
                     <Typography
                         variant="h4"
                         fontWeight={700}
+                        sx={{
+                            fontSize: {
+                                xs: '1.5rem',
+                                sm: '2rem',
+                                md: '2.125rem',
+                            },
+                        }}
                     >
                         {t('Admin Dashboard')}
                     </Typography>
@@ -712,7 +710,10 @@ const AdminDashboard = () => {
                     </Typography>
                 </Box>
 
-                <Grid container spacing={2}>
+                <Grid
+                    container
+                    spacing={{ xs: 1.5, sm: 2 }}
+                >
                     {cards.map((card) => (
                         <Grid
                             item
@@ -728,7 +729,20 @@ const AdminDashboard = () => {
                                     borderRadius: 3,
                                 }}
                             >
-                                <CardContent>
+                                <CardContent
+                                    sx={{
+                                        p: {
+                                            xs: 1.5,
+                                            sm: 2,
+                                        },
+                                        '&:last-child': {
+                                            pb: {
+                                                xs: 1.5,
+                                                sm: 2,
+                                            },
+                                        },
+                                    }}
+                                >
                                     <Stack
                                         direction="row"
                                         spacing={2}
@@ -737,25 +751,30 @@ const AdminDashboard = () => {
                                         <Box
                                             sx={{
                                                 display: 'flex',
-                                                alignItems:
-                                                    'center',
-                                                justifyContent:
-                                                    'center',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
                                                 width: 45,
                                                 height: 45,
+                                                flexShrink: 0,
                                                 borderRadius: 2,
-                                                bgcolor:
-                                                    'primary.main',
+                                                bgcolor: 'primary.main',
                                                 color: 'white',
                                             }}
                                         >
                                             {card.icon}
                                         </Box>
 
-                                        <Box>
+                                        <Box
+                                            sx={{
+                                                minWidth: 0,
+                                            }}
+                                        >
                                             <Typography
                                                 variant="body2"
                                                 color="text.secondary"
+                                                sx={{
+                                                    overflowWrap: 'anywhere',
+                                                }}
                                             >
                                                 {card.title}
                                             </Typography>
@@ -763,6 +782,9 @@ const AdminDashboard = () => {
                                             <Typography
                                                 variant="h5"
                                                 fontWeight={700}
+                                                sx={{
+                                                    overflowWrap: 'anywhere',
+                                                }}
                                             >
                                                 {card.value}
                                             </Typography>
@@ -804,22 +826,19 @@ const AdminDashboard = () => {
                                     sx={{
                                         display: 'flex',
                                         alignItems: 'center',
-                                        justifyContent:
-                                            'center',
+                                        justifyContent: 'center',
                                         width: 48,
                                         height: 48,
                                         borderRadius: 2,
-                                        bgcolor:
-                                            'warning.light',
-                                        color:
-                                            'warning.dark',
+                                        bgcolor: 'warning.light',
+                                        color: 'warning.dark',
                                         flexShrink: 0,
                                     }}
                                 >
                                     <ReportProblemOutlinedIcon />
                                 </Box>
 
-                                <Box>
+                                <Box sx={{ minWidth: 0 }}>
                                     <Typography
                                         variant="h6"
                                         fontWeight={800}
@@ -844,20 +863,17 @@ const AdminDashboard = () => {
                                 endIcon={
                                     <ArrowForwardIosIcon
                                         sx={{
-                                            fontSize:
-                                                '12px!important',
+                                            fontSize: '12px!important',
                                         }}
                                     />
                                 }
                                 onClick={() =>
-                                    navigate(
-                                        '/admin/reports'
-                                    )
+                                    navigate('/admin/reports')
                                 }
                                 sx={{
                                     borderRadius: 2.5,
                                     alignSelf: {
-                                        xs: 'flex-start',
+                                        xs: 'stretch',
                                         sm: 'auto',
                                     },
                                 }}
@@ -916,16 +932,13 @@ const AdminDashboard = () => {
                                     placeholder={t(
                                         'Enter name or email'
                                     )}
-                                    label={t(
-                                        'Search users'
-                                    )}
+                                    label={t('Search users')}
                                     InputProps={{
                                         startAdornment: (
                                             <SearchOutlinedIcon
                                                 sx={{
                                                     mr: 1,
-                                                    color:
-                                                        'text.secondary',
+                                                    color: 'text.secondary',
                                                 }}
                                             />
                                         ),
@@ -934,9 +947,7 @@ const AdminDashboard = () => {
 
                                 <Button
                                     variant="contained"
-                                    onClick={
-                                        handleUserSearch
-                                    }
+                                    onClick={handleUserSearch}
                                     disabled={searchLoading}
                                     sx={{
                                         minWidth: {
@@ -1018,9 +1029,7 @@ const AdminDashboard = () => {
                                 <Typography
                                     color="text.secondary"
                                 >
-                                    {t(
-                                        'No users available.'
-                                    )}
+                                    {t('No users available.')}
                                 </Typography>
                             )}
                         </Stack>
@@ -1028,9 +1037,7 @@ const AdminDashboard = () => {
                 </Card>
 
                 <ExtensionTipForm
-                    onPublished={
-                        handleTipPublished
-                    }
+                    onPublished={handleTipPublished}
                 />
 
                 <Box>
@@ -1039,7 +1046,7 @@ const AdminDashboard = () => {
                         fontWeight={700}
                         gutterBottom
                     >
-                        {t('Agri-Feed')}🌱
+                        {t('Agri-Feed')} 🌱
                     </Typography>
 
                     <Typography
@@ -1053,9 +1060,7 @@ const AdminDashboard = () => {
                     </Typography>
 
                     <AgriFeed
-                        refreshKey={
-                            feedRefreshKey
-                        }
+                        refreshKey={feedRefreshKey}
                     />
                 </Box>
             </Stack>
