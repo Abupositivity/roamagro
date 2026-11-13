@@ -7,11 +7,30 @@ jest.mock('../../utils/cloudinaryStorage', () => ({
     deleteImage: jest.fn(),
 }));
 
+jest.mock('../../services/quotaService', () => ({
+    RESOURCES: {
+        FARM_PROJECTS: 'farmProjects',
+        MARKETPLACE_LISTINGS: 'marketplaceListings',
+    },
+    getQuotaStatus: jest.fn(),
+    createWithinQuota: jest.fn(),
+    deleteWithinQuota: jest.fn(),
+}));
+
 const MarketplaceItem = require('../../models/MarketplaceItem');
+
 const {
     uploadImage,
     deleteImage,
 } = require('../../utils/cloudinaryStorage');
+
+const {
+    RESOURCES,
+    getQuotaStatus,
+    createWithinQuota,
+    deleteWithinQuota,
+} = require('../../services/quotaService');
+
 const {
     createMarketplaceItem,
     getMarketplaceItems,
@@ -28,9 +47,12 @@ describe('Marketplace Controller', () => {
     const otherSellerId = 'seller456';
     const itemId = 'item123';
 
-    const image1 = 'https://res.cloudinary.com/test/image/upload/maize1.jpg';
-    const image2 = 'https://res.cloudinary.com/test/image/upload/maize2.jpg';
-    const image3 = 'https://res.cloudinary.com/test/image/upload/maize3.jpg';
+    const image1 =
+        'https://res.cloudinary.com/test/image/upload/maize1.jpg';
+    const image2 =
+        'https://res.cloudinary.com/test/image/upload/maize2.jpg';
+    const image3 =
+        'https://res.cloudinary.com/test/image/upload/maize3.jpg';
 
     const publicId1 = 'roamagro/marketplace/maize1';
     const publicId2 = 'roamagro/marketplace/maize2';
@@ -95,8 +117,14 @@ describe('Marketplace Controller', () => {
         return response;
     };
 
-    const expectError = async (controller, message, statusCode) => {
-        await expect(controller(req, res)).rejects.toMatchObject({
+    const expectError = async (
+        controller,
+        message,
+        statusCode
+    ) => {
+        await expect(
+            controller(req, res)
+        ).rejects.toMatchObject({
             message,
             statusCode,
         });
@@ -110,14 +138,50 @@ describe('Marketplace Controller', () => {
         });
     };
 
-    const mockSuccessfulUpdate = (item, populatedItem = item) => {
+    const mockSuccessfulCreate = (
+        item,
+        populatedItem = item
+    ) => {
+        createWithinQuota.mockResolvedValue(item);
+
+        MarketplaceItem.findById.mockReturnValue(
+            makeQuery(populatedItem)
+        );
+    };
+
+    const mockSuccessfulUpdate = (
+        item,
+        populatedItem = item
+    ) => {
         MarketplaceItem.findById
             .mockResolvedValueOnce(item)
-            .mockReturnValueOnce(makeQuery(populatedItem));
+            .mockReturnValueOnce(
+                makeQuery(populatedItem)
+            );
+    };
+
+    const mockSuccessfulDelete = (item) => {
+        deleteWithinQuota.mockResolvedValue(item);
+    };
+
+    const expectCreateWithinQuota = (data) => {
+        expect(createWithinQuota).toHaveBeenCalledWith({
+            userId: sellerId,
+            resource: RESOURCES.MARKETPLACE_LISTINGS,
+            data,
+        });
+    };
+
+    const expectDeleteWithinQuota = () => {
+        expect(deleteWithinQuota).toHaveBeenCalledWith({
+            userId: sellerId,
+            resource: RESOURCES.MARKETPLACE_LISTINGS,
+            resourceId: itemId,
+        });
     };
 
     beforeEach(() => {
-        jest.clearAllMocks();
+        jest.resetAllMocks();
 
         req = {
             body: {
@@ -138,6 +202,13 @@ describe('Marketplace Controller', () => {
         };
 
         res = makeResponse();
+
+        getQuotaStatus.mockResolvedValue({
+            used: 0,
+            limit: 3,
+            remaining: 3,
+            canCreate: true,
+        });
 
         uploadImage.mockResolvedValue({
             url: image1,
@@ -161,30 +232,33 @@ describe('Marketplace Controller', () => {
                 },
             };
 
-            MarketplaceItem.create.mockResolvedValue(item);
-            MarketplaceItem.findById.mockReturnValue(
-                makeQuery(populatedItem)
-            );
+            mockSuccessfulCreate(item, populatedItem);
 
             await createMarketplaceItem(req, res);
 
-            expect(MarketplaceItem.create).toHaveBeenCalledWith({
+            expect(getQuotaStatus).toHaveBeenCalledWith(
+                sellerId,
+                RESOURCES.MARKETPLACE_LISTINGS
+            );
+
+            expectCreateWithinQuota({
                 ...req.body,
                 images: [],
                 imagePublicIds: [],
-                user: sellerId,
             });
 
             expect(MarketplaceItem.findById).toHaveBeenCalledWith(
                 itemId
             );
 
+            expect(MarketplaceItem.create).not.toHaveBeenCalled();
             expect(uploadImage).not.toHaveBeenCalled();
 
             expect(res.status).toHaveBeenCalledWith(201);
             expect(res.json).toHaveBeenCalledWith({
                 success: true,
-                message: 'Marketplace listing created successfully.',
+                message:
+                    'Marketplace listing created successfully.',
                 data: populatedItem,
             });
         });
@@ -194,18 +268,33 @@ describe('Marketplace Controller', () => {
 
             const item = makeItem();
 
-            MarketplaceItem.create.mockResolvedValue(item);
-            MarketplaceItem.findById.mockReturnValue(makeQuery(item));
+            mockSuccessfulCreate(item);
 
             await createMarketplaceItem(req, res);
 
-            expect(MarketplaceItem.create).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    user: sellerId,
+            expect(createWithinQuota).toHaveBeenCalledWith({
+                userId: sellerId,
+                resource: RESOURCES.MARKETPLACE_LISTINGS,
+                data: expect.objectContaining({
+                    title: 'Fresh Maize',
                     images: [],
                     imagePublicIds: [],
-                })
+                }),
+            });
+
+            const creationData =
+                createWithinQuota.mock.calls[0][0].data;
+
+            expect(creationData).not.toHaveProperty(
+                'user'
             );
+
+            expect(creationData).not.toHaveProperty(
+                'user',
+                otherSellerId
+            );
+
+            expect(res.status).toHaveBeenCalledWith(201);
         });
 
         test('uploads one image to Cloudinary when creating a listing', async () => {
@@ -218,8 +307,7 @@ describe('Marketplace Controller', () => {
                 imagePublicIds: [publicId1],
             });
 
-            MarketplaceItem.create.mockResolvedValue(item);
-            MarketplaceItem.findById.mockReturnValue(makeQuery(item));
+            mockSuccessfulCreate(item);
 
             await createMarketplaceItem(req, res);
 
@@ -229,11 +317,10 @@ describe('Marketplace Controller', () => {
                 'roamagro/marketplace'
             );
 
-            expect(MarketplaceItem.create).toHaveBeenCalledWith({
+            expectCreateWithinQuota({
                 ...req.body,
                 images: [image1],
                 imagePublicIds: [publicId1],
-                user: sellerId,
             });
 
             expect(res.status).toHaveBeenCalledWith(201);
@@ -249,18 +336,30 @@ describe('Marketplace Controller', () => {
             req.files = files;
 
             mockUploadedImages(
-                { url: image1, publicId: publicId1 },
-                { url: image2, publicId: publicId2 },
-                { url: image3, publicId: publicId3 }
+                {
+                    url: image1,
+                    publicId: publicId1,
+                },
+                {
+                    url: image2,
+                    publicId: publicId2,
+                },
+                {
+                    url: image3,
+                    publicId: publicId3,
+                }
             );
 
             const item = makeItem({
                 images: [image1, image2, image3],
-                imagePublicIds: [publicId1, publicId2, publicId3],
+                imagePublicIds: [
+                    publicId1,
+                    publicId2,
+                    publicId3,
+                ],
             });
 
-            MarketplaceItem.create.mockResolvedValue(item);
-            MarketplaceItem.findById.mockReturnValue(makeQuery(item));
+            mockSuccessfulCreate(item);
 
             await createMarketplaceItem(req, res);
 
@@ -274,35 +373,50 @@ describe('Marketplace Controller', () => {
                 );
             });
 
-            expect(MarketplaceItem.create).toHaveBeenCalledWith(
+            expect(createWithinQuota).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    images: [image1, image2, image3],
-                    imagePublicIds: [
-                        publicId1,
-                        publicId2,
-                        publicId3,
-                    ],
+                    userId: sellerId,
+                    resource:
+                        RESOURCES.MARKETPLACE_LISTINGS,
+                    data: expect.objectContaining({
+                        images: [
+                            image1,
+                            image2,
+                            image3,
+                        ],
+                        imagePublicIds: [
+                            publicId1,
+                            publicId2,
+                            publicId3,
+                        ],
+                    }),
                 })
             );
+
+            expect(res.status).toHaveBeenCalledWith(201);
         });
 
         test('supports existing image URLs supplied as a JSON array', async () => {
-            req.body.images = JSON.stringify([image1, image2]);
+            req.body.images = JSON.stringify([
+                image1,
+                image2,
+            ]);
 
             const item = makeItem({
                 images: [image1, image2],
                 imagePublicIds: ['', ''],
             });
 
-            MarketplaceItem.create.mockResolvedValue(item);
-            MarketplaceItem.findById.mockReturnValue(makeQuery(item));
+            mockSuccessfulCreate(item);
 
             await createMarketplaceItem(req, res);
 
-            expect(MarketplaceItem.create).toHaveBeenCalledWith(
+            expect(createWithinQuota).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    images: [image1, image2],
-                    imagePublicIds: ['', ''],
+                    data: expect.objectContaining({
+                        images: [image1, image2],
+                        imagePublicIds: ['', ''],
+                    }),
                 })
             );
 
@@ -323,12 +437,14 @@ describe('Marketplace Controller', () => {
                 400
             );
 
+            expect(getQuotaStatus).not.toHaveBeenCalled();
             expect(uploadImage).not.toHaveBeenCalled();
-            expect(MarketplaceItem.create).not.toHaveBeenCalled();
+            expect(createWithinQuota).not.toHaveBeenCalled();
         });
 
         test('rejects more than three total images', async () => {
             req.body.images = [image1, image2];
+
             req.files = [
                 makeFile('3.jpg'),
                 makeFile('4.jpg'),
@@ -341,6 +457,7 @@ describe('Marketplace Controller', () => {
             );
 
             expect(uploadImage).not.toHaveBeenCalled();
+            expect(createWithinQuota).not.toHaveBeenCalled();
         });
 
         test('rejects malformed image JSON', async () => {
@@ -352,7 +469,8 @@ describe('Marketplace Controller', () => {
                 400
             );
 
-            expect(MarketplaceItem.create).not.toHaveBeenCalled();
+            expect(getQuotaStatus).not.toHaveBeenCalled();
+            expect(createWithinQuota).not.toHaveBeenCalled();
         });
 
         test('rejects duplicate image URLs', async () => {
@@ -364,7 +482,7 @@ describe('Marketplace Controller', () => {
                 400
             );
 
-            expect(MarketplaceItem.create).not.toHaveBeenCalled();
+            expect(createWithinQuota).not.toHaveBeenCalled();
         });
 
         test('rejects invalid image array values', async () => {
@@ -375,6 +493,8 @@ describe('Marketplace Controller', () => {
                 'A listing can contain up to 3 valid images.',
                 400
             );
+
+            expect(createWithinQuota).not.toHaveBeenCalled();
         });
 
         test('cleans up previous uploads when a later upload fails', async () => {
@@ -395,31 +515,43 @@ describe('Marketplace Controller', () => {
 
             await expect(
                 createMarketplaceItem(req, res)
-            ).rejects.toThrow('Second upload failed');
+            ).rejects.toThrow(
+                'Second upload failed'
+            );
 
-            expect(deleteImage).toHaveBeenCalledWith(publicId1);
-            expect(MarketplaceItem.create).not.toHaveBeenCalled();
+            expect(deleteImage).toHaveBeenCalledWith(
+                publicId1
+            );
+
+            expect(createWithinQuota).not.toHaveBeenCalled();
+            expect(res.json).not.toHaveBeenCalled();
         });
 
         test('cleans up uploaded images when listing creation fails', async () => {
             req.files = [makeFile()];
 
-            MarketplaceItem.create.mockRejectedValue(
+            createWithinQuota.mockRejectedValue(
                 new Error('Database creation failed')
             );
 
             await expect(
                 createMarketplaceItem(req, res)
-            ).rejects.toThrow('Database creation failed');
+            ).rejects.toThrow(
+                'Database creation failed'
+            );
 
-            expect(deleteImage).toHaveBeenCalledWith(publicId1);
+            expect(createWithinQuota).toHaveBeenCalledTimes(1);
+            expect(deleteImage).toHaveBeenCalledWith(
+                publicId1
+            );
+
             expect(res.json).not.toHaveBeenCalled();
         });
 
         test('preserves the database error when image cleanup fails', async () => {
             req.files = [makeFile()];
 
-            MarketplaceItem.create.mockRejectedValue(
+            createWithinQuota.mockRejectedValue(
                 new Error('Database creation failed')
             );
 
@@ -429,9 +561,13 @@ describe('Marketplace Controller', () => {
 
             await expect(
                 createMarketplaceItem(req, res)
-            ).rejects.toThrow('Database creation failed');
+            ).rejects.toThrow(
+                'Database creation failed'
+            );
 
-            expect(deleteImage).toHaveBeenCalledWith(publicId1);
+            expect(deleteImage).toHaveBeenCalledWith(
+                publicId1
+            );
         });
 
         test('parses coordinates supplied as JSON', async () => {
@@ -442,17 +578,18 @@ describe('Marketplace Controller', () => {
 
             const item = makeItem();
 
-            MarketplaceItem.create.mockResolvedValue(item);
-            MarketplaceItem.findById.mockReturnValue(makeQuery(item));
+            mockSuccessfulCreate(item);
 
             await createMarketplaceItem(req, res);
 
-            expect(MarketplaceItem.create).toHaveBeenCalledWith(
+            expect(createWithinQuota).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    coordinates: {
-                        latitude: 9.0765,
-                        longitude: 7.3986,
-                    },
+                    data: expect.objectContaining({
+                        coordinates: {
+                            latitude: 9.0765,
+                            longitude: 7.3986,
+                        },
+                    }),
                 })
             );
         });
@@ -469,7 +606,104 @@ describe('Marketplace Controller', () => {
                 400
             );
 
-            expect(MarketplaceItem.create).not.toHaveBeenCalled();
+            expect(createWithinQuota).not.toHaveBeenCalled();
+        });
+
+        test('rejects creation when the Free listing quota is full', async () => {
+            getQuotaStatus.mockResolvedValue({
+                used: 3,
+                limit: 3,
+                remaining: 0,
+                canCreate: false,
+            });
+
+            req.files = [makeFile()];
+
+            await expectError(
+                createMarketplaceItem,
+                'Free plan allows a maximum of 3 marketplace listings. Delete an existing listing or upgrade to Premium.',
+                403
+            );
+
+            expect(getQuotaStatus).toHaveBeenCalledWith(
+                sellerId,
+                RESOURCES.MARKETPLACE_LISTINGS
+            );
+
+            expect(uploadImage).not.toHaveBeenCalled();
+            expect(createWithinQuota).not.toHaveBeenCalled();
+            expect(MarketplaceItem.findById).not.toHaveBeenCalled();
+        });
+
+        test('allows an eligible Premium user to create a listing', async () => {
+            getQuotaStatus.mockResolvedValue({
+                used: 10,
+                limit: null,
+                remaining: null,
+                canCreate: true,
+            });
+
+            const item = makeItem();
+
+            mockSuccessfulCreate(item);
+
+            await createMarketplaceItem(req, res);
+
+            expect(getQuotaStatus).toHaveBeenCalledWith(
+                sellerId,
+                RESOURCES.MARKETPLACE_LISTINGS
+            );
+
+            expect(createWithinQuota).toHaveBeenCalledTimes(1);
+
+            expectCreateWithinQuota({
+                ...req.body,
+                images: [],
+                imagePublicIds: [],
+            });
+
+            expect(res.status).toHaveBeenCalledWith(201);
+        });
+
+        test('does not upload images when quota lookup fails', async () => {
+            getQuotaStatus.mockRejectedValue(
+                new Error('Quota lookup failed')
+            );
+
+            req.files = [makeFile()];
+
+            await expect(
+                createMarketplaceItem(req, res)
+            ).rejects.toThrow(
+                'Quota lookup failed'
+            );
+
+            expect(uploadImage).not.toHaveBeenCalled();
+            expect(createWithinQuota).not.toHaveBeenCalled();
+            expect(res.json).not.toHaveBeenCalled();
+        });
+
+        test('cleans up uploaded images when the transactional quota check rejects creation', async () => {
+            req.files = [makeFile()];
+
+            createWithinQuota.mockRejectedValue(
+                new Error('Listing quota exceeded')
+            );
+
+            await expect(
+                createMarketplaceItem(req, res)
+            ).rejects.toThrow(
+                'Listing quota exceeded'
+            );
+
+            expect(uploadImage).toHaveBeenCalledTimes(1);
+            expect(createWithinQuota).toHaveBeenCalledTimes(1);
+
+            expect(deleteImage).toHaveBeenCalledWith(
+                publicId1
+            );
+
+            expect(res.json).not.toHaveBeenCalled();
         });
     });
 
@@ -484,10 +718,12 @@ describe('Marketplace Controller', () => {
             await getMarketplaceItems(req, res);
 
             expect(MarketplaceItem.find).toHaveBeenCalledWith({});
+
             expect(query.sort).toHaveBeenCalledWith({
                 createdAt: -1,
                 _id: -1,
             });
+
             expect(query.skip).toHaveBeenCalledWith(0);
             expect(query.limit).toHaveBeenCalledWith(20);
 
@@ -496,6 +732,7 @@ describe('Marketplace Controller', () => {
             );
 
             expect(res.status).toHaveBeenCalledWith(200);
+
             expect(res.json).toHaveBeenCalledWith({
                 success: true,
                 count: 1,
@@ -512,12 +749,16 @@ describe('Marketplace Controller', () => {
         test('applies the search term to all supported listing fields', async () => {
             req.query.search = ' maize ';
 
-            MarketplaceItem.find.mockReturnValue(makeQuery([]));
+            MarketplaceItem.find.mockReturnValue(
+                makeQuery([])
+            );
+
             MarketplaceItem.countDocuments.mockResolvedValue(0);
 
             await getMarketplaceItems(req, res);
 
-            const filter = MarketplaceItem.find.mock.calls[0][0];
+            const filter =
+                MarketplaceItem.find.mock.calls[0][0];
 
             expect(filter.$or).toEqual([
                 {
@@ -556,7 +797,10 @@ describe('Marketplace Controller', () => {
         test('filters listings by category', async () => {
             req.query.category = 'Livestock';
 
-            MarketplaceItem.find.mockReturnValue(makeQuery([]));
+            MarketplaceItem.find.mockReturnValue(
+                makeQuery([])
+            );
+
             MarketplaceItem.countDocuments.mockResolvedValue(0);
 
             await getMarketplaceItems(req, res);
@@ -569,7 +813,10 @@ describe('Marketplace Controller', () => {
         test('does not add a category filter when category is All', async () => {
             req.query.category = 'All';
 
-            MarketplaceItem.find.mockReturnValue(makeQuery([]));
+            MarketplaceItem.find.mockReturnValue(
+                makeQuery([])
+            );
+
             MarketplaceItem.countDocuments.mockResolvedValue(0);
 
             await getMarketplaceItems(req, res);
@@ -580,7 +827,10 @@ describe('Marketplace Controller', () => {
         test('filters available listings', async () => {
             req.query.availability = 'Available';
 
-            MarketplaceItem.find.mockReturnValue(makeQuery([]));
+            MarketplaceItem.find.mockReturnValue(
+                makeQuery([])
+            );
+
             MarketplaceItem.countDocuments.mockResolvedValue(0);
 
             await getMarketplaceItems(req, res);
@@ -593,7 +843,10 @@ describe('Marketplace Controller', () => {
         test('filters sold listings', async () => {
             req.query.availability = 'Sold';
 
-            MarketplaceItem.find.mockReturnValue(makeQuery([]));
+            MarketplaceItem.find.mockReturnValue(
+                makeQuery([])
+            );
+
             MarketplaceItem.countDocuments.mockResolvedValue(0);
 
             await getMarketplaceItems(req, res);
@@ -606,7 +859,10 @@ describe('Marketplace Controller', () => {
         test('filters listings belonging to the authenticated user when mine is true', async () => {
             req.query.mine = 'true';
 
-            MarketplaceItem.find.mockReturnValue(makeQuery([]));
+            MarketplaceItem.find.mockReturnValue(
+                makeQuery([])
+            );
+
             MarketplaceItem.countDocuments.mockResolvedValue(0);
 
             await getMarketplaceItems(req, res);
@@ -621,7 +877,10 @@ describe('Marketplace Controller', () => {
             req.query.availability = 'Available';
             req.query.mine = 'true';
 
-            MarketplaceItem.find.mockReturnValue(makeQuery([]));
+            MarketplaceItem.find.mockReturnValue(
+                makeQuery([])
+            );
+
             MarketplaceItem.countDocuments.mockResolvedValue(0);
 
             await getMarketplaceItems(req, res);
@@ -686,7 +945,10 @@ describe('Marketplace Controller', () => {
             req.query.page = '1';
             req.query.limit = '10';
 
-            MarketplaceItem.find.mockReturnValue(makeQuery([]));
+            MarketplaceItem.find.mockReturnValue(
+                makeQuery([])
+            );
+
             MarketplaceItem.countDocuments.mockResolvedValue(25);
 
             await getMarketplaceItems(req, res);
@@ -700,7 +962,10 @@ describe('Marketplace Controller', () => {
         });
 
         test('returns zero total pages when there are no listings', async () => {
-            MarketplaceItem.find.mockReturnValue(makeQuery([]));
+            MarketplaceItem.find.mockReturnValue(
+                makeQuery([])
+            );
+
             MarketplaceItem.countDocuments.mockResolvedValue(0);
 
             await getMarketplaceItems(req, res);
@@ -741,16 +1006,24 @@ describe('Marketplace Controller', () => {
             });
 
             MarketplaceItem.find.mockReturnValue(
-                makeQuery([farAway, noCoordinates, nearby])
+                makeQuery([
+                    farAway,
+                    noCoordinates,
+                    nearby,
+                ])
             );
 
             await getMarketplaceItems(req, res);
 
-            const payload = res.json.mock.calls[0][0];
+            const payload =
+                res.json.mock.calls[0][0];
 
             expect(payload.sortedByDistance).toBe(true);
             expect(payload.total).toBe(3);
-            expect(payload.data.map((item) => item._id)).toEqual([
+
+            expect(
+                payload.data.map((item) => item._id)
+            ).toEqual([
                 'nearby',
                 'faraway',
                 'unknown',
@@ -759,24 +1032,33 @@ describe('Marketplace Controller', () => {
             expect(payload.data[0].distanceKm).toEqual(
                 expect.any(Number)
             );
+
             expect(payload.data[1].distanceKm).toEqual(
                 expect.any(Number)
             );
+
             expect(payload.data[2].distanceKm).toBeNull();
 
-            expect(MarketplaceItem.countDocuments).not.toHaveBeenCalled();
+            expect(
+                MarketplaceItem.countDocuments
+            ).not.toHaveBeenCalled();
         });
 
         test('ignores invalid user coordinates and uses normal pagination', async () => {
             req.query.userLatitude = '100';
             req.query.userLongitude = '7.3986';
 
-            MarketplaceItem.find.mockReturnValue(makeQuery([]));
+            MarketplaceItem.find.mockReturnValue(
+                makeQuery([])
+            );
+
             MarketplaceItem.countDocuments.mockResolvedValue(0);
 
             await getMarketplaceItems(req, res);
 
-            expect(MarketplaceItem.countDocuments).toHaveBeenCalled();
+            expect(
+                MarketplaceItem.countDocuments
+            ).toHaveBeenCalled();
 
             expect(res.json).toHaveBeenCalledWith(
                 expect.objectContaining({
@@ -788,12 +1070,17 @@ describe('Marketplace Controller', () => {
         test('does not use distance sorting when only one user coordinate is provided', async () => {
             req.query.userLatitude = '9.0765';
 
-            MarketplaceItem.find.mockReturnValue(makeQuery([]));
+            MarketplaceItem.find.mockReturnValue(
+                makeQuery([])
+            );
+
             MarketplaceItem.countDocuments.mockResolvedValue(0);
 
             await getMarketplaceItems(req, res);
 
-            expect(MarketplaceItem.countDocuments).toHaveBeenCalled();
+            expect(
+                MarketplaceItem.countDocuments
+            ).toHaveBeenCalled();
 
             expect(res.json).toHaveBeenCalledWith(
                 expect.objectContaining({
@@ -819,7 +1106,8 @@ describe('Marketplace Controller', () => {
 
             await getMarketplaceItems(req, res);
 
-            const payload = res.json.mock.calls[0][0];
+            const payload =
+                res.json.mock.calls[0][0];
 
             expect(payload.data[0].distanceKm).toBeNull();
         });
@@ -858,6 +1146,7 @@ describe('Marketplace Controller', () => {
             );
 
             expect(res.status).toHaveBeenCalledWith(200);
+
             expect(res.json).toHaveBeenCalledWith({
                 success: true,
                 data: item,
@@ -865,11 +1154,14 @@ describe('Marketplace Controller', () => {
         });
 
         test('returns 404 when the listing does not exist', async () => {
-            MarketplaceItem.findById.mockReturnValue(makeQuery(null));
+            MarketplaceItem.findById.mockReturnValue(
+                makeQuery(null)
+            );
 
             await getMarketplaceItem(req, res);
 
             expect(res.status).toHaveBeenCalledWith(404);
+
             expect(res.json).toHaveBeenCalledWith({
                 success: false,
                 message: 'Marketplace listing not found.',
@@ -898,9 +1190,11 @@ describe('Marketplace Controller', () => {
             expect(item.save).toHaveBeenCalledTimes(1);
 
             expect(res.status).toHaveBeenCalledWith(200);
+
             expect(res.json).toHaveBeenCalledWith({
                 success: true,
-                message: 'Marketplace listing updated successfully.',
+                message:
+                    'Marketplace listing updated successfully.',
                 data: updatedItem,
             });
         });
@@ -911,6 +1205,7 @@ describe('Marketplace Controller', () => {
             await updateMarketplaceItem(req, res);
 
             expect(res.status).toHaveBeenCalledWith(404);
+
             expect(res.json).toHaveBeenCalledWith({
                 success: false,
                 message: 'Marketplace listing not found.',
@@ -929,9 +1224,11 @@ describe('Marketplace Controller', () => {
             await updateMarketplaceItem(req, res);
 
             expect(res.status).toHaveBeenCalledWith(403);
+
             expect(res.json).toHaveBeenCalledWith({
                 success: false,
-                message: 'You can only update your own listing.',
+                message:
+                    'You can only update your own listing.',
             });
 
             expect(item.save).not.toHaveBeenCalled();
@@ -956,7 +1253,10 @@ describe('Marketplace Controller', () => {
         test('retains existing images when updating listing details', async () => {
             const item = makeItem({
                 images: [image1, image2],
-                imagePublicIds: [publicId1, publicId2],
+                imagePublicIds: [
+                    publicId1,
+                    publicId2,
+                ],
             });
 
             mockSuccessfulUpdate(item);
@@ -967,7 +1267,11 @@ describe('Marketplace Controller', () => {
 
             await updateMarketplaceItem(req, res);
 
-            expect(item.images).toEqual([image1, image2]);
+            expect(item.images).toEqual([
+                image1,
+                image2,
+            ]);
+
             expect(item.imagePublicIds).toEqual([
                 publicId1,
                 publicId2,
@@ -980,7 +1284,11 @@ describe('Marketplace Controller', () => {
 
         test('retains selected images and removes unselected images', async () => {
             const item = makeItem({
-                images: [image1, image2, image3],
+                images: [
+                    image1,
+                    image2,
+                    image3,
+                ],
                 imagePublicIds: [
                     publicId1,
                     publicId2,
@@ -999,14 +1307,20 @@ describe('Marketplace Controller', () => {
 
             await updateMarketplaceItem(req, res);
 
-            expect(item.images).toEqual([image1, image3]);
+            expect(item.images).toEqual([
+                image1,
+                image3,
+            ]);
+
             expect(item.imagePublicIds).toEqual([
                 publicId1,
                 publicId3,
             ]);
 
             expect(deleteImage).toHaveBeenCalledTimes(1);
-            expect(deleteImage).toHaveBeenCalledWith(publicId2);
+            expect(deleteImage).toHaveBeenCalledWith(
+                publicId2
+            );
 
             expect(res.status).toHaveBeenCalledWith(200);
         });
@@ -1014,7 +1328,10 @@ describe('Marketplace Controller', () => {
         test('removes all existing images when an empty array is supplied', async () => {
             const item = makeItem({
                 images: [image1, image2],
-                imagePublicIds: [publicId1, publicId2],
+                imagePublicIds: [
+                    publicId1,
+                    publicId2,
+                ],
             });
 
             mockSuccessfulUpdate(item);
@@ -1029,8 +1346,14 @@ describe('Marketplace Controller', () => {
             expect(item.imagePublicIds).toEqual([]);
 
             expect(deleteImage).toHaveBeenCalledTimes(2);
-            expect(deleteImage).toHaveBeenCalledWith(publicId1);
-            expect(deleteImage).toHaveBeenCalledWith(publicId2);
+
+            expect(deleteImage).toHaveBeenCalledWith(
+                publicId1
+            );
+
+            expect(deleteImage).toHaveBeenCalledWith(
+                publicId2
+            );
         });
 
         test('adds a new Cloudinary image while retaining existing images', async () => {
@@ -1042,6 +1365,7 @@ describe('Marketplace Controller', () => {
             const file = makeFile('new.jpg');
 
             req.files = [file];
+
             req.body = {
                 existingImages: [image1],
             };
@@ -1060,7 +1384,11 @@ describe('Marketplace Controller', () => {
                 'roamagro/marketplace'
             );
 
-            expect(item.images).toEqual([image1, image2]);
+            expect(item.images).toEqual([
+                image1,
+                image2,
+            ]);
+
             expect(item.imagePublicIds).toEqual([
                 publicId1,
                 publicId2,
@@ -1080,7 +1408,9 @@ describe('Marketplace Controller', () => {
                 existingImages: [],
             };
 
-            req.files = [makeFile('replacement.jpg')];
+            req.files = [
+                makeFile('replacement.jpg'),
+            ];
 
             uploadImage.mockResolvedValue({
                 url: image2,
@@ -1094,8 +1424,13 @@ describe('Marketplace Controller', () => {
             expect(item.images).toEqual([image2]);
             expect(item.imagePublicIds).toEqual([publicId2]);
 
-            expect(deleteImage).toHaveBeenCalledWith(publicId1);
-            expect(deleteImage).not.toHaveBeenCalledWith(publicId2);
+            expect(deleteImage).toHaveBeenCalledWith(
+                publicId1
+            );
+
+            expect(deleteImage).not.toHaveBeenCalledWith(
+                publicId2
+            );
 
             expect(res.status).toHaveBeenCalledWith(200);
         });
@@ -1125,13 +1460,19 @@ describe('Marketplace Controller', () => {
         test('rejects exceeding the image limit during an update', async () => {
             const item = makeItem({
                 images: [image1, image2],
-                imagePublicIds: [publicId1, publicId2],
+                imagePublicIds: [
+                    publicId1,
+                    publicId2,
+                ],
             });
 
             MarketplaceItem.findById.mockResolvedValue(item);
 
             req.body = {
-                existingImages: [image1, image2],
+                existingImages: [
+                    image1,
+                    image2,
+                ],
             };
 
             req.files = [
@@ -1152,13 +1493,19 @@ describe('Marketplace Controller', () => {
         test('rejects duplicate retained images', async () => {
             const item = makeItem({
                 images: [image1, image2],
-                imagePublicIds: [publicId1, publicId2],
+                imagePublicIds: [
+                    publicId1,
+                    publicId2,
+                ],
             });
 
             MarketplaceItem.findById.mockResolvedValue(item);
 
             req.body = {
-                existingImages: [image1, image1],
+                existingImages: [
+                    image1,
+                    image1,
+                ],
             };
 
             await expectError(
@@ -1185,7 +1532,9 @@ describe('Marketplace Controller', () => {
                 existingImages: [image1],
             };
 
-            req.files = [makeFile('new.jpg')];
+            req.files = [
+                makeFile('new.jpg'),
+            ];
 
             uploadImage.mockResolvedValue({
                 url: image2,
@@ -1194,10 +1543,18 @@ describe('Marketplace Controller', () => {
 
             await expect(
                 updateMarketplaceItem(req, res)
-            ).rejects.toThrow('Database save failed');
+            ).rejects.toThrow(
+                'Database save failed'
+            );
 
-            expect(deleteImage).toHaveBeenCalledWith(publicId2);
-            expect(deleteImage).not.toHaveBeenCalledWith(publicId1);
+            expect(deleteImage).toHaveBeenCalledWith(
+                publicId2
+            );
+
+            expect(deleteImage).not.toHaveBeenCalledWith(
+                publicId1
+            );
+
             expect(res.json).not.toHaveBeenCalled();
         });
 
@@ -1218,7 +1575,9 @@ describe('Marketplace Controller', () => {
 
             await expect(
                 updateMarketplaceItem(req, res)
-            ).rejects.toThrow('Database save failed');
+            ).rejects.toThrow(
+                'Database save failed'
+            );
 
             expect(deleteImage).not.toHaveBeenCalled();
         });
@@ -1242,7 +1601,11 @@ describe('Marketplace Controller', () => {
             await updateMarketplaceItem(req, res);
 
             expect(item.save).toHaveBeenCalledTimes(1);
-            expect(deleteImage).toHaveBeenCalledWith(publicId1);
+
+            expect(deleteImage).toHaveBeenCalledWith(
+                publicId1
+            );
+
             expect(res.status).toHaveBeenCalledWith(200);
         });
 
@@ -1291,35 +1654,52 @@ describe('Marketplace Controller', () => {
         test('deletes a listing owned by the authenticated user', async () => {
             const item = makeItem();
 
-            MarketplaceItem.findById.mockResolvedValue(item);
+            mockSuccessfulDelete(item);
 
             await deleteMarketplaceItem(req, res);
 
-            expect(item.deleteOne).toHaveBeenCalledTimes(1);
+            expectDeleteWithinQuota();
+
+            expect(
+                MarketplaceItem.findById
+            ).not.toHaveBeenCalled();
+
+            expect(item.deleteOne).not.toHaveBeenCalled();
             expect(deleteImage).not.toHaveBeenCalled();
 
             expect(res.status).toHaveBeenCalledWith(200);
+
             expect(res.json).toHaveBeenCalledWith({
                 success: true,
-                message: 'Marketplace listing deleted successfully.',
+                message:
+                    'Marketplace listing deleted successfully.',
             });
         });
 
         test('deletes Cloudinary images after deleting a listing', async () => {
             const item = makeItem({
                 images: [image1, image2],
-                imagePublicIds: [publicId1, publicId2],
+                imagePublicIds: [
+                    publicId1,
+                    publicId2,
+                ],
             });
 
-            MarketplaceItem.findById.mockResolvedValue(item);
+            mockSuccessfulDelete(item);
 
             await deleteMarketplaceItem(req, res);
 
-            expect(item.deleteOne).toHaveBeenCalledTimes(1);
+            expectDeleteWithinQuota();
 
             expect(deleteImage).toHaveBeenCalledTimes(2);
-            expect(deleteImage).toHaveBeenCalledWith(publicId1);
-            expect(deleteImage).toHaveBeenCalledWith(publicId2);
+
+            expect(deleteImage).toHaveBeenCalledWith(
+                publicId1
+            );
+
+            expect(deleteImage).toHaveBeenCalledWith(
+                publicId2
+            );
 
             expect(res.status).toHaveBeenCalledWith(200);
         });
@@ -1327,45 +1707,55 @@ describe('Marketplace Controller', () => {
         test('does not delete duplicate Cloudinary public IDs twice', async () => {
             const item = makeItem({
                 images: [image1, image2],
-                imagePublicIds: [publicId1, publicId1],
+                imagePublicIds: [
+                    publicId1,
+                    publicId1,
+                ],
             });
 
-            MarketplaceItem.findById.mockResolvedValue(item);
+            mockSuccessfulDelete(item);
 
             await deleteMarketplaceItem(req, res);
 
             expect(deleteImage).toHaveBeenCalledTimes(1);
-            expect(deleteImage).toHaveBeenCalledWith(publicId1);
+
+            expect(deleteImage).toHaveBeenCalledWith(
+                publicId1
+            );
         });
 
         test('ignores empty public IDs when deleting a listing', async () => {
             const item = makeItem({
                 images: [image1, image2],
-                imagePublicIds: ['', publicId2],
+                imagePublicIds: [
+                    '',
+                    publicId2,
+                ],
             });
 
-            MarketplaceItem.findById.mockResolvedValue(item);
+            mockSuccessfulDelete(item);
 
             await deleteMarketplaceItem(req, res);
 
             expect(deleteImage).toHaveBeenCalledTimes(1);
-            expect(deleteImage).toHaveBeenCalledWith(publicId2);
+
+            expect(deleteImage).toHaveBeenCalledWith(
+                publicId2
+            );
         });
 
         test('does not delete Cloudinary images if database deletion fails', async () => {
-            const item = makeItem({
-                images: [image1],
-                imagePublicIds: [publicId1],
-                deleteOne: jest.fn().mockRejectedValue(
-                    new Error('Database deletion failed')
-                ),
-            });
-
-            MarketplaceItem.findById.mockResolvedValue(item);
+            deleteWithinQuota.mockRejectedValue(
+                new Error('Database deletion failed')
+            );
 
             await expect(
                 deleteMarketplaceItem(req, res)
-            ).rejects.toThrow('Database deletion failed');
+            ).rejects.toThrow(
+                'Database deletion failed'
+            );
+
+            expectDeleteWithinQuota();
 
             expect(deleteImage).not.toHaveBeenCalled();
             expect(res.json).not.toHaveBeenCalled();
@@ -1377,7 +1767,7 @@ describe('Marketplace Controller', () => {
                 imagePublicIds: [publicId1],
             });
 
-            MarketplaceItem.findById.mockResolvedValue(item);
+            mockSuccessfulDelete(item);
 
             deleteImage.mockRejectedValue(
                 new Error('Cloudinary deletion failed')
@@ -1385,17 +1775,24 @@ describe('Marketplace Controller', () => {
 
             await deleteMarketplaceItem(req, res);
 
-            expect(item.deleteOne).toHaveBeenCalledTimes(1);
-            expect(deleteImage).toHaveBeenCalledWith(publicId1);
+            expectDeleteWithinQuota();
+
+            expect(deleteImage).toHaveBeenCalledWith(
+                publicId1
+            );
+
             expect(res.status).toHaveBeenCalledWith(200);
         });
 
         test('returns 404 when the listing does not exist', async () => {
-            MarketplaceItem.findById.mockResolvedValue(null);
+            deleteWithinQuota.mockResolvedValue(null);
 
             await deleteMarketplaceItem(req, res);
 
+            expectDeleteWithinQuota();
+
             expect(res.status).toHaveBeenCalledWith(404);
+
             expect(res.json).toHaveBeenCalledWith({
                 success: false,
                 message: 'Marketplace listing not found.',
@@ -1404,27 +1801,40 @@ describe('Marketplace Controller', () => {
             expect(deleteImage).not.toHaveBeenCalled();
         });
 
-        test('prevents a user from deleting another seller listing', async () => {
-            const item = makeItem({
-                user: {
-                    toString: () => otherSellerId,
-                },
-                images: [image1],
-                imagePublicIds: [publicId1],
-            });
-
-            MarketplaceItem.findById.mockResolvedValue(item);
+        test('does not delete another seller listing when the quota service returns no owned listing', async () => {
+            deleteWithinQuota.mockResolvedValue(null);
 
             await deleteMarketplaceItem(req, res);
 
-            expect(res.status).toHaveBeenCalledWith(403);
+            expectDeleteWithinQuota();
+
+            expect(res.status).toHaveBeenCalledWith(404);
+
             expect(res.json).toHaveBeenCalledWith({
                 success: false,
-                message: 'You can only delete your own listing.',
+                message: 'Marketplace listing not found.',
             });
 
-            expect(item.deleteOne).not.toHaveBeenCalled();
             expect(deleteImage).not.toHaveBeenCalled();
+
+            expect(
+                MarketplaceItem.findById
+            ).not.toHaveBeenCalled();
+        });
+
+        test('does not clean up Cloudinary images when quota deletion rejects', async () => {
+            deleteWithinQuota.mockRejectedValue(
+                new Error('Quota transaction failed')
+            );
+
+            await expect(
+                deleteMarketplaceItem(req, res)
+            ).rejects.toThrow(
+                'Quota transaction failed'
+            );
+
+            expect(deleteImage).not.toHaveBeenCalled();
+            expect(res.json).not.toHaveBeenCalled();
         });
     });
 });

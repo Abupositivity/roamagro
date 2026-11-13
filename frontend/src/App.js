@@ -27,12 +27,14 @@ import Notifications from './pages/Notifications';
 import Profile from './pages/Profile';
 import Connections from './components/connections/Connections';
 import AdminReports from './pages/AdminReports';
+import Subscription from './pages/Subscription';
+import PaymentResult from './pages/PaymentResult';
 
 import Login from './components/auth/Login';
 import Register from './components/auth/Register';
-import ForgotPassword from "./components/auth/ForgotPassword";
-import ResetPassword from "./components/auth/ResetPassword";
-import VerifyEmail from "./components/auth/VerifyEmail";
+import ForgotPassword from './components/auth/ForgotPassword';
+import ResetPassword from './components/auth/ResetPassword';
+import VerifyEmail from './components/auth/VerifyEmail';
 
 import Marketplace from './components/marketplace/Marketplace';
 import PriceIndex from './components/priceIndex/PriceIndex';
@@ -115,9 +117,7 @@ const UserDashboardRoute = () => {
         );
     }
 
-    return (
-            <Dashboard />
-    );
+    return <Dashboard />;
 };
 
 const AppContent = () => {
@@ -208,7 +208,7 @@ const AppContent = () => {
                 />
 
                 <Route
-                    path="/forgot-password" 
+                    path="/forgot-password"
                     element={<ForgotPassword />}
                 />
 
@@ -216,7 +216,7 @@ const AppContent = () => {
                     path="/reset-password"
                     element={<ResetPassword />}
                 />
-                
+
                 <Route
                     path="/verify-email"
                     element={<VerifyEmail />}
@@ -231,7 +231,7 @@ const AppContent = () => {
                     path="/admin/dashboard"
                     element={
                         <RoleRoute roles={['admin']}>
-                                <AdminDashboard />
+                            <AdminDashboard />
                         </RoleRoute>
                     }
                 />
@@ -251,7 +251,7 @@ const AppContent = () => {
                     path="/extension/dashboard"
                     element={
                         <RoleRoute roles={['extension_officer']}>
-                                <ExtensionDashboard />
+                            <ExtensionDashboard />
                         </RoleRoute>
                     }
                 />
@@ -315,10 +315,10 @@ const AppContent = () => {
                     path="/settings"
                     element={
                         <ProtectedRoute>
-                                <Settings
-                                    darkMode={darkMode}
-                                    setDarkMode={setDarkMode}
-                                />
+                            <Settings
+                                darkMode={darkMode}
+                                setDarkMode={setDarkMode}
+                            />
                         </ProtectedRoute>
                     }
                 />
@@ -351,6 +351,28 @@ const AppContent = () => {
                         <ProtectedRoute>
                             <PageLayout>
                                 <Connections />
+                            </PageLayout>
+                        </ProtectedRoute>
+                    }
+                />
+
+                <Route
+                    path="/subscription"
+                    element={
+                        <ProtectedRoute>
+                            <PageLayout>
+                                <Subscription />
+                            </PageLayout>
+                        </ProtectedRoute>
+                    }
+                />
+
+                <Route
+                    path="/payment-result"
+                    element={
+                        <ProtectedRoute>
+                            <PageLayout>
+                                <PaymentResult />
                             </PageLayout>
                         </ProtectedRoute>
                     }

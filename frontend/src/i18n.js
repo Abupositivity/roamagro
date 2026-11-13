@@ -805,41 +805,43 @@ const resources = {
             "Weather conditions unavailable": "Ba a samu bayanin yanayi ba",
 
 
-            "Sunny": "Sunny",
-            "Mainly clear": "Mainly clear",
-            "Partly cloudy": "Partly cloudy",
-            "Overcast": "Overcast",
-            "Fog": "Fog",
-            "Depositing rime fog": "Depositing rime fog",
-            "Light drizzle": "Light drizzle",
-            "Moderate drizzle": "Moderate drizzle",
-            "Dense drizzle": "Dense drizzle",
-            "Light freezing drizzle": "Light freezing drizzle",
-            "Dense freezing drizzle": "Dense freezing drizzle",
-            "Slight rain": "Slight rain",
-            "Moderate rain": "Moderate rain",
-            "Light freezing rain": "Light freezing rain",
-            "Heavy freezing rain": "Heavy freezing rain",
-            "Slight snow": "Slight snow",
-            "Moderate snow": "Moderate snow",
-            "Snow grains": "Snow grains",
-            "Slight rain showers": "Slight rain showers",
-            "Moderate rain showers": "Moderate rain showers",
-            "Violent rain showers": "Violent rain showers",
-            "Slight snow showers": "Slight snow showers",
-            "Heavy snow showers": "Heavy snow showers",
-            "Thunderstorm with slight hail": "Thunderstorm with slight hail",
-            "Thunderstorm with heavy hail": "Thunderstorm with heavy hail",
-            "Location is not available.": "Location is not available.",
-            "Unable to find weather location for {{location}}.": "Unable to find weather location for {{location}}.",
-            "Location services are not supported by your browser.": "Location services are not supported by your browser.",
-            "Current location": "Current location",
-            "Location permission was denied.": "Location permission was denied.",
-            "Your current location could not be determined.": "Your current location could not be determined.",
-            "Location request timed out.": "Location request timed out.",
-            "Unable to access your current location.": "Unable to access your current location.",
-            "Unable to determine your weather location.": "Unable to determine your weather location.",
-            "Weather is currently unavailable for your location.": "Weather is currently unavailable for your location.",
+            
+            "Sunny": "Ana Rana",
+            "Mainly clear": "Sararin sama kusan a share yake",
+            "Partly cloudy": "Akwai ɗan gajimare",
+            "Overcast": "Gajimare ya rufe sararin sama",
+            "Fog": "Hazo",
+            "Depositing rime fog": "Hazo mai haifar da ƙanƙara",
+            "Light drizzle": "Ɗan yayyafin ruwan sama",
+            "Moderate drizzle": "Yayyafin ruwan sama matsakaici",
+            "Dense drizzle": "Yayyafin ruwan sama mai yawa",
+            "Light freezing drizzle": "Ɗan yayyafin ruwan sama mai daskarewa",
+            "Dense freezing drizzle": "Yayyafin ruwan sama mai daskarewa sosai",
+            "Slight rain": "Ɗan ruwan sama",
+            "Moderate rain": "Ruwan sama matsakaici",
+            "Light freezing rain": "Ɗan ruwan sama mai daskarewa",
+            "Heavy freezing rain": "Ruwan sama mai yawa da ke daskarewa",
+            "Slight snow": "Ɗan dusar ƙanƙara",
+            "Moderate snow": "Dusar ƙanƙara matsakaici",
+            "Snow grains": "Ƙananan ƙwayoyin dusar ƙanƙara",
+            "Slight rain showers": "Ɗan ruwan sama na lokaci-lokaci",
+            "Moderate rain showers": "Ruwan sama matsakaici na lokaci-lokaci",
+            "Violent rain showers": "Ruwan sama mai tsananin ƙarfi na lokaci-lokaci",
+            "Slight snow showers": "Ɗan dusar ƙanƙara na lokaci-lokaci",
+            "Heavy snow showers": "Dusar ƙanƙara mai yawa na lokaci-lokaci",
+            "Thunderstorm with slight hail": "Tsawa da ruwan sama tare da ɗan ƙanƙara",
+            "Thunderstorm with heavy hail": "Tsawa da ruwan sama tare da ƙanƙara mai yawa",
+
+            "Location is not available.": "Ba a samu bayanin wurin ba.",
+            "Unable to find weather location for {{location}}.": "Ba a iya gano wurin {{location}} domin samun bayanan yanayi ba.",
+            "Location services are not supported by your browser.": "Burauzarka ba ta tallafawa ayyukan gano wuri.",
+            "Current location": "Wurin da kake yanzu",
+            "Location permission was denied.": "Ba a ba da izinin gano wurinka ba.",
+            "Your current location could not be determined.": "Ba a iya gano wurin da kake yanzu ba.",
+            "Location request timed out.": "Lokacin neman bayanin wurinka ya ƙare.",
+            "Unable to access your current location.": "Ba a iya samun wurin da kake yanzu ba.",
+            "Unable to determine your weather location.": "Ba a iya gano wurinka domin samun bayanan yanayi ba.",
+            "Weather is currently unavailable for your location.": "Bayanan yanayi ba su samuwa a wurinka a yanzu.",
 
             "Register with Google": "Yi rajista ta Google",
             "Sign up with Google": "Yi rajista ta Google",
@@ -866,10 +868,177 @@ const resources = {
             "Something went wrong. Please try again.": "Wani abu ya samu matsala. Da fatan a sake gwadawa.",
             "An unexpected error occurred. Please try again.": "An samu matsala da ba a zata ba. Da fatan a sake gwadawa.",
 
+            // Subscription and connectivity
             "You are offline. Please check your internet connection.": "Ba ka da haɗin intanet. Da fatan za ka duba haɗin intanet ɗinka.",
             "Connection restored. You are back online.": "Haɗin intanet ya dawo. Yanzu kana kan intanet.",
             "The request is taking too long. Please try again.": "Buƙatar tana ɗaukar lokaci mai tsawo. Da fatan za ka sake gwadawa.",
-            "Unable to connect. Please check your connection and try again.": "An kasa haɗawa. Da fatan za ka duba haɗin intanet ɗinka sannan ka sake gwadawa."
+            "Unable to connect. Please check your connection and try again.": "An kasa haɗawa. Da fatan za ka duba haɗin intanet ɗinka sannan ka sake gwadawa.",
+
+            "Essential tools for managing your agribusiness.": "Muhimman kayan aiki don gudanar da kasuwancin nomanka.",
+            "Unlimited projects and listings with advanced financial tools.": "Ayyukan gona da tallace-tallace marasa iyaka tare da ingantattun kayan sarrafa kuɗi.",
+
+            // Subscription plans
+            "Free Plan": "Tsarin Kyauta",
+            "Premium": "Premium",
+            "RoamAgro Premium": "RoamAgro Premium",
+            "Upgrade": "Haɓaka",
+            "Upgrade to Premium": "Haɓaka zuwa Premium",
+            "View Premium Plans": "Duba Tsare-tsaren Premium",
+            "Monthly": "Na Wata",
+            "Annual": "Na Shekara",
+            "per month": "a kowane wata",
+            "per year": "a kowace shekara",
+            "No Ads": "Babu Talla",
+            "Unlimited Farm Projects": "Ayyukan Gona Marasa Iyaka",
+            "Unlimited Marketplace Listings": "Tallace-tallacen Kasuwa Marasa Iyaka",
+            "Financial Report Exports": "Fitar da Rahotannin Kuɗi",
+
+            // Farm Project limits
+            "Project Usage": "Amfani da Ayyukan Gona",
+            "projects used": "ayyukan gona da aka yi amfani da su",
+            "You have reached the Free plan project limit.": "Ka kai iyakar ayyukan gona na tsarin kyauta.",
+            "Free plan project limit reached.": "An kai iyakar ayyukan gona na tsarin kyauta.",
+            "Your Free plan allows up to 3 Farm Projects. Delete an existing project or upgrade to Premium to create more.": "Tsarin kyauta yana ba ka damar ƙirƙirar ayyukan gona guda 3 kacal. Share wani aikin gona ko haɓaka zuwa Premium domin ƙirƙirar ƙarin ayyuka.",
+            "Subscription information is temporarily unavailable. Project limits will still be checked when creating a project.": "Ba a iya samun bayanan tsarin biyan kuɗi a yanzu ba. Za a duba iyakar ayyukan gona yayin ƙirƙirar sabon aiki.",
+
+            // Marketplace limits
+            "Marketplace Listing Usage": "Amfani da Tallace-tallacen Kasuwa",
+            "listings used": "tallace-tallacen da aka yi amfani da su",
+            "You have reached the Free plan listing limit.": "Ka kai iyakar tallace-tallace na tsarin kyauta.",
+            "Free plan listing limit reached.": "An kai iyakar tallace-tallace na tsarin kyauta.",
+            "Your Free plan allows up to 3 Marketplace listings. Delete an existing listing or upgrade to Premium to create more.": "Tsarin kyauta yana ba ka damar ƙirƙirar tallace-tallace guda 3 kacal. Share wani talla ko haɓaka zuwa Premium domin ƙirƙirar ƙarin tallace-tallace.",
+            "Subscription information is temporarily unavailable. Listing limits will still be checked when creating a listing.": "Ba a iya samun bayanan tsarin biyan kuɗi a yanzu ba. Za a duba iyakar tallace-tallace yayin ƙirƙirar sabon talla.",
+
+            // Premium access
+            "Checking your subscription...": "Ana duba tsarin biyan kuɗinka...",
+            "Unable to verify your subscription.": "An kasa tabbatar da tsarin biyan kuɗinka.",
+            "Financial Dashboard is a Premium feature": "Shafin Bayanan Kuɗi na masu Premium ne",
+            "Upgrade to RoamAgro Premium to access your consolidated financial dashboard, expense breakdown, project profitability and cash flow reports.": "Haɓaka zuwa RoamAgro Premium domin samun cikakkun bayanan kuɗi, rabe-raben kashe kuɗi, ribar ayyukan gona da rahotannin shigar da fitar kuɗi.",
+            "You can still manage expenses and harvests within your existing Farm Projects on the Free plan.": "Har yanzu za ka iya sarrafa kashe kuɗi da girbi a cikin ayyukan gonarka ta tsarin kyauta.",
+            "The Financial Dashboard is available to Premium subscribers. Upgrade to access consolidated financial reports and analytics.": "Shafin Bayanan Kuɗi yana samuwa ga masu Premium. Haɓaka domin samun cikakkun rahotannin kuɗi da nazarinsu.",
+
+            // Payments and exports
+            "Premium payments are not available yet. Subscription upgrades will be enabled when payment integration is complete.": "Ba a fara karɓar kuɗin Premium ba tukuna. Za a kunna haɓaka tsarin bayan an kammala haɗa tsarin biyan kuɗi.",
+            "Upgrade to RoamAgro Premium to access more features.": "Haɓaka zuwa RoamAgro Premium domin samun ƙarin fasaloli.",
+            "An active Premium subscription is required to export financial reports.": "Ana buƙatar tsarin Premium mai aiki domin fitar da rahotannin kuɗi.",
+            "Unable to export financial report.": "An kasa fitar da rahoton kuɗi.",
+            "Your session has changed. Please try again.": "An samu canji a zaman shigarka. Da fatan za ka sake gwadawa.",
+            "Your session has changed.": "An samu canji a zaman shigarka.",
+            "Please log in to continue.": "Da fatan za ka shiga asusunka domin ci gaba.",
+            "Try Again": "Sake Gwada",
+
+            // Financial reports
+            "Financial Report": "Rahoton Kuɗi",
+            "Total Profit": "Jimillar Riba",
+            "Project": "Aikin Gona",
+            "Amount": "Adadin Kuɗi",
+            "Month": "Wata",
+            "Export CSV": "Fitar da CSV",
+            "Export PDF": "Fitar da PDF",
+            "No project data available.": "Babu bayanan ayyukan gona.",
+            "No expense data available.": "Babu bayanan kashe kuɗi.",
+            "No cash flow data available.": "Babu bayanan shigar da fitar kuɗi.",
+
+            // Usage information
+            "Projects used: {{used}} of {{limit}}": "Ayyukan gona da aka yi amfani da su: {{used}} cikin {{limit}}",
+            "Listings used: {{used}} of {{limit}}": "Tallace-tallacen da aka yi amfani da su: {{used}} cikin {{limit}}",
+            "Unlimited": "Babu Iyaka",
+            "Remaining": "Sauran",
+
+            // Subscription details
+            "Subscription": "Tsarin Biyan Kuɗi",
+            "Subscription Plan": "Tsarin Biyan Kuɗi",
+            "Current Plan": "Tsarin da Kake Amfani da Shi",
+            "Subscription Status": "Matsayin Tsarin Biyan Kuɗi",
+            "Subscription Details": "Cikakkun Bayanan Tsarin Biyan Kuɗi",
+            "Subscription expired": "Lokacin Tsarin Biyan Kuɗi Ya Ƙare",
+            "Your Premium subscription has expired.": "Lokacin tsarin Premium ɗinka ya ƙare.",
+            "Your subscription has expired. You are now using the Free plan.": "Lokacin tsarin biyan kuɗinka ya ƙare. Yanzu kana amfani da tsarin kyauta.",
+            "Active Subscription": "Tsarin Biyan Kuɗi Mai Aiki",
+            "Expires On": "Zai Ƙare a Ranar",
+            "Renew Subscription": "Sabunta Tsarin Biyan Kuɗi",
+
+            // Plan pricing
+            "Monthly Plan": "Tsarin Wata",
+            "Annual Plan": "Tsarin Shekara",
+            "₦500/month": "₦500 a wata",
+            "₦5,000/year": "₦5,000 a shekara",
+            "Save ₦1,000 yearly": "Ajiye ₦1,000 a shekara",
+            "Premium Features": "Fasalolin Premium",
+            "Premium Benefits": "Amfanin Premium",
+            "Upgrade your plan": "Haɓaka Tsarinka",
+            "Payments are not available yet.": "Ba a fara karɓar kuɗi ba tukuna.",
+
+            // Quota information
+            "Free plan limit reached": "An Kai Iyakar Tsarin Kyauta",
+            "Delete an existing project to create another.": "Goge wani aikin gona domin ƙirƙirar wani.",
+            "Delete an existing listing to create another.": "Goge wani talla domin ƙirƙirar wani.",
+            "Upgrade to Premium for unlimited projects.": "Haɓaka zuwa Premium domin samun ayyukan gona marasa iyaka.",
+            "Upgrade to Premium for unlimited listings.": "Haɓaka zuwa Premium domin samun tallace-tallace marasa iyaka.",
+            "Completed projects count toward your limit.": "Ayyukan gonar da aka kammala suna cikin iyakarka.",
+            "Sold listings count toward your limit.": "Tallace-tallacen da aka sayar suna cikin iyakarka.",
+
+            // Financial access and errors
+            "Financial Reports": "Rahotannin Kuɗi",
+            "Financial Analytics": "Nazarin Bayanan Kuɗi",
+            "Export Financial Report": "Fitar da Rahoton Kuɗi",
+            "Exporting...": "Ana Fitarwa...",
+            "Unable to load financial dashboard.": "Ba a iya loda shafin bayanan kuɗi ba.",
+            "Unable to load expense breakdown.": "Ba a iya loda rabe-raben kashe kuɗi ba.",
+            "Unable to load project profitability.": "Ba a iya loda bayanan ribar ayyukan gona ba.",
+            "Unable to load cash flow.": "Ba a iya loda bayanan shigar da fitar kuɗi ba.",
+            "Your Premium access has expired.": "Lokacin damar Premium ɗinka ya ƙare.",
+            "Checking Premium access...": "Ana duba damar Premium...",
+            "Premium access required": "Ana Buƙatar Premium",
+            "Could not load subscription information.": "Ba a iya loda bayanan tsarin biyan kuɗi ba.",
+            "Could not load subscription plans.": "Ba a iya loda tsare-tsaren biyan kuɗi ba.",
+            "Your session has changed. Please log in again.": "An samu canji a zaman shigarka. Da fatan ka sake shiga.",
+            "Subscription verification failed. Please try again.": "Tabbatar da tsarin biyan kuɗi ya gaza. Da fatan ka sake gwadawa.",
+
+            // Subscription navigation and Settings
+            "My Subscription": "Tsarin Biyan Kuɗina",
+            "View My Plan": "Duba Tsarina",
+            "Subscription and Usage": "Tsarin Biyan Kuɗi da Amfani",
+            "View your plan, usage limits and Premium benefits.": "Duba tsarinka, iyakar amfani da fa'idodin Premium.",
+            "Check your current plan, Farm Project and Marketplace limits, and available Premium features.": "Duba tsarinka na yanzu, iyakar ayyukan gona da tallace-tallacen kasuwa, da fasalolin Premium da ake samu.",
+            "Sponsored": "Tallan kuɗi",
+            "Grow your farm. Grow your business.": "Haɓaka gonarka. Haɓaka kasuwancinka.",
+            "Manage your farm, sell produce, and connect with buyers. Start free and unlock more as you grow.": "Sarrafa gonarka, sayar da amfanin gona, kuma ka haɗu da masu saye. Fara kyauta, sannan ka samu ƙarin dama yayin da kake bunƙasa.",
+            "Choose what works for you": "Zaɓi tsarin da ya dace da kai",
+            "Start free and unlock more as your agribusiness grows.": "Fara kyauta, sannan ka samu ƙarin dama yayin da kasuwancinka ke bunƙasa.",
+            "More freedom": "Ƙarin dama",
+            "No payment required to use the Free plan.": "Ba a buƙatar biyan kuɗi don amfani da tsarin kyauta.",
+            "Save with yearly Premium": "Yi tanadi da tsarin Premium na shekara",
+            "Grow at your own pace": "Bunƙasa a hankali gwargwadon ƙarfinka",
+            "You can continue using RoamAgro for free. Upgrade when you need more tools for your agribusiness.": "Za ka iya ci gaba da amfani da RoamAgro kyauta. Ka koma Premium idan kana buƙatar ƙarin kayan aikin kasuwancin gonarka.",
+
+            // Paystack payment integration
+            "Payment Status": "Matsayin Biyan Kuɗi",
+            "Verifying your payment...": "Ana tabbatar da biyan kuɗinka...",
+            "Invalid payment reference.": "Lambar biyan kuɗi ba ta dace ba.",
+            "Verify Payment": "Tabbatar da Biyan Kuɗi",
+            "Back to Subscription": "Koma zuwa Tsarin Biyan Kuɗi",
+
+            // Payment verification results
+            "Payment successful! Your Premium subscription is active.": "An yi nasarar biyan kuɗi! An kunna tsarin Premium ɗinka.",
+            "Payment was confirmed, but subscription information could not be refreshed. Please refresh your subscription page.": "An tabbatar da biyan kuɗi, amma ba a iya sabunta bayanan tsarin Premium ba. Da fatan ka sabunta shafin tsarin biyan kuɗi.",
+            "Your payment is still pending. Please try verifying again shortly.": "Har yanzu ana jiran tabbatar da biyan kuɗinka. Da fatan ka sake gwadawa nan ba da jimawa ba.",
+            "Payment was not completed. You can try again from the subscription page.": "Ba a kammala biyan kuɗi ba. Za ka iya sake gwadawa daga shafin tsarin biyan kuɗi.",
+            "Payment confirmation is not available yet. Please retry verification.": "Ba a samu tabbacin biyan kuɗi ba tukuna. Da fatan ka sake gwadawa.",
+
+            // Premium activation and renewal
+            "Your Premium subscription is active. You can renew it to extend your expiry date.": "Tsarin Premium ɗinka yana aiki. Za ka iya sabunta shi domin ƙara lokacin amfani.",
+            "Choose a billing cycle to activate Premium.": "Zaɓi tsarin biyan kuɗi na wata ko shekara domin kunna Premium.",
+
+            // Paystack checkout
+            "Starting Payment...": "Ana fara biyan kuɗi...",
+            "Pay": "Biya",
+            "Invalid payment checkout URL.": "Adireshin shafin biyan kuɗi ba daidai ba ne.",
+            "Could not start payment. Please try again.": "Ba a iya fara biyan kuɗi ba. Da fatan ka sake gwadawa.",
+            "Payments are processed securely by Paystack. Subscriptions do not renew automatically.": "Paystack ne ke sarrafa biyan kuɗi cikin tsaro. Ba a sabunta tsarin Premium kai tsaye ba.",
+            "Payment processing is not available yet.": "Ba a fara sarrafa biyan kuɗi ba tukuna.",
+            "Payment processing is temporarily unavailable.": "Ba a iya sarrafa biyan kuɗi a yanzu ba.",
+            "Payment processing is currently unavailable.": "Ba a iya sarrafa biyan kuɗi a yanzu ba."
         }
     }
 };
@@ -886,12 +1055,16 @@ i18n
     });
 
 i18n.on('languageChanged', language => {
-    localStorage.setItem('language', language);
-    document.documentElement.lang = language;
+    const selectedLanguage = language === 'ha' ? 'ha' : 'en';
+
+    localStorage.setItem('language', selectedLanguage);
+    document.documentElement.lang = selectedLanguage;
     document.documentElement.dir = 'ltr';
 });
 
-document.documentElement.lang = savedLanguage === 'ha' ? 'ha' : 'en';
+document.documentElement.lang =
+    savedLanguage === 'ha' ? 'ha' : 'en';
+
 document.documentElement.dir = 'ltr';
 
 export default i18n;

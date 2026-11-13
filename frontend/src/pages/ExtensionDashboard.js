@@ -31,6 +31,8 @@ import RecentProjects from "../components/dashboard/RecentProjects";
 import MarketplacePreview from "../components/dashboard/MarketplacePreview";
 import PriceTicker from "../components/dashboard/PriceTicker";
 
+import AdPlacement from "../components/advertising/AdPlacement";
+
 import AgriFeed from "../components/community/AgriFeed";
 import ExtensionTipForm from "../components/community/ExtensionTipForm";
 
@@ -218,6 +220,7 @@ const ExtensionDashboard = () => {
                 <QuickActions />
                 <RecentProjects />
                 <MarketplacePreview />
+                <AdPlacement placement="extension-dashboard" />
                 <PriceTicker />
 
                 <Box>

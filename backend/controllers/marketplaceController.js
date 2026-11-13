@@ -1,10 +1,18 @@
 const MarketplaceItem = require('../models/MarketplaceItem');
 const asyncHandler = require('../middleware/asyncHandler');
 const AppError = require('../utils/AppError');
+
 const {
     uploadImage,
     deleteImage,
 } = require('../utils/cloudinaryStorage');
+
+const {
+    RESOURCES,
+    getQuotaStatus,
+    createWithinQuota,
+    deleteWithinQuota,
+} = require('../services/quotaService');
 
 const sellerFields =
     'name phone location state profilePhoto role bio';
@@ -302,6 +310,9 @@ const getListingData = (body) => {
     return data;
 };
 
+/**
+ * Create Marketplace Listing
+ */
 exports.createMarketplaceItem = asyncHandler(
     async (req, res) => {
         const images = parseImages(req.body.images) || [];
@@ -318,6 +329,18 @@ exports.createMarketplaceItem = asyncHandler(
         }
 
         const listingData = getListingData(req.body);
+
+        const quota = await getQuotaStatus(
+            req.user._id,
+            RESOURCES.MARKETPLACE_LISTINGS
+        );
+
+        if (!quota.canCreate) {
+            throw new AppError(
+                'Free plan allows a maximum of 3 marketplace listings. Delete an existing listing or upgrade to Premium.',
+                403
+            );
+        }
 
         const uploadedImages = await uploadListingImages(
             uploadedFiles
@@ -340,13 +363,20 @@ exports.createMarketplaceItem = asyncHandler(
         let item;
 
         try {
-            item = await MarketplaceItem.create({
-                ...listingData,
-                images: finalImages,
-                imagePublicIds,
-                user: req.user._id,
+            item = await createWithinQuota({
+                userId: req.user._id,
+                resource: RESOURCES.MARKETPLACE_LISTINGS,
+                data: {
+                    ...listingData,
+                    images: finalImages,
+                    imagePublicIds,
+                },
             });
         } catch (error) {
+            /**
+             * If database creation fails, remove
+             * images uploaded for this request.
+             */
             await deleteUnusedImages(
                 uploadedImages.map(
                     (image) => image.publicId
@@ -369,6 +399,9 @@ exports.createMarketplaceItem = asyncHandler(
     }
 );
 
+/**
+ * Get Marketplace Listings
+ */
 exports.getMarketplaceItems = asyncHandler(
     async (req, res) => {
         const {
@@ -453,6 +486,13 @@ exports.getMarketplaceItems = asyncHandler(
         }
 
         if (mine === 'true') {
+            if (!req.user?._id) {
+                throw new AppError(
+                    'Please log in to view your listings.',
+                    401
+                );
+            }
+
             filter.user = req.user._id;
         }
 
@@ -564,6 +604,9 @@ exports.getMarketplaceItems = asyncHandler(
     }
 );
 
+/**
+ * Get Single Marketplace Listing
+ */
 exports.getMarketplaceItem = asyncHandler(
     async (req, res) => {
         const item = await populateSeller(
@@ -585,6 +628,9 @@ exports.getMarketplaceItem = asyncHandler(
     }
 );
 
+/**
+ * Update Marketplace Listing
+ */
 exports.updateMarketplaceItem = asyncHandler(
     async (req, res) => {
         const item = await MarketplaceItem.findById(
@@ -707,13 +753,18 @@ exports.updateMarketplaceItem = asyncHandler(
     }
 );
 
+/**
+ * Delete Marketplace Listing
+ */
 exports.deleteMarketplaceItem = asyncHandler(
     async (req, res) => {
-        const item = await MarketplaceItem.findById(
-            req.params.id
-        );
+        const deletedItem = await deleteWithinQuota({
+            userId: req.user._id,
+            resource: RESOURCES.MARKETPLACE_LISTINGS,
+            resourceId: req.params.id,
+        });
 
-        if (!item) {
+        if (!deletedItem) {
             return res.status(404).json({
                 success: false,
                 message:
@@ -721,21 +772,8 @@ exports.deleteMarketplaceItem = asyncHandler(
             });
         }
 
-        if (
-            item.user.toString() !==
-            req.user._id.toString()
-        ) {
-            return res.status(403).json({
-                success: false,
-                message:
-                    'You can only delete your own listing.',
-            });
-        }
-
         const publicIds =
-            item.imagePublicIds || [];
-
-        await item.deleteOne();
+            deletedItem.imagePublicIds || [];
 
         await deleteUnusedImages(publicIds);
 

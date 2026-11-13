@@ -25,6 +25,8 @@ import MarketplacePreview from "../components/dashboard/MarketplacePreview";
 import PriceTicker from "../components/dashboard/PriceTicker";
 import AgriFeed from "../components/community/AgriFeed";
 
+import AdPlacement from "../components/advertising/AdPlacement";
+
 import {
     refreshDashboard,
 } from "../redux/actions/dashboardActions";
@@ -171,6 +173,8 @@ const Dashboard = () => {
                 <RecentProjects />
 
                 <MarketplacePreview />
+
+                <AdPlacement placement="dashboard" />
 
                 <PriceTicker />
 

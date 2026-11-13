@@ -1,8 +1,15 @@
+import React, { useEffect } from "react";
 
-import React from "react";
 import { Box } from "@mui/material";
+
+import { useDispatch, useSelector } from "react-redux";
+
 import TopAppBar from "./TopAppBar";
 import FixedBottomNavigation from "./FixedBottomNavigation";
+
+import {
+    fetchSubscription,
+} from "../../redux/actions/subscriptionActions";
 
 const APPBAR_HEIGHT = {
     xs: 56,
@@ -12,6 +19,37 @@ const APPBAR_HEIGHT = {
 const BOTTOM_NAV_HEIGHT = 72;
 
 const PageLayout = ({ children }) => {
+    const dispatch = useDispatch();
+
+    const isAuthenticated = useSelector(
+        (state) => state.auth.isAuthenticated
+    );
+
+    const {
+        loaded,
+        loading,
+        error,
+    } = useSelector(
+        (state) => state.subscription
+    );
+
+    useEffect(() => {
+        if (
+            isAuthenticated &&
+            !loaded &&
+            !loading &&
+            !error
+        ) {
+            dispatch(fetchSubscription());
+        }
+    }, [
+        dispatch,
+        isAuthenticated,
+        loaded,
+        loading,
+        error,
+    ]);
+
     return (
         <Box
             sx={{

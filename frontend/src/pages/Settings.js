@@ -1,5 +1,6 @@
-import React,{useState}from'react';
-import{
+import React, { useState } from 'react';
+
+import {
     Avatar,
     Box,
     Button,
@@ -14,8 +15,9 @@ import{
     DialogContent,
     DialogActions,
     Alert
-}from'@mui/material';
-import{
+} from '@mui/material';
+
+import {
     Brightness4,
     Language,
     Person,
@@ -26,85 +28,97 @@ import{
     VerifiedUser,
     Badge,
     Security,
-    DeleteForever
-}from'@mui/icons-material';
-import{useSelector,useDispatch}from'react-redux';
-import{useTranslation}from'react-i18next';
-import{useNavigate}from'react-router-dom';
-import ThemeSwitcher from'../components/ThemeSwitcher';
-import LanguageSwitcher from'../components/LanguageSwitcher';
-import PageLayout from'../components/layout/PageLayout';
-import{deleteAccount}from'../redux/actions/authActions';
+    DeleteForever,
+    WorkspacePremiumOutlined
+} from '@mui/icons-material';
 
-const getRoleLabel=role=>{
-    const labels={
-        farmer:'Farmer',
-        buyer:'Buyer',
-        extension_officer:'Extension Officer',
-        admin:'Administrator'
+import { useSelector, useDispatch } from 'react-redux';
+import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
+
+import ThemeSwitcher from '../components/ThemeSwitcher';
+import LanguageSwitcher from '../components/LanguageSwitcher';
+import PageLayout from '../components/layout/PageLayout';
+import { deleteAccount } from '../redux/actions/authActions';
+
+const getRoleLabel = (role) => {
+    const labels = {
+        farmer: 'Farmer',
+        buyer: 'Buyer',
+        extension_officer: 'Extension Officer',
+        admin: 'Administrator'
     };
 
-    return labels[role]||'Farmer';
+    return labels[role] || 'Farmer';
 };
 
-const Settings=({darkMode,setDarkMode})=>{
-    const{t}=useTranslation();
-    const navigate=useNavigate();
-    const dispatch=useDispatch();
-    const{user}=useSelector(state=>state.auth);
+const Settings = ({ darkMode, setDarkMode }) => {
+    const { t } = useTranslation();
+    const navigate = useNavigate();
+    const dispatch = useDispatch();
 
-    const[deleteOpen,setDeleteOpen]=useState(false);
-    const[deleting,setDeleting]=useState(false);
-    const[deleteError,setDeleteError]=useState('');
+    const { user } = useSelector((state) => state.auth);
 
-    const initials=user?.name
+    const [deleteOpen, setDeleteOpen] = useState(false);
+    const [deleting, setDeleting] = useState(false);
+    const [deleteError, setDeleteError] = useState('');
+
+    const initials = user?.name
         ?.split(' ')
         .filter(Boolean)
-        .slice(0,2)
-        .map(part=>part.charAt(0).toUpperCase())
-        .join('')||
-        'R';
+        .slice(0, 2)
+        .map((part) => part.charAt(0).toUpperCase())
+        .join('') || 'R';
 
-    const roleLabel=getRoleLabel(user?.role);
+    const roleLabel = getRoleLabel(user?.role);
 
-    const handleDeleteAccount=async()=>{
+    const handleDeleteAccount = async () => {
         setDeleteError('');
         setDeleting(true);
 
-        const result=await dispatch(
-            deleteAccount()
-        );
+        try {
+            const result = await dispatch(deleteAccount());
 
-        setDeleting(false);
+            if (!result?.success) {
+                setDeleteError(
+                    result?.message ||
+                    t('Unable to delete your account.')
+                );
+                return;
+            }
 
-        if(!result.success){
-            setDeleteError(result.message);
-            return;
+            setDeleteOpen(false);
+            navigate('/login', { replace: true });
+        } catch (error) {
+            setDeleteError(
+                error?.message ||
+                t('Unable to delete your account.')
+            );
+        } finally {
+            setDeleting(false);
         }
-
-        setDeleteOpen(false);
-        navigate('/login',{replace:true});
     };
 
-    return(
+    return (
         <PageLayout>
             <Box
                 sx={{
-                    maxWidth:760,
-                    mx:'auto',
-                    px:{xs:1.5,sm:2},
-                    pb:{xs:8,sm:5}
+                    maxWidth: 760,
+                    mx: 'auto',
+                    px: { xs: 1.5, sm: 2 },
+                    pb: { xs: 8, sm: 5 }
                 }}
             >
                 <Stack spacing={3}>
+                    {/* PAGE HEADER */}
                     <Box>
                         <Typography
                             variant="h4"
                             fontWeight={800}
                             sx={{
-                                fontSize:{
-                                    xs:'1.8rem',
-                                    sm:'2.2rem'
+                                fontSize: {
+                                    xs: '1.8rem',
+                                    sm: '2.2rem'
                                 }
                             }}
                         >
@@ -113,7 +127,7 @@ const Settings=({darkMode,setDarkMode})=>{
 
                         <Typography
                             color="text.secondary"
-                            sx={{mt:.5}}
+                            sx={{ mt: 0.5 }}
                         >
                             {t(
                                 'Customize your RoamAgro experience.'
@@ -121,27 +135,26 @@ const Settings=({darkMode,setDarkMode})=>{
                         </Typography>
                     </Box>
 
+                    {/* USER PROFILE CARD */}
                     <Card
                         elevation={1}
                         sx={{
-                            borderRadius:4,
-                            overflow:'hidden'
+                            borderRadius: 4,
+                            overflow: 'hidden'
                         }}
                     >
                         <CardContent
-                            sx={{
-                                p:{xs:2,sm:3}
-                            }}
+                            sx={{ p: { xs: 2, sm: 3 } }}
                         >
                             <Stack
                                 direction={{
-                                    xs:'column',
-                                    sm:'row'
+                                    xs: 'column',
+                                    sm: 'row'
                                 }}
                                 spacing={2}
                                 alignItems={{
-                                    xs:'stretch',
-                                    sm:'center'
+                                    xs: 'stretch',
+                                    sm: 'center'
                                 }}
                             >
                                 <Stack
@@ -149,52 +162,50 @@ const Settings=({darkMode,setDarkMode})=>{
                                     spacing={2}
                                     alignItems="center"
                                     sx={{
-                                        flexGrow:1,
-                                        minWidth:0
+                                        flexGrow: 1,
+                                        minWidth: 0
                                     }}
                                 >
                                     <Avatar
                                         src={
-                                            user?.profilePhoto||
+                                            user?.profilePhoto ||
                                             undefined
                                         }
                                         sx={{
-                                            width:{
-                                                xs:58,
-                                                sm:68
+                                            width: {
+                                                xs: 58,
+                                                sm: 68
                                             },
-                                            height:{
-                                                xs:58,
-                                                sm:68
+                                            height: {
+                                                xs: 58,
+                                                sm: 68
                                             },
-                                            bgcolor:
-                                                'primary.main',
-                                            fontWeight:700,
-                                            fontSize:{
-                                                xs:22,
-                                                sm:26
+                                            bgcolor: 'primary.main',
+                                            fontWeight: 700,
+                                            fontSize: {
+                                                xs: 22,
+                                                sm: 26
                                             }
                                         }}
                                     >
-                                        {!user?.profilePhoto&&
+                                        {!user?.profilePhoto &&
                                             initials}
                                     </Avatar>
 
                                     <Box
                                         sx={{
-                                            minWidth:0,
-                                            flexGrow:1
+                                            minWidth: 0,
+                                            flexGrow: 1
                                         }}
                                     >
                                         <Typography
                                             variant="h6"
                                             fontWeight={800}
                                             sx={{
-                                                wordBreak:
-                                                    'break-word'
+                                                wordBreak: 'break-word'
                                             }}
                                         >
-                                            {user?.name||
+                                            {user?.name ||
                                                 t('RoamAgro User')}
                                         </Typography>
 
@@ -203,8 +214,8 @@ const Settings=({darkMode,setDarkMode})=>{
                                             spacing={1}
                                             alignItems="center"
                                             sx={{
-                                                mt:.5,
-                                                minWidth:0
+                                                mt: 0.5,
+                                                minWidth: 0
                                             }}
                                         >
                                             <Email
@@ -216,16 +227,12 @@ const Settings=({darkMode,setDarkMode})=>{
                                                 variant="body2"
                                                 color="text.secondary"
                                                 sx={{
-                                                    overflow:
-                                                        'hidden',
-                                                    textOverflow:
-                                                        'ellipsis',
-                                                    whiteSpace:
-                                                        'nowrap'
+                                                    overflow: 'hidden',
+                                                    textOverflow: 'ellipsis',
+                                                    whiteSpace: 'nowrap'
                                                 }}
                                             >
-                                                {user?.email||
-                                                    'user@example.com'}
+                                                {user?.email || ''}
                                             </Typography>
                                         </Stack>
 
@@ -234,30 +241,22 @@ const Settings=({darkMode,setDarkMode})=>{
                                             spacing={1}
                                             flexWrap="wrap"
                                             useFlexGap
-                                            sx={{mt:1}}
+                                            sx={{ mt: 1 }}
                                         >
                                             <Chip
-                                                icon={
-                                                    <Badge/>
-                                                }
-                                                label={
-                                                    t(
-                                                        roleLabel
-                                                    )
-                                                }
+                                                icon={<Badge />}
+                                                label={t(roleLabel)}
                                                 size="small"
                                                 color="success"
                                                 variant="outlined"
                                             />
 
-                                            {user?.isVerified&&(
+                                            {user?.isVerified && (
                                                 <Chip
                                                     icon={
-                                                        <VerifiedUser/>
+                                                        <VerifiedUser />
                                                     }
-                                                    label={
-                                                        t('Verified')
-                                                    }
+                                                    label={t('Verified')}
                                                     size="small"
                                                     color="success"
                                                     variant="outlined"
@@ -269,33 +268,29 @@ const Settings=({darkMode,setDarkMode})=>{
 
                                 <Stack
                                     direction={{
-                                        xs:'column',
-                                        sm:'row'
+                                        xs: 'column',
+                                        sm: 'row'
                                     }}
                                     spacing={1}
                                     sx={{
-                                        width:{
-                                            xs:'100%',
-                                            sm:'auto'
+                                        width: {
+                                            xs: '100%',
+                                            sm: 'auto'
                                         }
                                     }}
                                 >
                                     <Button
                                         variant="outlined"
-                                        startIcon={
-                                            <Person/>
-                                        }
-                                        endIcon={
-                                            <ArrowForward/>
-                                        }
-                                        onClick={()=>
+                                        startIcon={<Person />}
+                                        endIcon={<ArrowForward />}
+                                        onClick={() =>
                                             navigate('/profile')
                                         }
                                         sx={{
-                                            borderRadius:2.5,
-                                            width:{
-                                                xs:'100%',
-                                                sm:'auto'
+                                            borderRadius: 2.5,
+                                            width: {
+                                                xs: '100%',
+                                                sm: 'auto'
                                             }
                                         }}
                                     >
@@ -306,14 +301,13 @@ const Settings=({darkMode,setDarkMode})=>{
                         </CardContent>
                     </Card>
 
+                    {/* ACCOUNT */}
                     <Card
                         elevation={1}
-                        sx={{borderRadius:4}}
+                        sx={{ borderRadius: 4 }}
                     >
                         <CardContent
-                            sx={{
-                                p:{xs:2,sm:3}
-                            }}
+                            sx={{ p: { xs: 2, sm: 3 } }}
                         >
                             <Stack
                                 direction="row"
@@ -321,7 +315,7 @@ const Settings=({darkMode,setDarkMode})=>{
                                 alignItems="center"
                                 mb={2}
                             >
-                                <Person color="primary"/>
+                                <Person color="primary" />
 
                                 <Box>
                                     <Typography
@@ -334,7 +328,7 @@ const Settings=({darkMode,setDarkMode})=>{
                                     <Typography
                                         variant="body2"
                                         color="text.secondary"
-                                        sx={{mt:.25}}
+                                        sx={{ mt: 0.25 }}
                                     >
                                         {t(
                                             'Manage your personal account information.'
@@ -343,31 +337,27 @@ const Settings=({darkMode,setDarkMode})=>{
                                 </Box>
                             </Stack>
 
-                            <Divider sx={{mb:2.5}}/>
+                            <Divider sx={{ mb: 2.5 }} />
 
                             <Stack spacing={2}>
                                 <Stack
                                     direction={{
-                                        xs:'column',
-                                        sm:'row'
+                                        xs: 'column',
+                                        sm: 'row'
                                     }}
                                     spacing={{
-                                        xs:1,
-                                        sm:2
+                                        xs: 1,
+                                        sm: 2
                                     }}
                                     justifyContent="space-between"
                                     alignItems={{
-                                        xs:'stretch',
-                                        sm:'center'
+                                        xs: 'stretch',
+                                        sm: 'center'
                                     }}
                                 >
                                     <Box>
-                                        <Typography
-                                            fontWeight={700}
-                                        >
-                                            {t(
-                                                'Profile Information'
-                                            )}
+                                        <Typography fontWeight={700}>
+                                            {t('Profile Information')}
                                         </Typography>
 
                                         <Typography
@@ -382,17 +372,15 @@ const Settings=({darkMode,setDarkMode})=>{
 
                                     <Button
                                         variant="outlined"
-                                        startIcon={
-                                            <Edit/>
-                                        }
-                                        onClick={()=>
+                                        startIcon={<Edit />}
+                                        onClick={() =>
                                             navigate('/profile')
                                         }
                                         sx={{
-                                            borderRadius:2.5,
-                                            minWidth:{
-                                                xs:'100%',
-                                                sm:150
+                                            borderRadius: 2.5,
+                                            minWidth: {
+                                                xs: '100%',
+                                                sm: 150
                                             }
                                         }}
                                     >
@@ -403,14 +391,13 @@ const Settings=({darkMode,setDarkMode})=>{
                         </CardContent>
                     </Card>
 
+                    {/* SUBSCRIPTION - COMMIT 8.1 */}
                     <Card
                         elevation={1}
-                        sx={{borderRadius:4}}
+                        sx={{ borderRadius: 4 }}
                     >
                         <CardContent
-                            sx={{
-                                p:{xs:2,sm:3}
-                            }}
+                            sx={{ p: { xs: 2, sm: 3 } }}
                         >
                             <Stack
                                 direction="row"
@@ -418,7 +405,98 @@ const Settings=({darkMode,setDarkMode})=>{
                                 alignItems="center"
                                 mb={2}
                             >
-                                <Brightness4 color="primary"/>
+                                <WorkspacePremiumOutlined
+                                    color="primary"
+                                />
+
+                                <Box>
+                                    <Typography
+                                        variant="h6"
+                                        fontWeight={800}
+                                    >
+                                        {t('My Subscription')}
+                                    </Typography>
+
+                                    <Typography
+                                        variant="body2"
+                                        color="text.secondary"
+                                        sx={{ mt: 0.25 }}
+                                    >
+                                        {t(
+                                            'View your plan, usage limits and Premium benefits.'
+                                        )}
+                                    </Typography>
+                                </Box>
+                            </Stack>
+
+                            <Divider sx={{ mb: 2.5 }} />
+
+                            <Stack
+                                direction={{
+                                    xs: 'column',
+                                    sm: 'row'
+                                }}
+                                spacing={2}
+                                justifyContent="space-between"
+                                alignItems={{
+                                    xs: 'stretch',
+                                    sm: 'center'
+                                }}
+                            >
+                                <Box>
+                                    <Typography fontWeight={700}>
+                                        {t('Subscription and Usage')}
+                                    </Typography>
+
+                                    <Typography
+                                        variant="body2"
+                                        color="text.secondary"
+                                    >
+                                        {t(
+                                            'Check your current plan, Farm Project and Marketplace limits, and available Premium features.'
+                                        )}
+                                    </Typography>
+                                </Box>
+
+                                <Button
+                                    variant="outlined"
+                                    startIcon={
+                                        <WorkspacePremiumOutlined />
+                                    }
+                                    endIcon={<ArrowForward />}
+                                    onClick={() =>
+                                        navigate('/subscription')
+                                    }
+                                    sx={{
+                                        borderRadius: 2.5,
+                                        flexShrink: 0,
+                                        width: {
+                                            xs: '100%',
+                                            sm: 'auto'
+                                        }
+                                    }}
+                                >
+                                    {t('View My Plan')}
+                                </Button>
+                            </Stack>
+                        </CardContent>
+                    </Card>
+
+                    {/* APPEARANCE */}
+                    <Card
+                        elevation={1}
+                        sx={{ borderRadius: 4 }}
+                    >
+                        <CardContent
+                            sx={{ p: { xs: 2, sm: 3 } }}
+                        >
+                            <Stack
+                                direction="row"
+                                spacing={1.5}
+                                alignItems="center"
+                                mb={2}
+                            >
+                                <Brightness4 color="primary" />
 
                                 <Box>
                                     <Typography
@@ -431,7 +509,7 @@ const Settings=({darkMode,setDarkMode})=>{
                                     <Typography
                                         variant="body2"
                                         color="text.secondary"
-                                        sx={{mt:.25}}
+                                        sx={{ mt: 0.25 }}
                                     >
                                         {t(
                                             'Choose how RoamAgro looks on your device.'
@@ -440,7 +518,7 @@ const Settings=({darkMode,setDarkMode})=>{
                                 </Box>
                             </Stack>
 
-                            <Divider sx={{mb:2.5}}/>
+                            <Divider sx={{ mb: 2.5 }} />
 
                             <ThemeSwitcher
                                 darkMode={darkMode}
@@ -449,14 +527,13 @@ const Settings=({darkMode,setDarkMode})=>{
                         </CardContent>
                     </Card>
 
+                    {/* LANGUAGE */}
                     <Card
                         elevation={1}
-                        sx={{borderRadius:4}}
+                        sx={{ borderRadius: 4 }}
                     >
                         <CardContent
-                            sx={{
-                                p:{xs:2,sm:3}
-                            }}
+                            sx={{ p: { xs: 2, sm: 3 } }}
                         >
                             <Stack
                                 direction="row"
@@ -464,7 +541,7 @@ const Settings=({darkMode,setDarkMode})=>{
                                 alignItems="center"
                                 mb={2}
                             >
-                                <Language color="primary"/>
+                                <Language color="primary" />
 
                                 <Box>
                                     <Typography
@@ -477,7 +554,7 @@ const Settings=({darkMode,setDarkMode})=>{
                                     <Typography
                                         variant="body2"
                                         color="text.secondary"
-                                        sx={{mt:.25}}
+                                        sx={{ mt: 0.25 }}
                                     >
                                         {t(
                                             'Select your preferred language.'
@@ -486,20 +563,19 @@ const Settings=({darkMode,setDarkMode})=>{
                                 </Box>
                             </Stack>
 
-                            <Divider sx={{mb:2.5}}/>
+                            <Divider sx={{ mb: 2.5 }} />
 
-                            <LanguageSwitcher/>
+                            <LanguageSwitcher />
                         </CardContent>
                     </Card>
 
+                    {/* ACCOUNT SAFETY */}
                     <Card
                         elevation={1}
-                        sx={{borderRadius:4}}
+                        sx={{ borderRadius: 4 }}
                     >
                         <CardContent
-                            sx={{
-                                p:{xs:2,sm:3}
-                            }}
+                            sx={{ p: { xs: 2, sm: 3 } }}
                         >
                             <Stack
                                 direction="row"
@@ -507,7 +583,7 @@ const Settings=({darkMode,setDarkMode})=>{
                                 alignItems="center"
                                 mb={2}
                             >
-                                <Security color="primary"/>
+                                <Security color="primary" />
 
                                 <Box>
                                     <Typography
@@ -520,7 +596,7 @@ const Settings=({darkMode,setDarkMode})=>{
                                     <Typography
                                         variant="body2"
                                         color="text.secondary"
-                                        sx={{mt:.25}}
+                                        sx={{ mt: 0.25 }}
                                     >
                                         {t(
                                             'Manage the safety of your RoamAgro account.'
@@ -529,13 +605,11 @@ const Settings=({darkMode,setDarkMode})=>{
                                 </Box>
                             </Stack>
 
-                            <Divider sx={{mb:2.5}}/>
+                            <Divider sx={{ mb: 2.5 }} />
 
                             <Stack spacing={2}>
                                 <Box>
-                                    <Typography
-                                        fontWeight={700}
-                                    >
+                                    <Typography fontWeight={700}>
                                         {t('Delete Account')}
                                     </Typography>
 
@@ -543,8 +617,8 @@ const Settings=({darkMode,setDarkMode})=>{
                                         variant="body2"
                                         color="text.secondary"
                                         sx={{
-                                            mt:.5,
-                                            lineHeight:1.6
+                                            mt: 0.5,
+                                            lineHeight: 1.6
                                         }}
                                     >
                                         {t(
@@ -556,18 +630,16 @@ const Settings=({darkMode,setDarkMode})=>{
                                 <Button
                                     color="error"
                                     variant="outlined"
-                                    startIcon={
-                                        <DeleteForever/>
-                                    }
-                                    onClick={()=>{
+                                    startIcon={<DeleteForever />}
+                                    onClick={() => {
                                         setDeleteError('');
                                         setDeleteOpen(true);
                                     }}
                                     sx={{
-                                        borderRadius:2.5,
-                                        alignSelf:{
-                                            xs:'stretch',
-                                            sm:'flex-start'
+                                        borderRadius: 2.5,
+                                        alignSelf: {
+                                            xs: 'stretch',
+                                            sm: 'flex-start'
                                         }
                                     }}
                                 >
@@ -577,14 +649,13 @@ const Settings=({darkMode,setDarkMode})=>{
                         </CardContent>
                     </Card>
 
+                    {/* ABOUT */}
                     <Card
                         elevation={1}
-                        sx={{borderRadius:4}}
+                        sx={{ borderRadius: 4 }}
                     >
                         <CardContent
-                            sx={{
-                                p:{xs:2,sm:3}
-                            }}
+                            sx={{ p: { xs: 2, sm: 3 } }}
                         >
                             <Stack
                                 direction="row"
@@ -592,7 +663,7 @@ const Settings=({darkMode,setDarkMode})=>{
                                 alignItems="center"
                                 mb={2}
                             >
-                                <Info color="primary"/>
+                                <Info color="primary" />
 
                                 <Box>
                                     <Typography
@@ -605,7 +676,7 @@ const Settings=({darkMode,setDarkMode})=>{
                                     <Typography
                                         variant="body2"
                                         color="text.secondary"
-                                        sx={{mt:.25}}
+                                        sx={{ mt: 0.25 }}
                                     >
                                         {t(
                                             'Information about RoamAgro.'
@@ -614,14 +685,14 @@ const Settings=({darkMode,setDarkMode})=>{
                                 </Box>
                             </Stack>
 
-                            <Divider sx={{mb:2.5}}/>
+                            <Divider sx={{ mb: 2.5 }} />
 
                             <Typography
                                 variant="body2"
                                 color="text.secondary"
                                 sx={{
-                                    lineHeight:1.7,
-                                    mb:2.5
+                                    lineHeight: 1.7,
+                                    mb: 2.5
                                 }}
                             >
                                 {t(
@@ -636,23 +707,17 @@ const Settings=({darkMode,setDarkMode})=>{
                                 useFlexGap
                             >
                                 <Chip
-                                    label={t(
-                                        'Version 1.0 MVP'
-                                    )}
+                                    label={t('Version 1.0 MVP')}
                                     color="primary"
                                 />
 
                                 <Chip
-                                    label={t(
-                                        'Northern Nigeria'
-                                    )}
+                                    label={t('Northern Nigeria')}
                                     variant="outlined"
                                 />
 
                                 <Chip
-                                    label={t(
-                                        'English / Hausa'
-                                    )}
+                                    label={t('English / Hausa')}
                                     variant="outlined"
                                 />
                             </Stack>
@@ -661,10 +726,11 @@ const Settings=({darkMode,setDarkMode})=>{
                 </Stack>
             </Box>
 
+            {/* DELETE ACCOUNT CONFIRMATION */}
             <Dialog
                 open={deleteOpen}
-                onClose={()=>{
-                    if(!deleting){
+                onClose={() => {
+                    if (!deleting) {
                         setDeleteOpen(false);
                     }
                 }}
@@ -692,7 +758,7 @@ const Settings=({darkMode,setDarkMode})=>{
                             )}
                         </Typography>
 
-                        {deleteError&&(
+                        {deleteError && (
                             <Alert severity="error">
                                 {deleteError}
                             </Alert>
@@ -702,18 +768,18 @@ const Settings=({darkMode,setDarkMode})=>{
 
                 <DialogActions
                     sx={{
-                        p:2,
-                        gap:1,
-                        flexDirection:{
-                            xs:'column-reverse',
-                            sm:'row'
+                        p: 2,
+                        gap: 1,
+                        flexDirection: {
+                            xs: 'column-reverse',
+                            sm: 'row'
                         }
                     }}
                 >
                     <Button
                         fullWidth
                         disabled={deleting}
-                        onClick={()=>
+                        onClick={() =>
                             setDeleteOpen(false)
                         }
                     >

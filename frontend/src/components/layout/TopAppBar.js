@@ -5,6 +5,7 @@ import React, {
     useRef,
     useState
 } from "react";
+
 import {
     AppBar,
     Toolbar,
@@ -21,14 +22,18 @@ import {
     DialogActions,
     Button
 } from "@mui/material";
+
 import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import SettingsIcon from "@mui/icons-material/Settings";
 import LogoutIcon from "@mui/icons-material/Logout";
 import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
+import WorkspacePremiumOutlinedIcon from "@mui/icons-material/WorkspacePremiumOutlined";
+
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useDispatch, useSelector } from "react-redux";
+
 import { logout } from "../../redux/actions/authActions";
 import { fetchUnreadCount } from "../../redux/actions/notificationActions";
 
@@ -47,13 +52,16 @@ const TopAppBar = () => {
     const requestInProgress = useRef(false);
 
     const user = useSelector((state) => state.auth?.user);
+
     const unreadCount = useSelector(
         (state) => state.notifications?.unreadCount || 0
     );
 
-    const userKey = user?._id || user?.id || user?.email || (
-        user ? "authenticated" : null
-    );
+    const userKey =
+        user?._id ||
+        user?.id ||
+        user?.email ||
+        (user ? "authenticated" : null);
 
     const open = Boolean(anchorEl);
 
@@ -327,6 +335,16 @@ const TopAppBar = () => {
                                 sx={{ mr: 1 }}
                             />
                             {t("Financial Tracking")}
+                        </MenuItem>
+
+                        <MenuItem
+                            onClick={() => handleNavigate("/subscription")}
+                        >
+                            <WorkspacePremiumOutlinedIcon
+                                fontSize="small"
+                                sx={{ mr: 1 }}
+                            />
+                            {t("My Subscription")}
                         </MenuItem>
 
                         <MenuItem

@@ -27,6 +27,10 @@ const priceAlertRoutes = require('./routes/priceAlertRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const userRoutes = require('./routes/userRoutes');
 const connectionRoutes = require('./routes/connectionRoutes');
+const subscriptionRoutes = require('./routes/subscriptionRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
+
+const {handlePaystackWebhook,} = require('./controllers/paymentController');
 
 const getAllowedOrigins = () => {
     const configuredOrigins = (
@@ -143,6 +147,15 @@ const createApp = ({ sessionStore } = {}) => {
         ],
     }));
 
+    app.post(
+        '/api/v1/payments/webhook',
+        express.raw({
+            type: 'application/json',
+            limit: '256kb',
+        }),
+        handlePaystackWebhook
+    );
+
     app.use(express.json({
         limit: '10mb',
     }));
@@ -196,6 +209,8 @@ const createApp = ({ sessionStore } = {}) => {
     app.use('/api/v1/notifications', notificationRoutes);
     app.use('/api/v1/users', userRoutes);
     app.use('/api/v1/connections', connectionRoutes);
+    app.use('/api/v1/subscription', subscriptionRoutes);
+    app.use('/api/v1/payments', paymentRoutes);
 
     app.get('/', (req, res) => {
         res.json({

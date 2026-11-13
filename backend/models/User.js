@@ -117,6 +117,32 @@ const UserSchema = new mongoose.Schema(
             type: Number,
             default: 0,
             min: 0
+        },
+        quotaRevision: {
+            type: Number,
+            default: 0,
+            min: 0,
+            select: false
+        },
+        subscription: {
+            plan: {
+                type: String,
+                enum: ['free', 'premium'],
+                default: 'free'
+            },
+            billingCycle: {
+                type: String,
+                enum: ['monthly', 'annual', null],
+                default: null
+            },
+            startsAt: {
+                type: Date,
+                default: null
+            },
+            expiresAt: {
+                type: Date,
+                default: null
+            }
         }
     },
     {

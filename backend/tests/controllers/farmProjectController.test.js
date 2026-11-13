@@ -5,23 +5,42 @@ jest.mock("../../models/FarmProject", () => ({
     findOne: jest.fn(),
 }));
 
+jest.mock("../../services/quotaService", () => ({
+    RESOURCES: {
+        FARM_PROJECTS: "farmProjects",
+        MARKETPLACE_LISTINGS: "marketplaceListings",
+    },
+    getQuotaStatus: jest.fn(),
+    createWithinQuota: jest.fn(),
+    deleteWithinQuota: jest.fn(),
+}));
+
 const FarmProject = require("../../models/FarmProject");
+const {
+    RESOURCES,
+    createWithinQuota,
+    deleteWithinQuota,
+} = require("../../services/quotaService");
+
 const controller = require("../../controllers/farmProjectController");
 
 const USER_ID = "user-123";
 const PROJECT_ID = "project-123";
 
-const makeSubdocuments = (items = [], parent) => {
+const makeSubdocuments = (items = []) => {
     const result = items.map((item) => ({ ...item }));
 
-    result.id = jest.fn((id) =>
-        result.find((item) => item._id === id) || null
+    result.id = jest.fn(
+        (id) =>
+            result.find((item) => item._id === id) || null,
     );
 
     result.forEach((item) => {
         item.deleteOne = jest.fn(() => {
             const index = result.indexOf(item);
-            if (index !== -1) result.splice(index, 1);
+            if (index !== -1) {
+                result.splice(index, 1);
+            }
         });
     });
 
@@ -46,14 +65,15 @@ const makeProject = (overrides = {}) => {
         ...overrides,
     };
 
-    project.activities = makeSubdocuments(project.activities, project);
-    project.tasks = makeSubdocuments(project.tasks, project);
-    project.expenses = makeSubdocuments(project.expenses, project);
-    project.harvests = makeSubdocuments(project.harvests, project);
-    project.reminders = makeSubdocuments(project.reminders, project);
+    project.activities = makeSubdocuments(project.activities);
+    project.tasks = makeSubdocuments(project.tasks);
+    project.expenses = makeSubdocuments(project.expenses);
+    project.harvests = makeSubdocuments(project.harvests);
+    project.reminders = makeSubdocuments(project.reminders);
 
     project.toObject.mockImplementation(() => {
         const object = { ...project };
+
         delete object.save;
         delete object.deleteOne;
         delete object.toObject;
@@ -119,77 +139,259 @@ const mockOwnedProject = (project) => {
     FarmProject.findOne.mockResolvedValue(project);
 };
 
-const addItem = (project, collection, item) => {
-    project[collection].push(item);
-    project[collection] = makeSubdocuments(project[collection], project);
-    return project[collection][project[collection].length - 1];
+const expectCreateWithinQuota = (data) => {
+    expect(createWithinQuota).toHaveBeenCalledTimes(1);
+    expect(createWithinQuota).toHaveBeenCalledWith({
+        userId: USER_ID,
+        resource: RESOURCES.FARM_PROJECTS,
+        data,
+    });
+};
+
+const expectDeleteWithinQuota = (
+    resourceId = PROJECT_ID,
+) => {
+    expect(deleteWithinQuota).toHaveBeenCalledTimes(1);
+    expect(deleteWithinQuota).toHaveBeenCalledWith({
+        userId: USER_ID,
+        resource: RESOURCES.FARM_PROJECTS,
+        resourceId,
+    });
 };
 
 beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
 });
 
 describe("FarmProject controller", () => {
     describe("createFarmProject", () => {
         it("creates a project using the authenticated user's ID", async () => {
             const project = makeProject();
-            FarmProject.create.mockResolvedValue(project);
+            createWithinQuota.mockResolvedValue(project);
 
             const { req, res, next } = await invoke(
                 controller.createFarmProject,
                 {
-                    body: { name: "Soybean Farm", user: "attacker-id" },
-                }
+                    body: {
+                        name: "Soybean Farm",
+                        user: "attacker-id",
+                    },
+                },
             );
 
             expect(next).not.toHaveBeenCalled();
-            expect(FarmProject.create).toHaveBeenCalledWith({
+
+            expectCreateWithinQuota({
                 name: "Soybean Farm",
-                user: USER_ID,
             });
+
+            expect(FarmProject.create).not.toHaveBeenCalled();
+
             expect(res.statusCode).toBe(201);
             expect(res.body.success).toBe(true);
+            expect(res.body.message).toBe(
+                "Farm project created successfully.",
+            );
+
             expect(res.body.data.financials).toEqual({
                 income: 0,
                 expenses: 0,
                 profit: 0,
             });
+
             expect(res.body.data.progress).toBe(0);
             expect(req.user._id).toBe(USER_ID);
         });
 
-        it("forwards database errors to next", async () => {
-            const error = new Error("Database unavailable");
-            FarmProject.create.mockRejectedValue(error);
+        it("does not allow request data to override project ownership", async () => {
+            const project = makeProject();
+
+            createWithinQuota.mockResolvedValue(project);
+
+            const { res, next } = await invoke(
+                controller.createFarmProject,
+                {
+                    body: {
+                        name: "Secure Farm",
+                        description: "Farm description",
+                        user: "another-user",
+                        owner: "another-owner",
+                    },
+                },
+            );
+
+            expect(next).not.toHaveBeenCalled();
+
+            expect(createWithinQuota).toHaveBeenCalledTimes(1);
+
+            const quotaArguments =
+                createWithinQuota.mock.calls[0][0];
+
+            expect(quotaArguments.userId).toBe(USER_ID);
+            expect(quotaArguments.resource).toBe(
+                RESOURCES.FARM_PROJECTS,
+            );
+
+            expect(quotaArguments.data).not.toHaveProperty(
+                "user",
+            );
+
+            expect(quotaArguments.data).not.toHaveProperty(
+                "owner",
+            );
+
+            expect(res.statusCode).toBe(201);
+        });
+
+        it("creates a project when the quota service permits it", async () => {
+            const project = makeProject({
+                _id: "new-project",
+                name: "New Farm",
+            });
+
+            createWithinQuota.mockResolvedValue(project);
+
+            const { res, next } = await invoke(
+                controller.createFarmProject,
+                {
+                    body: { name: "New Farm" },
+                },
+            );
+
+            expect(next).not.toHaveBeenCalled();
+
+            expectCreateWithinQuota({
+                name: "New Farm",
+            });
+
+            expect(res.statusCode).toBe(201);
+            expect(res.body.data._id).toBe("new-project");
+        });
+
+        it("forwards a Free-plan quota error without creating a project", async () => {
+            const error = Object.assign(
+                new Error(
+                    "Free plan allows a maximum of 3 farm projects.",
+                ),
+                { statusCode: 403 },
+            );
+
+            createWithinQuota.mockRejectedValue(error);
 
             const { next, res } = await invoke(
-                controller.createFarmProject
+                controller.createFarmProject,
+                {
+                    body: { name: "Fourth Farm" },
+                },
+            );
+
+            expectCreateWithinQuota({
+                name: "Fourth Farm",
+            });
+
+            expect(next).toHaveBeenCalledWith(error);
+            expect(error.statusCode).toBe(403);
+            expect(res.body).toBeUndefined();
+
+            expect(FarmProject.create).not.toHaveBeenCalled();
+        });
+
+        it("allows a Premium user's project when the quota service approves it", async () => {
+            const project = makeProject({
+                _id: "premium-project",
+                name: "Premium Farm",
+            });
+
+            createWithinQuota.mockResolvedValue(project);
+
+            const { res, next } = await invoke(
+                controller.createFarmProject,
+                {
+                    user: {
+                        _id: USER_ID,
+                        subscription: {
+                            plan: "premium",
+                            status: "active",
+                        },
+                    },
+                    body: { name: "Premium Farm" },
+                },
+            );
+
+            expect(next).not.toHaveBeenCalled();
+
+            expectCreateWithinQuota({
+                name: "Premium Farm",
+            });
+
+            expect(res.statusCode).toBe(201);
+            expect(res.body.data.name).toBe("Premium Farm");
+        });
+
+        it("forwards database errors to next", async () => {
+            const error = new Error("Database unavailable");
+
+            createWithinQuota.mockRejectedValue(error);
+
+            const { next, res } = await invoke(
+                controller.createFarmProject,
             );
 
             expect(next).toHaveBeenCalledWith(error);
             expect(res.body).toBeUndefined();
+        });
+
+        it("forwards transactional quota errors", async () => {
+            const error = new Error(
+                "Quota transaction failed",
+            );
+
+            createWithinQuota.mockRejectedValue(error);
+
+            const { next, res } = await invoke(
+                controller.createFarmProject,
+                {
+                    body: { name: "Transaction Farm" },
+                },
+            );
+
+            expect(next).toHaveBeenCalledWith(error);
+            expect(res.body).toBeUndefined();
+            expect(FarmProject.create).not.toHaveBeenCalled();
         });
     });
 
     describe("getFarmProjects", () => {
         it("returns the user's projects sorted newest first", async () => {
             const projects = [
-                makeProject({ _id: "p1", name: "Farm One" }),
-                makeProject({ _id: "p2", name: "Farm Two" }),
+                makeProject({
+                    _id: "p1",
+                    name: "Farm One",
+                }),
+                makeProject({
+                    _id: "p2",
+                    name: "Farm Two",
+                }),
             ];
 
             const sort = jest.fn().mockResolvedValue(projects);
+
             FarmProject.find.mockReturnValue({ sort });
 
             const { res, next } = await invoke(
-                controller.getFarmProjects
+                controller.getFarmProjects,
             );
 
             expect(next).not.toHaveBeenCalled();
+
             expect(FarmProject.find).toHaveBeenCalledWith({
                 user: USER_ID,
             });
-            expect(sort).toHaveBeenCalledWith({ createdAt: -1 });
+
+            expect(sort).toHaveBeenCalledWith({
+                createdAt: -1,
+            });
+
             expect(res.statusCode).toBe(200);
             expect(res.body.count).toBe(2);
             expect(res.body.data).toHaveLength(2);
@@ -202,7 +404,7 @@ describe("FarmProject controller", () => {
             });
 
             const { res } = await invoke(
-                controller.getFarmProjects
+                controller.getFarmProjects,
             );
 
             expect(res.body.success).toBe(true);
@@ -212,12 +414,13 @@ describe("FarmProject controller", () => {
 
         it("forwards query errors", async () => {
             const error = new Error("Query failed");
+
             FarmProject.find.mockReturnValue({
                 sort: jest.fn().mockRejectedValue(error),
             });
 
             const { next } = await invoke(
-                controller.getFarmProjects
+                controller.getFarmProjects,
             );
 
             expect(next).toHaveBeenCalledWith(error);
@@ -230,18 +433,22 @@ describe("FarmProject controller", () => {
                 harvests: [{ totalValue: 500 }],
                 expenses: [{ amount: 150 }],
             });
+
             mockOwnedProject(project);
 
             const { res, next } = await invoke(
-                controller.getFarmProject
+                controller.getFarmProject,
             );
 
             expect(next).not.toHaveBeenCalled();
+
             expect(FarmProject.findOne).toHaveBeenCalledWith({
                 _id: PROJECT_ID,
                 user: USER_ID,
             });
+
             expect(res.statusCode).toBe(200);
+
             expect(res.body.data.financials).toEqual({
                 income: 500,
                 expenses: 150,
@@ -253,11 +460,12 @@ describe("FarmProject controller", () => {
             FarmProject.findOne.mockResolvedValue(null);
 
             const { res, next } = await invoke(
-                controller.getFarmProject
+                controller.getFarmProject,
             );
 
             expect(next).not.toHaveBeenCalled();
             expect(res.statusCode).toBe(404);
+
             expect(res.body).toEqual({
                 success: false,
                 message: "Farm project not found.",
@@ -266,10 +474,11 @@ describe("FarmProject controller", () => {
 
         it("forwards database errors", async () => {
             const error = new Error("Read failed");
+
             FarmProject.findOne.mockRejectedValue(error);
 
             const { next } = await invoke(
-                controller.getFarmProject
+                controller.getFarmProject,
             );
 
             expect(next).toHaveBeenCalledWith(error);
@@ -284,6 +493,7 @@ describe("FarmProject controller", () => {
                 activities: [{ status: "Completed" }],
                 tasks: [{ status: "Pending" }],
             });
+
             mockOwnedProject(project);
 
             const { res, next } = await invoke(
@@ -293,7 +503,7 @@ describe("FarmProject controller", () => {
                         name: "Updated Soybean Farm",
                         status: "Completed",
                     },
-                }
+                },
             );
 
             expect(next).not.toHaveBeenCalled();
@@ -308,7 +518,7 @@ describe("FarmProject controller", () => {
             FarmProject.findOne.mockResolvedValue(null);
 
             const { res } = await invoke(
-                controller.updateFarmProject
+                controller.updateFarmProject,
             );
 
             expect(res.statusCode).toBe(404);
@@ -317,11 +527,12 @@ describe("FarmProject controller", () => {
         it("forwards save errors", async () => {
             const error = new Error("Save failed");
             const project = makeProject();
+
             project.save.mockRejectedValue(error);
             mockOwnedProject(project);
 
             const { next } = await invoke(
-                controller.updateFarmProject
+                controller.updateFarmProject,
             );
 
             expect(next).toHaveBeenCalledWith(error);
@@ -329,43 +540,122 @@ describe("FarmProject controller", () => {
     });
 
     describe("deleteFarmProject", () => {
-        it("deletes the owned project", async () => {
+        it("deletes the owned project through the quota service", async () => {
             const project = makeProject();
-            mockOwnedProject(project);
+
+            deleteWithinQuota.mockResolvedValue(project);
 
             const { res, next } = await invoke(
-                controller.deleteFarmProject
+                controller.deleteFarmProject,
             );
 
             expect(next).not.toHaveBeenCalled();
-            expect(project.deleteOne).toHaveBeenCalledTimes(1);
+
+            expectDeleteWithinQuota();
+
+            expect(project.deleteOne).not.toHaveBeenCalled();
+
             expect(res.statusCode).toBe(200);
+            expect(res.body.success).toBe(true);
+
             expect(res.body.message).toBe(
-                "Farm project deleted successfully."
+                "Farm project deleted successfully.",
             );
         });
 
         it("returns 404 for a missing project", async () => {
-            FarmProject.findOne.mockResolvedValue(null);
+            deleteWithinQuota.mockResolvedValue(null);
 
-            const { res } = await invoke(
-                controller.deleteFarmProject
+            const { res, next } = await invoke(
+                controller.deleteFarmProject,
             );
 
+            expect(next).not.toHaveBeenCalled();
+
+            expectDeleteWithinQuota();
+
             expect(res.statusCode).toBe(404);
+
+            expect(res.body).toEqual({
+                success: false,
+                message: "Farm project not found.",
+            });
+        });
+
+        it("uses the requested project ID for transactional deletion", async () => {
+            const project = makeProject({
+                _id: "another-project",
+            });
+
+            deleteWithinQuota.mockResolvedValue(project);
+
+            const { res, next } = await invoke(
+                controller.deleteFarmProject,
+                {
+                    params: {
+                        id: "another-project",
+                    },
+                },
+            );
+
+            expect(next).not.toHaveBeenCalled();
+
+            expectDeleteWithinQuota("another-project");
+
+            expect(res.statusCode).toBe(200);
         });
 
         it("forwards deletion errors", async () => {
             const error = new Error("Delete failed");
-            const project = makeProject();
-            project.deleteOne.mockRejectedValue(error);
-            mockOwnedProject(project);
 
-            const { next } = await invoke(
-                controller.deleteFarmProject
+            deleteWithinQuota.mockRejectedValue(error);
+
+            const { next, res } = await invoke(
+                controller.deleteFarmProject,
             );
 
             expect(next).toHaveBeenCalledWith(error);
+            expect(res.body).toBeUndefined();
+        });
+
+        it("forwards transactional deletion errors", async () => {
+            const error = new Error(
+                "Deletion transaction failed",
+            );
+
+            deleteWithinQuota.mockRejectedValue(error);
+
+            const { next, res } = await invoke(
+                controller.deleteFarmProject,
+            );
+
+            expectDeleteWithinQuota();
+
+            expect(next).toHaveBeenCalledWith(error);
+            expect(res.body).toBeUndefined();
+        });
+
+        it("does not delete another user's project directly", async () => {
+            deleteWithinQuota.mockResolvedValue(null);
+
+            const { res, next } = await invoke(
+                controller.deleteFarmProject,
+                {
+                    params: {
+                        id: "another-users-project",
+                    },
+                },
+            );
+
+            expect(next).not.toHaveBeenCalled();
+
+            expectDeleteWithinQuota(
+                "another-users-project",
+            );
+
+            expect(FarmProject.findOne).not.toHaveBeenCalled();
+
+            expect(res.statusCode).toBe(404);
         });
     });
 
@@ -379,15 +669,21 @@ describe("FarmProject controller", () => {
                     activities: [
                         {
                             status: "Pending",
-                            dueDate: new Date(Date.now() - 86400000),
+                            dueDate: new Date(
+                                Date.now() - 86400000,
+                            ),
                         },
                         {
                             status: "In Progress",
-                            dueDate: new Date(Date.now() + 86400000),
+                            dueDate: new Date(
+                                Date.now() + 86400000,
+                            ),
                         },
                         {
                             status: "Completed",
-                            dueDate: new Date(Date.now() - 86400000),
+                            dueDate: new Date(
+                                Date.now() - 86400000,
+                            ),
                         },
                     ],
                     tasks: [
@@ -400,7 +696,9 @@ describe("FarmProject controller", () => {
                     status: "Completed",
                     harvests: [{ totalValue: 500 }],
                     expenses: [{ amount: 100 }],
-                    activities: [{ status: "Completed" }],
+                    activities: [
+                        { status: "Completed" },
+                    ],
                     tasks: [],
                 }),
             ];
@@ -408,14 +706,17 @@ describe("FarmProject controller", () => {
             FarmProject.find.mockResolvedValue(projects);
 
             const { res, next } = await invoke(
-                controller.getFarmDashboardSummary
+                controller.getFarmDashboardSummary,
             );
 
             expect(next).not.toHaveBeenCalled();
+
             expect(FarmProject.find).toHaveBeenCalledWith({
                 user: USER_ID,
             });
+
             expect(res.statusCode).toBe(200);
+
             expect(res.body.data).toMatchObject({
                 totalProjects: 2,
                 planning: 1,
@@ -436,7 +737,7 @@ describe("FarmProject controller", () => {
             FarmProject.find.mockResolvedValue([]);
 
             const { res } = await invoke(
-                controller.getFarmDashboardSummary
+                controller.getFarmDashboardSummary,
             );
 
             expect(res.body.data).toEqual({
@@ -456,11 +757,14 @@ describe("FarmProject controller", () => {
         });
 
         it("forwards errors while retrieving the dashboard summary", async () => {
-            const error = new Error("Dashboard query failed");
+            const error = new Error(
+                "Dashboard query failed",
+            );
+
             FarmProject.find.mockRejectedValue(error);
 
             const { next } = await invoke(
-                controller.getFarmDashboardSummary
+                controller.getFarmDashboardSummary,
             );
 
             expect(next).toHaveBeenCalledWith(error);
@@ -481,20 +785,24 @@ describe("FarmProject controller", () => {
                         category: "Land Preparation",
                         priority: "High",
                     },
-                }
+                },
             );
 
             expect(next).not.toHaveBeenCalled();
             expect(project.activities).toHaveLength(1);
+
             expect(project.activities[0]).toMatchObject({
                 title: "Prepare land",
                 status: "Pending",
             });
+
             expect(project.save).toHaveBeenCalled();
             expect(res.statusCode).toBe(201);
+
             expect(res.body.message).toBe(
-                "Activity created successfully."
+                "Activity created successfully.",
             );
+
             expect(res.body.data.progress).toBe(0);
         });
 
@@ -502,7 +810,7 @@ describe("FarmProject controller", () => {
             FarmProject.findOne.mockResolvedValue(null);
 
             const { res } = await invoke(
-                controller.createActivity
+                controller.createActivity,
             );
 
             expect(res.statusCode).toBe(404);
@@ -520,6 +828,7 @@ describe("FarmProject controller", () => {
                     },
                 ],
             });
+
             mockOwnedProject(project);
 
             const { res } = await invoke(
@@ -530,12 +839,16 @@ describe("FarmProject controller", () => {
                         activityId: "activity-1",
                     },
                     body: { status: "Completed" },
-                }
+                },
             );
 
             expect(res.statusCode).toBe(200);
             expect(project.activities[0].completed).toBe(true);
-            expect(project.activities[0].completedAt).toBeInstanceOf(Date);
+
+            expect(
+                project.activities[0].completedAt,
+            ).toBeInstanceOf(Date);
+
             expect(res.body.data.progress).toBe(100);
         });
 
@@ -550,6 +863,7 @@ describe("FarmProject controller", () => {
                     },
                 ],
             });
+
             mockOwnedProject(project);
 
             const { res } = await invoke(
@@ -560,7 +874,7 @@ describe("FarmProject controller", () => {
                         activityId: "activity-1",
                     },
                     body: { status: "Pending" },
-                }
+                },
             );
 
             expect(res.statusCode).toBe(200);
@@ -580,11 +894,13 @@ describe("FarmProject controller", () => {
                         id: PROJECT_ID,
                         activityId: "missing",
                     },
-                }
+                },
             );
 
             expect(res.statusCode).toBe(404);
-            expect(res.body.message).toBe("Activity not found.");
+            expect(res.body.message).toBe(
+                "Activity not found.",
+            );
         });
 
         it("updates activity status and completion fields", async () => {
@@ -598,6 +914,7 @@ describe("FarmProject controller", () => {
                     },
                 ],
             });
+
             mockOwnedProject(project);
 
             const { res } = await invoke(
@@ -608,18 +925,27 @@ describe("FarmProject controller", () => {
                         activityId: "activity-1",
                     },
                     body: { status: "Completed" },
-                }
+                },
             );
 
             expect(res.statusCode).toBe(200);
             expect(project.activities[0].completed).toBe(true);
-            expect(project.activities[0].completedAt).toBeInstanceOf(Date);
+
+            expect(
+                project.activities[0].completedAt,
+            ).toBeInstanceOf(Date);
         });
 
         it("deletes an activity and saves the project", async () => {
             const project = makeProject({
-                activities: [{ _id: "activity-1", status: "Pending" }],
+                activities: [
+                    {
+                        _id: "activity-1",
+                        status: "Pending",
+                    },
+                ],
             });
+
             mockOwnedProject(project);
 
             const { res } = await invoke(
@@ -629,7 +955,7 @@ describe("FarmProject controller", () => {
                         id: PROJECT_ID,
                         activityId: "activity-1",
                     },
-                }
+                },
             );
 
             expect(res.statusCode).toBe(200);
@@ -647,7 +973,7 @@ describe("FarmProject controller", () => {
                         id: PROJECT_ID,
                         activityId: "missing",
                     },
-                }
+                },
             );
 
             expect(res.statusCode).toBe(404);
@@ -657,8 +983,11 @@ describe("FarmProject controller", () => {
     describe("tasks", () => {
         it("creates a task and recalculates progress", async () => {
             const project = makeProject({
-                activities: [{ status: "Completed" }],
+                activities: [
+                    { status: "Completed" },
+                ],
             });
+
             mockOwnedProject(project);
 
             const { res } = await invoke(
@@ -668,7 +997,7 @@ describe("FarmProject controller", () => {
                         title: "Buy fertilizer",
                         status: "Completed",
                     },
-                }
+                },
             );
 
             expect(res.statusCode).toBe(201);
@@ -686,6 +1015,7 @@ describe("FarmProject controller", () => {
                     },
                 ],
             });
+
             mockOwnedProject(project);
 
             const { res } = await invoke(
@@ -695,12 +1025,16 @@ describe("FarmProject controller", () => {
                         id: PROJECT_ID,
                         taskId: "task-1",
                     },
-                    body: { title: "Buy improved seeds" },
-                }
+                    body: {
+                        title: "Buy improved seeds",
+                    },
+                },
             );
 
             expect(res.statusCode).toBe(200);
-            expect(project.tasks[0].title).toBe("Buy improved seeds");
+            expect(project.tasks[0].title).toBe(
+                "Buy improved seeds",
+            );
         });
 
         it("returns 404 when updating a missing task", async () => {
@@ -713,11 +1047,13 @@ describe("FarmProject controller", () => {
                         id: PROJECT_ID,
                         taskId: "missing",
                     },
-                }
+                },
             );
 
             expect(res.statusCode).toBe(404);
-            expect(res.body.message).toBe("Task not found.");
+            expect(res.body.message).toBe(
+                "Task not found.",
+            );
         });
 
         it("updates task status and completion metadata", async () => {
@@ -731,6 +1067,7 @@ describe("FarmProject controller", () => {
                     },
                 ],
             });
+
             mockOwnedProject(project);
 
             const { res } = await invoke(
@@ -740,20 +1077,32 @@ describe("FarmProject controller", () => {
                         id: PROJECT_ID,
                         taskId: "task-1",
                     },
-                    body: { status: "Completed" },
-                }
+                    body: {
+                        status: "Completed",
+                    },
+                },
             );
 
             expect(res.statusCode).toBe(200);
             expect(project.tasks[0].completed).toBe(true);
-            expect(project.tasks[0].completedAt).toBeInstanceOf(Date);
+
+            expect(
+                project.tasks[0].completedAt,
+            ).toBeInstanceOf(Date);
+
             expect(res.body.data.progress).toBe(100);
         });
 
         it("deletes a task", async () => {
             const project = makeProject({
-                tasks: [{ _id: "task-1", status: "Pending" }],
+                tasks: [
+                    {
+                        _id: "task-1",
+                        status: "Pending",
+                    },
+                ],
             });
+
             mockOwnedProject(project);
 
             const { res } = await invoke(
@@ -763,7 +1112,7 @@ describe("FarmProject controller", () => {
                         id: PROJECT_ID,
                         taskId: "task-1",
                     },
-                }
+                },
             );
 
             expect(res.statusCode).toBe(200);
@@ -781,7 +1130,7 @@ describe("FarmProject controller", () => {
                         id: PROJECT_ID,
                         taskId: "missing",
                     },
-                }
+                },
             );
 
             expect(res.statusCode).toBe(404);
@@ -794,6 +1143,7 @@ describe("FarmProject controller", () => {
                 expenses: [{ amount: 200 }],
                 harvests: [{ totalValue: 800 }],
             });
+
             mockOwnedProject(project);
 
             const { res } = await invoke(
@@ -804,12 +1154,13 @@ describe("FarmProject controller", () => {
                         description: "Organic fertilizer",
                         amount: "150",
                     },
-                }
+                },
             );
 
             expect(res.statusCode).toBe(201);
             expect(project.expenses).toHaveLength(2);
             expect(project.expenses[1].amount).toBe(150);
+
             expect(res.body.data.financials).toEqual({
                 income: 800,
                 expenses: 350,
@@ -824,8 +1175,11 @@ describe("FarmProject controller", () => {
             const { res } = await invoke(
                 controller.createExpense,
                 {
-                    body: { category: "Other", amount: "invalid" },
-                }
+                    body: {
+                        category: "Other",
+                        amount: "invalid",
+                    },
+                },
             );
 
             expect(res.statusCode).toBe(201);
@@ -835,10 +1189,14 @@ describe("FarmProject controller", () => {
         it("updates an expense and recalculates financials", async () => {
             const project = makeProject({
                 expenses: [
-                    { _id: "expense-1", amount: 100 },
+                    {
+                        _id: "expense-1",
+                        amount: 100,
+                    },
                 ],
                 harvests: [{ totalValue: 500 }],
             });
+
             mockOwnedProject(project);
 
             const { res } = await invoke(
@@ -848,8 +1206,10 @@ describe("FarmProject controller", () => {
                         id: PROJECT_ID,
                         expenseId: "expense-1",
                     },
-                    body: { amount: "250" },
-                }
+                    body: {
+                        amount: "250",
+                    },
+                },
             );
 
             expect(res.statusCode).toBe(200);
@@ -867,17 +1227,25 @@ describe("FarmProject controller", () => {
                         id: PROJECT_ID,
                         expenseId: "missing",
                     },
-                }
+                },
             );
 
             expect(res.statusCode).toBe(404);
-            expect(res.body.message).toBe("Expense not found.");
+            expect(res.body.message).toBe(
+                "Expense not found.",
+            );
         });
 
         it("deletes an expense and updates financial totals", async () => {
             const project = makeProject({
-                expenses: [{ _id: "expense-1", amount: 100 }],
+                expenses: [
+                    {
+                        _id: "expense-1",
+                        amount: 100,
+                    },
+                ],
             });
+
             mockOwnedProject(project);
 
             const { res } = await invoke(
@@ -887,7 +1255,7 @@ describe("FarmProject controller", () => {
                         id: PROJECT_ID,
                         expenseId: "expense-1",
                     },
-                }
+                },
             );
 
             expect(res.statusCode).toBe(200);
@@ -905,7 +1273,7 @@ describe("FarmProject controller", () => {
                         id: PROJECT_ID,
                         expenseId: "missing",
                     },
-                }
+                },
             );
 
             expect(res.statusCode).toBe(404);
@@ -917,6 +1285,7 @@ describe("FarmProject controller", () => {
             const project = makeProject({
                 expenses: [{ amount: 100 }],
             });
+
             mockOwnedProject(project);
 
             const { res } = await invoke(
@@ -927,10 +1296,11 @@ describe("FarmProject controller", () => {
                         quantity: "50",
                         pricePerUnit: "20",
                     },
-                }
+                },
             );
 
             expect(res.statusCode).toBe(201);
+
             expect(project.harvests[0]).toMatchObject({
                 crop: "Soybean",
                 quantity: 50,
@@ -938,6 +1308,7 @@ describe("FarmProject controller", () => {
                 pricePerUnit: 20,
                 totalValue: 1000,
             });
+
             expect(res.body.data.financials).toEqual({
                 income: 1000,
                 expenses: 100,
@@ -957,7 +1328,7 @@ describe("FarmProject controller", () => {
                         quantity: "bad",
                         pricePerUnit: "bad",
                     },
-                }
+                },
             );
 
             expect(res.statusCode).toBe(201);
@@ -978,6 +1349,7 @@ describe("FarmProject controller", () => {
                     },
                 ],
             });
+
             mockOwnedProject(project);
 
             const { res } = await invoke(
@@ -991,7 +1363,7 @@ describe("FarmProject controller", () => {
                         quantity: "20",
                         pricePerUnit: "25",
                     },
-                }
+                },
             );
 
             expect(res.statusCode).toBe(200);
@@ -1011,19 +1383,25 @@ describe("FarmProject controller", () => {
                         id: PROJECT_ID,
                         harvestId: "missing",
                     },
-                }
+                },
             );
 
             expect(res.statusCode).toBe(404);
-            expect(res.body.message).toBe("Harvest not found.");
+            expect(res.body.message).toBe(
+                "Harvest not found.",
+            );
         });
 
         it("deletes a harvest and recalculates income", async () => {
             const project = makeProject({
                 harvests: [
-                    { _id: "harvest-1", totalValue: 400 },
+                    {
+                        _id: "harvest-1",
+                        totalValue: 400,
+                    },
                 ],
             });
+
             mockOwnedProject(project);
 
             const { res } = await invoke(
@@ -1033,7 +1411,7 @@ describe("FarmProject controller", () => {
                         id: PROJECT_ID,
                         harvestId: "harvest-1",
                     },
-                }
+                },
             );
 
             expect(res.statusCode).toBe(200);
@@ -1051,7 +1429,7 @@ describe("FarmProject controller", () => {
                         id: PROJECT_ID,
                         harvestId: "missing",
                     },
-                }
+                },
             );
 
             expect(res.statusCode).toBe(404);
@@ -1070,11 +1448,12 @@ describe("FarmProject controller", () => {
                         title: "Water crops",
                         reminderDate: "2026-12-01",
                     },
-                }
+                },
             );
 
             expect(res.statusCode).toBe(201);
             expect(project.reminders).toHaveLength(1);
+
             expect(project.reminders[0]).toMatchObject({
                 title: "Water crops",
                 completed: false,
@@ -1091,6 +1470,7 @@ describe("FarmProject controller", () => {
                     },
                 ],
             });
+
             mockOwnedProject(project);
 
             const { res } = await invoke(
@@ -1100,13 +1480,16 @@ describe("FarmProject controller", () => {
                         id: PROJECT_ID,
                         reminderId: "reminder-1",
                     },
-                    body: { title: "Water crops today" },
-                }
+                    body: {
+                        title: "Water crops today",
+                    },
+                },
             );
 
             expect(res.statusCode).toBe(200);
+
             expect(project.reminders[0].title).toBe(
-                "Water crops today"
+                "Water crops today",
             );
         });
 
@@ -1120,19 +1503,25 @@ describe("FarmProject controller", () => {
                         id: PROJECT_ID,
                         reminderId: "missing",
                     },
-                }
+                },
             );
 
             expect(res.statusCode).toBe(404);
-            expect(res.body.message).toBe("Reminder not found.");
+            expect(res.body.message).toBe(
+                "Reminder not found.",
+            );
         });
 
         it("deletes a reminder", async () => {
             const project = makeProject({
                 reminders: [
-                    { _id: "reminder-1", title: "Water crops" },
+                    {
+                        _id: "reminder-1",
+                        title: "Water crops",
+                    },
                 ],
             });
+
             mockOwnedProject(project);
 
             const { res } = await invoke(
@@ -1142,7 +1531,7 @@ describe("FarmProject controller", () => {
                         id: PROJECT_ID,
                         reminderId: "reminder-1",
                     },
-                }
+                },
             );
 
             expect(res.statusCode).toBe(200);
@@ -1160,7 +1549,7 @@ describe("FarmProject controller", () => {
                         id: PROJECT_ID,
                         reminderId: "missing",
                     },
-                }
+                },
             );
 
             expect(res.statusCode).toBe(404);
@@ -1169,9 +1558,13 @@ describe("FarmProject controller", () => {
         it("toggles a reminder from incomplete to complete", async () => {
             const project = makeProject({
                 reminders: [
-                    { _id: "reminder-1", completed: false },
+                    {
+                        _id: "reminder-1",
+                        completed: false,
+                    },
                 ],
             });
+
             mockOwnedProject(project);
 
             const { res } = await invoke(
@@ -1181,7 +1574,7 @@ describe("FarmProject controller", () => {
                         id: PROJECT_ID,
                         reminderId: "reminder-1",
                     },
-                }
+                },
             );
 
             expect(res.statusCode).toBe(200);
@@ -1191,9 +1584,13 @@ describe("FarmProject controller", () => {
         it("toggles a completed reminder back to incomplete", async () => {
             const project = makeProject({
                 reminders: [
-                    { _id: "reminder-1", completed: true },
+                    {
+                        _id: "reminder-1",
+                        completed: true,
+                    },
                 ],
             });
+
             mockOwnedProject(project);
 
             const { res } = await invoke(
@@ -1203,7 +1600,7 @@ describe("FarmProject controller", () => {
                         id: PROJECT_ID,
                         reminderId: "reminder-1",
                     },
-                }
+                },
             );
 
             expect(res.statusCode).toBe(200);
@@ -1220,7 +1617,7 @@ describe("FarmProject controller", () => {
                         id: PROJECT_ID,
                         reminderId: "missing",
                     },
-                }
+                },
             );
 
             expect(res.statusCode).toBe(404);
@@ -1241,10 +1638,11 @@ describe("FarmProject controller", () => {
                     {},
                 ],
             });
+
             mockOwnedProject(project);
 
             const { res } = await invoke(
-                controller.getFarmProject
+                controller.getFarmProject,
             );
 
             expect(res.body.data.financials).toEqual({
@@ -1260,26 +1658,37 @@ describe("FarmProject controller", () => {
                     { status: "Completed" },
                     { status: "Pending" },
                 ],
-                tasks: [{ status: "Completed" }],
+                tasks: [
+                    { status: "Completed" },
+                ],
             });
+
             mockOwnedProject(project);
 
             const { res } = await invoke(
-                controller.getFarmProject
+                controller.getFarmProject,
             );
 
             expect(res.body.data.progress).toBe(67);
         });
 
         it("forwards errors from nested document saves", async () => {
-            const error = new Error("Nested save failed");
+            const error = new Error(
+                "Nested save failed",
+            );
+
             const project = makeProject();
+
             project.save.mockRejectedValue(error);
             mockOwnedProject(project);
 
             const { next } = await invoke(
                 controller.createTask,
-                { body: { title: "Check irrigation" } }
+                {
+                    body: {
+                        title: "Check irrigation",
+                    },
+                },
             );
 
             expect(next).toHaveBeenCalledWith(error);
@@ -1298,6 +1707,7 @@ describe("FarmProject controller", () => {
 
             for (const handler of handlers) {
                 const { res, next } = await invoke(handler);
+
                 expect(next).not.toHaveBeenCalled();
                 expect(res.statusCode).toBe(404);
             }

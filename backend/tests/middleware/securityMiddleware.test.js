@@ -1,157 +1,234 @@
 const express = require('express');
-const request = require('supertest');
 const jwt = require('jsonwebtoken');
+const request = require('supertest');
 
-jest.mock('../../models/User', () => ({
-    findById: jest.fn()
-}));
+jest.mock('../../models/User');
 
 const User = require('../../models/User');
-const ensureAuthenticated = require('../../middleware/ensureAuthenticated');
-const ensureAdmin = require('../../middleware/ensureAdmin');
+const ensureAuthenticated = require(
+    '../../middleware/ensureAuthenticated'
+);
+const errorHandler = require('../../middleware/errorHandler');
 
-const TEST_SECRET = 'test-only-jwt-secret-that-is-at-least-32-characters';
+const originalJwtSecret = process.env.JWT_SECRET;
 
-const createApp = (middleware, setupUser) => {
+const USER_ID = '507f1f77bcf86cd799439011';
+const OTHER_USER_ID = '507f1f77bcf86cd799439012';
+
+const createTestApp = () => {
     const app = express();
 
-    app.get(
-        '/protected',
-        ...(setupUser ? [setupUser] : []),
-        middleware,
-        (req, res) => {
-            res.status(200).json({
-                success: true,
-                userId: req.user?._id || null
-            });
-        }
-    );
-
-    app.use((err, req, res, next) => {
-        if (res.headersSent) {
-            return next(err);
-        }
-
-        res.status(err.statusCode || err.status || 500).json({
-            success: false,
-            message: err.message
+    app.get('/protected', ensureAuthenticated, (req, res) => {
+        res.status(200).json({
+            success: true,
+            userId: String(req.userId),
+            role: req.user.role
         });
     });
+
+    app.use(errorHandler);
 
     return app;
 };
 
-const createToken = (id = '507f1f77bcf86cd799439011') =>
-    jwt.sign({ id }, TEST_SECRET, {
-        expiresIn: '5m',
-        algorithm: 'HS256'
-    });
+const createUser = (overrides = {}) => ({
+    _id: USER_ID,
+    role: 'farmer',
+    accountStatus: 'active',
+    tokenVersion: 0,
+    save: jest.fn().mockResolvedValue(undefined),
+    ...overrides
+});
 
-describe('ensureAuthenticated middleware', () => {
+const createUserQuery = (user) => ({
+    select: jest.fn().mockResolvedValue(user)
+});
+
+const createToken = (
+    payload = {
+        id: USER_ID,
+        tokenVersion: 0
+    },
+    options = {}
+) => jwt.sign(
+    payload,
+    process.env.JWT_SECRET,
+    {
+        algorithm: 'HS256',
+        expiresIn: '5m',
+        ...options
+    }
+);
+
+describe('Authentication security middleware', () => {
     let app;
 
-    beforeAll(() => {
-        process.env.JWT_SECRET = TEST_SECRET;
-    });
-
     beforeEach(() => {
-        jest.clearAllMocks();
+        process.env.JWT_SECRET =
+            'test-jwt-secret-for-security-middleware';
 
-        app = createApp(ensureAuthenticated);
+        jest.resetAllMocks();
 
-        User.findById.mockReturnValue({
-            select: jest.fn().mockResolvedValue({
-                _id: '507f1f77bcf86cd799439011',
-                role: 'farmer',
-                accountStatus: 'active'
-            })
-        });
+        app = createTestApp();
+
+        User.findById.mockReturnValue(
+            createUserQuery(createUser())
+        );
     });
 
-    test('rejects requests without an authorization token', async () => {
-        const response = await request(app).get('/protected');
-
-        expect(response.status).toBe(401);
-        expect(response.body.success).toBe(false);
-        expect(User.findById).not.toHaveBeenCalled();
+    afterAll(() => {
+        if (originalJwtSecret === undefined) {
+            delete process.env.JWT_SECRET;
+        } else {
+            process.env.JWT_SECRET = originalJwtSecret;
+        }
     });
 
-    test('rejects malformed or invalid tokens', async () => {
+    test('allows a valid HS256 token', async () => {
         const response = await request(app)
             .get('/protected')
-            .set('Authorization', 'Bearer invalid-token');
+            .set(
+                'Authorization',
+                `Bearer ${createToken()}`
+            );
+
+        expect(response.status).toBe(200);
+        expect(response.body).toEqual({
+            success: true,
+            userId: USER_ID,
+            role: 'farmer'
+        });
+
+        expect(User.findById).toHaveBeenCalledWith(
+            USER_ID
+        );
+    });
+
+    test('rejects requests without authorization', async () => {
+        const response = await request(app)
+            .get('/protected');
 
         expect(response.status).toBe(401);
-        expect(response.body.message).toMatch(/invalid or expired/i);
+        expect(response.body.message).toBe(
+            'Authorization token missing.'
+        );
+
         expect(User.findById).not.toHaveBeenCalled();
     });
 
-    test('rejects expired tokens', async () => {
-        const expiredToken = jwt.sign(
-            { id: '507f1f77bcf86cd799439011' },
-            TEST_SECRET,
+    test.each([
+        ['Basic authentication', 'Basic abc123'],
+        ['missing Bearer scheme', 'abc123'],
+        ['empty Bearer token', 'Bearer '],
+        ['malformed Bearer token', 'Bearer token extra']
+    ])(
+        'rejects %s',
+        async (_description, authorization) => {
+            const response = await request(app)
+                .get('/protected')
+                .set('Authorization', authorization);
+
+            expect(response.status).toBe(401);
+            expect(response.body.message).toBe(
+                'Invalid authorization header format.'
+            );
+
+            expect(User.findById).not.toHaveBeenCalled();
+        }
+    );
+
+    test('accepts a case-insensitive Bearer scheme', async () => {
+        const response = await request(app)
+            .get('/protected')
+            .set(
+                'Authorization',
+                `bearer ${createToken()}`
+            );
+
+        expect(response.status).toBe(200);
+    });
+
+    test('rejects a token signed with the wrong secret', async () => {
+        const token = jwt.sign(
             {
-                expiresIn: -1,
-                algorithm: 'HS256'
+                id: USER_ID,
+                tokenVersion: 0
+            },
+            'different-secret',
+            {
+                algorithm: 'HS256',
+                expiresIn: '5m'
             }
         );
 
         const response = await request(app)
             .get('/protected')
-            .set('Authorization', `Bearer ${expiredToken}`);
+            .set('Authorization', `Bearer ${token}`);
 
         expect(response.status).toBe(401);
+        expect(response.body.message).toBe(
+            'Invalid or expired authorization token.'
+        );
+
         expect(User.findById).not.toHaveBeenCalled();
     });
 
-    test('allows a valid token for an existing active user', async () => {
-        const response = await request(app)
-            .get('/protected')
-            .set('Authorization', `Bearer ${createToken()}`);
-
-        expect(response.status).toBe(200);
-        expect(response.body.success).toBe(true);
-        expect(User.findById).toHaveBeenCalledWith(
-            '507f1f77bcf86cd799439011'
+    test('rejects an expired token', async () => {
+        const token = createToken(
+            {
+                id: USER_ID,
+                tokenVersion: 0
+            },
+            {
+                expiresIn: -10
+            }
         );
-    });
-
-    test('rejects a valid token when the user no longer exists', async () => {
-        User.findById.mockReturnValue({
-            select: jest.fn().mockResolvedValue(null)
-        });
 
         const response = await request(app)
             .get('/protected')
-            .set('Authorization', `Bearer ${createToken()}`);
+            .set('Authorization', `Bearer ${token}`);
 
         expect(response.status).toBe(401);
-        expect(response.body.message).toBe('User not found.');
+        expect(response.body.message).toBe(
+            'Invalid or expired authorization token.'
+        );
+
+        expect(User.findById).not.toHaveBeenCalled();
     });
 
-    test('rejects a suspended user whose suspension has not expired', async () => {
-        User.findById.mockReturnValue({
-            select: jest.fn().mockResolvedValue({
-                _id: '507f1f77bcf86cd799439011',
-                role: 'farmer',
-                accountStatus: 'suspended',
-                suspendedUntil: new Date(Date.now() + 60_000)
-            })
-        });
+    test('rejects a token signed using HS384', async () => {
+        const token = createToken(
+            {
+                id: USER_ID,
+                tokenVersion: 0
+            },
+            {
+                algorithm: 'HS384'
+            }
+        );
 
         const response = await request(app)
             .get('/protected')
-            .set('Authorization', `Bearer ${createToken()}`);
+            .set('Authorization', `Bearer ${token}`);
 
-        expect(response.status).toBe(403);
-        expect(response.body.message).toMatch(/suspended/i);
+        expect(response.status).toBe(401);
+        expect(response.body.message).toBe(
+            'Invalid or expired authorization token.'
+        );
+
+        expect(User.findById).not.toHaveBeenCalled();
     });
 
-    test('rejects malformed decoded identity claims', async () => {
+    test('rejects an unsigned JWT', async () => {
         const token = jwt.sign(
-            { id: 123 },
-            TEST_SECRET,
-            { algorithm: 'HS256' }
+            {
+                id: USER_ID,
+                tokenVersion: 0
+            },
+            undefined,
+            {
+                algorithm: 'none'
+            }
         );
 
         const response = await request(app)
@@ -161,52 +238,162 @@ describe('ensureAuthenticated middleware', () => {
         expect(response.status).toBe(401);
         expect(User.findById).not.toHaveBeenCalled();
     });
-});
 
-describe('ensureAdmin middleware', () => {
-    const setupUser = role => (req, res, next) => {
-        if (role) {
-            req.user = { role };
-        }
+    test('rejects a token with no tokenVersion', async () => {
+        const token = createToken({
+            id: USER_ID
+        });
 
-        next();
-    };
-
-    test('rejects requests without a user', async () => {
-        const app = createApp(
-            ensureAdmin,
-            setupUser(null)
-        );
-
-        const response = await request(app).get('/protected');
+        const response = await request(app)
+            .get('/protected')
+            .set('Authorization', `Bearer ${token}`);
 
         expect(response.status).toBe(401);
-        expect(response.body.message).toBe('Authentication required.');
-    });
-
-    test('rejects authenticated non-admin users', async () => {
-        const app = createApp(
-            ensureAdmin,
-            setupUser('farmer')
+        expect(response.body.message).toBe(
+            'Invalid authorization token.'
         );
 
-        const response = await request(app).get('/protected');
+        expect(User.findById).not.toHaveBeenCalled();
+    });
+
+    test('rejects a token after its version has been revoked', async () => {
+        User.findById.mockReturnValue(
+            createUserQuery(
+                createUser({
+                    tokenVersion: 1
+                })
+            )
+        );
+
+        const response = await request(app)
+            .get('/protected')
+            .set(
+                'Authorization',
+                `Bearer ${createToken()}`
+            );
+
+        expect(response.status).toBe(401);
+        expect(response.body.message).toBe(
+            'Your session has expired. Please log in again.'
+        );
+    });
+
+    test('accepts a token matching the latest token version', async () => {
+        User.findById.mockReturnValue(
+            createUserQuery(
+                createUser({
+                    tokenVersion: 4
+                })
+            )
+        );
+
+        const token = createToken({
+            id: USER_ID,
+            tokenVersion: 4
+        });
+
+        const response = await request(app)
+            .get('/protected')
+            .set('Authorization', `Bearer ${token}`);
+
+        expect(response.status).toBe(200);
+        expect(response.body.userId).toBe(USER_ID);
+    });
+
+    test('rejects a token for a user that no longer exists', async () => {
+        User.findById.mockReturnValue(
+            createUserQuery(null)
+        );
+
+        const response = await request(app)
+            .get('/protected')
+            .set(
+                'Authorization',
+                `Bearer ${createToken()}`
+            );
+
+        expect(response.status).toBe(401);
+        expect(response.body.message).toBe(
+            'User not found.'
+        );
+    });
+
+    test('does not trust a role claim embedded in the JWT', async () => {
+        User.findById.mockReturnValue(
+            createUserQuery(
+                createUser({
+                    role: 'farmer'
+                })
+            )
+        );
+
+        const token = createToken({
+            id: USER_ID,
+            tokenVersion: 0,
+            role: 'admin'
+        });
+
+        const response = await request(app)
+            .get('/protected')
+            .set('Authorization', `Bearer ${token}`);
+
+        expect(response.status).toBe(200);
+        expect(response.body.role).toBe('farmer');
+    });
+
+    test('uses the database identity instead of a user ID supplied in the request', async () => {
+        const response = await request(app)
+            .get('/protected')
+            .query({
+                userId: OTHER_USER_ID
+            })
+            .set(
+                'Authorization',
+                `Bearer ${createToken()}`
+            );
+
+        expect(response.status).toBe(200);
+        expect(response.body.userId).toBe(USER_ID);
+
+        expect(User.findById).toHaveBeenCalledWith(
+            USER_ID
+        );
+    });
+
+    test('rejects a suspended account', async () => {
+        const user = createUser({
+            accountStatus: 'suspended',
+            suspendedUntil: new Date(Date.now() + 60_000)
+        });
+
+        User.findById.mockReturnValue(
+            createUserQuery(user)
+        );
+
+        const response = await request(app)
+            .get('/protected')
+            .set(
+                'Authorization',
+                `Bearer ${createToken()}`
+            );
 
         expect(response.status).toBe(403);
         expect(response.body.message).toBe(
-            'Administrator access required.'
+            'Your account has been suspended.'
         );
+
+        expect(user.save).not.toHaveBeenCalled();
     });
 
-    test('allows administrators', async () => {
-        const app = createApp(
-            ensureAdmin,
-            setupUser('admin')
-        );
+    test('does not expose the JWT secret in authentication errors', async () => {
+        const response = await request(app)
+            .get('/protected')
+            .set('Authorization', 'Bearer invalid-token');
 
-        const response = await request(app).get('/protected');
+        expect(response.status).toBe(401);
 
-        expect(response.status).toBe(200);
-        expect(response.body.success).toBe(true);
+        expect(
+            JSON.stringify(response.body)
+        ).not.toContain(process.env.JWT_SECRET);
     });
 });

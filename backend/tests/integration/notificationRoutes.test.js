@@ -14,8 +14,10 @@ jest.mock('../../models/Notification', () => ({
 }));
 
 process.env.NODE_ENV = 'test';
-process.env.JWT_SECRET = 'test-jwt-secret-for-roamagro-integration-tests';
-process.env.SESSION_SECRET = 'test-session-secret-for-roamagro-integration-tests';
+process.env.JWT_SECRET =
+    'test-jwt-secret-for-roamagro-integration-tests';
+process.env.SESSION_SECRET =
+    'test-session-secret-for-roamagro-integration-tests';
 process.env.FRONTEND_URL = 'http://localhost:3000';
 
 const User = require('../../models/User');
@@ -27,16 +29,24 @@ const OTHER_USER_ID = '64b000000000000000000002';
 const NOTIFICATION_ID = '64b000000000000000000003';
 const OTHER_NOTIFICATION_ID = '64b000000000000000000004';
 
-const authenticatedUser = {
+const createAuthenticatedUser = (overrides = {}) => ({
     _id: USER_ID,
     name: 'Integration Test Farmer',
     email: 'farmer@example.com',
     role: 'farmer',
-    accountStatus: 'active'
-};
+    accountStatus: 'active',
+    tokenVersion: 0,
+    ...overrides
+});
 
-const createToken = (payload = { id: USER_ID }) =>
+const createToken = (
+    payload = {
+        id: USER_ID,
+        tokenVersion: 0
+    }
+) =>
     jwt.sign(payload, process.env.JWT_SECRET, {
+        algorithm: 'HS256',
         expiresIn: '1h'
     });
 
@@ -59,6 +69,10 @@ const createNotification = (overrides = {}) => ({
     ...overrides
 });
 
+const createUserQuery = (user) => ({
+    select: jest.fn().mockResolvedValue(user)
+});
+
 const createFindQuery = (result = []) => {
     const query = {
         select: jest.fn(),
@@ -76,7 +90,7 @@ const createFindQuery = (result = []) => {
     return query;
 };
 
-const createFindOneQuery = result => {
+const createFindOneQuery = (result) => {
     const query = {
         select: jest.fn(),
         populate: jest.fn().mockResolvedValue(result)
@@ -92,7 +106,7 @@ describe('Notification API integration', () => {
     let token;
 
     beforeEach(() => {
-        jest.clearAllMocks();
+        jest.resetAllMocks();
 
         app = createApp({
             sessionStore: new session.MemoryStore()
@@ -100,9 +114,9 @@ describe('Notification API integration', () => {
 
         token = createToken();
 
-        User.findById.mockReturnValue({
-            select: jest.fn().mockResolvedValue(authenticatedUser)
-        });
+        User.findById.mockReturnValue(
+            createUserQuery(createAuthenticatedUser())
+        );
 
         Notification.find.mockReturnValue(
             createFindQuery([])
@@ -130,6 +144,7 @@ describe('Notification API integration', () => {
             expect(response.body.message).toBe(
                 'Authorization token missing.'
             );
+
             expect(User.findById).not.toHaveBeenCalled();
             expect(Notification.find).not.toHaveBeenCalled();
         });
@@ -144,6 +159,50 @@ describe('Notification API integration', () => {
             expect(response.body.message).toBe(
                 'Invalid or expired authorization token.'
             );
+
+            expect(User.findById).not.toHaveBeenCalled();
+            expect(Notification.find).not.toHaveBeenCalled();
+        });
+
+        it('rejects tokens without tokenVersion', async () => {
+            const legacyToken = createToken({
+                id: USER_ID
+            });
+
+            const response = await request(app)
+                .get('/api/v1/notifications')
+                .set(
+                    'Authorization',
+                    `Bearer ${legacyToken}`
+                );
+
+            expect(response.status).toBe(401);
+            expect(response.body.message).toBe(
+                'Invalid authorization token.'
+            );
+
+            expect(User.findById).not.toHaveBeenCalled();
+            expect(Notification.find).not.toHaveBeenCalled();
+        });
+
+        it('rejects tokens with a revoked token version', async () => {
+            User.findById.mockReturnValue(
+                createUserQuery(
+                    createAuthenticatedUser({
+                        tokenVersion: 2
+                    })
+                )
+            );
+
+            const response = await request(app)
+                .get('/api/v1/notifications')
+                .set('Authorization', `Bearer ${token}`);
+
+            expect(response.status).toBe(401);
+            expect(response.body.message).toBe(
+                'Your session has expired. Please log in again.'
+            );
+
             expect(Notification.find).not.toHaveBeenCalled();
         });
 
@@ -164,6 +223,10 @@ describe('Notification API integration', () => {
             expect(response.body.data).toHaveLength(1);
             expect(response.body.data[0].title).toBe(
                 'New connection'
+            );
+
+            expect(User.findById).toHaveBeenCalledWith(
+                USER_ID
             );
 
             expect(Notification.find).toHaveBeenCalledWith({
@@ -192,24 +255,51 @@ describe('Notification API integration', () => {
                 .set('Authorization', `Bearer ${token}`);
 
             expect(response.status).toBe(200);
+
             expect(query.sort).toHaveBeenCalledWith({
                 createdAt: -1
             });
+
             expect(query.limit).toHaveBeenCalledWith(50);
             expect(query.lean).toHaveBeenCalled();
         });
 
         it('rejects access when the token user no longer exists', async () => {
-            User.findById.mockReturnValue({
-                select: jest.fn().mockResolvedValue(null)
-            });
+            User.findById.mockReturnValue(
+                createUserQuery(null)
+            );
 
             const response = await request(app)
                 .get('/api/v1/notifications')
                 .set('Authorization', `Bearer ${token}`);
 
             expect(response.status).toBe(401);
-            expect(response.body.message).toBe('User not found.');
+            expect(response.body.message).toBe(
+                'User not found.'
+            );
+
+            expect(Notification.find).not.toHaveBeenCalled();
+        });
+
+        it('rejects a suspended user', async () => {
+            User.findById.mockReturnValue(
+                createUserQuery(
+                    createAuthenticatedUser({
+                        accountStatus: 'suspended',
+                        suspendedUntil: null
+                    })
+                )
+            );
+
+            const response = await request(app)
+                .get('/api/v1/notifications')
+                .set('Authorization', `Bearer ${token}`);
+
+            expect(response.status).toBe(403);
+            expect(response.body.message).toBe(
+                'Your account has been suspended.'
+            );
+
             expect(Notification.find).not.toHaveBeenCalled();
         });
     });
@@ -228,7 +318,9 @@ describe('Notification API integration', () => {
                 count: 4
             });
 
-            expect(Notification.countDocuments).toHaveBeenCalledWith({
+            expect(
+                Notification.countDocuments
+            ).toHaveBeenCalledWith({
                 recipient: USER_ID,
                 read: false
             });
@@ -240,12 +332,14 @@ describe('Notification API integration', () => {
                 .set('Authorization', `Bearer ${token}`);
 
             expect(response.status).toBe(200);
-            expect(response.headers['cache-control']).toContain(
-                'private'
-            );
-            expect(response.headers['cache-control']).toContain(
-                'max-age=5'
-            );
+
+            expect(
+                response.headers['cache-control']
+            ).toContain('private');
+
+            expect(
+                response.headers['cache-control']
+            ).toContain('max-age=5');
         });
 
         it('requires authentication', async () => {
@@ -253,20 +347,26 @@ describe('Notification API integration', () => {
                 .get('/api/v1/notifications/unread-count');
 
             expect(response.status).toBe(401);
-            expect(Notification.countDocuments).not.toHaveBeenCalled();
+
+            expect(
+                Notification.countDocuments
+            ).not.toHaveBeenCalled();
         });
     });
 
     describe('PATCH /api/v1/notifications/:id/read', () => {
         it('rejects invalid notification IDs', async () => {
             const response = await request(app)
-                .patch('/api/v1/notifications/not-a-valid-id/read')
+                .patch(
+                    '/api/v1/notifications/not-a-valid-id/read'
+                )
                 .set('Authorization', `Bearer ${token}`);
 
             expect(response.status).toBe(400);
             expect(response.body.message).toBe(
                 'Invalid notification ID.'
             );
+
             expect(Notification.findOne).not.toHaveBeenCalled();
         });
 
@@ -280,7 +380,9 @@ describe('Notification API integration', () => {
             );
 
             const response = await request(app)
-                .patch(`/api/v1/notifications/${NOTIFICATION_ID}/read`)
+                .patch(
+                    `/api/v1/notifications/${NOTIFICATION_ID}/read`
+                )
                 .set('Authorization', `Bearer ${token}`);
 
             expect(response.status).toBe(200);
@@ -288,6 +390,7 @@ describe('Notification API integration', () => {
             expect(response.body.message).toBe(
                 'Notification marked as read.'
             );
+
             expect(notification.read).toBe(true);
             expect(notification.save).toHaveBeenCalledTimes(1);
 
@@ -307,12 +410,17 @@ describe('Notification API integration', () => {
             );
 
             const response = await request(app)
-                .patch(`/api/v1/notifications/${NOTIFICATION_ID}/read`)
+                .patch(
+                    `/api/v1/notifications/${NOTIFICATION_ID}/read`
+                )
                 .set('Authorization', `Bearer ${token}`);
 
             expect(response.status).toBe(200);
             expect(response.body.success).toBe(true);
-            expect(notification.save).not.toHaveBeenCalled();
+
+            expect(
+                notification.save
+            ).not.toHaveBeenCalled();
         });
 
         it('returns 404 when the notification is not found for the user', async () => {
@@ -321,7 +429,9 @@ describe('Notification API integration', () => {
             );
 
             const response = await request(app)
-                .patch(`/api/v1/notifications/${NOTIFICATION_ID}/read`)
+                .patch(
+                    `/api/v1/notifications/${NOTIFICATION_ID}/read`
+                )
                 .set('Authorization', `Bearer ${token}`);
 
             expect(response.status).toBe(404);
@@ -337,7 +447,9 @@ describe('Notification API integration', () => {
 
         it('requires authentication', async () => {
             const response = await request(app)
-                .patch(`/api/v1/notifications/${NOTIFICATION_ID}/read`);
+                .patch(
+                    `/api/v1/notifications/${NOTIFICATION_ID}/read`
+                );
 
             expect(response.status).toBe(401);
             expect(Notification.findOne).not.toHaveBeenCalled();
@@ -356,6 +468,7 @@ describe('Notification API integration', () => {
                 .set('Authorization', `Bearer ${token}`);
 
             expect(response.status).toBe(200);
+
             expect(response.body).toEqual({
                 success: true,
                 message: 'All notifications marked as read.',
@@ -390,20 +503,26 @@ describe('Notification API integration', () => {
                 .patch('/api/v1/notifications/read-all');
 
             expect(response.status).toBe(401);
-            expect(Notification.updateMany).not.toHaveBeenCalled();
+
+            expect(
+                Notification.updateMany
+            ).not.toHaveBeenCalled();
         });
     });
 
     describe('DELETE /api/v1/notifications/:id', () => {
         it('rejects invalid notification IDs', async () => {
             const response = await request(app)
-                .delete('/api/v1/notifications/invalid-id')
+                .delete(
+                    '/api/v1/notifications/invalid-id'
+                )
                 .set('Authorization', `Bearer ${token}`);
 
             expect(response.status).toBe(400);
             expect(response.body.message).toBe(
                 'Invalid notification ID.'
             );
+
             expect(Notification.findOne).not.toHaveBeenCalled();
         });
 
@@ -413,10 +532,13 @@ describe('Notification API integration', () => {
             Notification.findOne.mockResolvedValue(notification);
 
             const response = await request(app)
-                .delete(`/api/v1/notifications/${NOTIFICATION_ID}`)
+                .delete(
+                    `/api/v1/notifications/${NOTIFICATION_ID}`
+                )
                 .set('Authorization', `Bearer ${token}`);
 
             expect(response.status).toBe(200);
+
             expect(response.body).toEqual({
                 success: true,
                 message: 'Notification deleted successfully.'
@@ -427,14 +549,18 @@ describe('Notification API integration', () => {
                 recipient: USER_ID
             });
 
-            expect(notification.deleteOne).toHaveBeenCalledTimes(1);
+            expect(
+                notification.deleteOne
+            ).toHaveBeenCalledTimes(1);
         });
 
         it('cannot delete a notification belonging to another user', async () => {
             Notification.findOne.mockResolvedValue(null);
 
             const response = await request(app)
-                .delete(`/api/v1/notifications/${OTHER_NOTIFICATION_ID}`)
+                .delete(
+                    `/api/v1/notifications/${OTHER_NOTIFICATION_ID}`
+                )
                 .set('Authorization', `Bearer ${token}`);
 
             expect(response.status).toBe(404);
@@ -450,7 +576,9 @@ describe('Notification API integration', () => {
 
         it('requires authentication', async () => {
             const response = await request(app)
-                .delete(`/api/v1/notifications/${NOTIFICATION_ID}`);
+                .delete(
+                    `/api/v1/notifications/${NOTIFICATION_ID}`
+                );
 
             expect(response.status).toBe(401);
             expect(Notification.findOne).not.toHaveBeenCalled();

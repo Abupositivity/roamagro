@@ -5,10 +5,14 @@ const request = require('supertest');
 jest.mock('../../models/User');
 
 const User = require('../../models/User');
-const ensureAuthenticated = require('../../middleware/ensureAuthenticated');
+const ensureAuthenticated = require(
+    '../../middleware/ensureAuthenticated'
+);
 const errorHandler = require('../../middleware/errorHandler');
 
 const originalJwtSecret = process.env.JWT_SECRET;
+
+const USER_ID = '507f1f77bcf86cd799439011';
 
 const createTestApp = () => {
     const app = express();
@@ -25,21 +29,42 @@ const createTestApp = () => {
     return app;
 };
 
-const createToken = (payload = { id: '507f1f77bcf86cd799439011' }) => (
-    jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '5m' })
+const createToken = (
+    payload = {
+        id: USER_ID,
+        tokenVersion: 0
+    }
+) => jwt.sign(
+    payload,
+    process.env.JWT_SECRET,
+    {
+        algorithm: 'HS256',
+        expiresIn: '5m'
+    }
 );
 
-const createUserQuery = user => ({
+const createUserQuery = (user) => ({
     select: jest.fn().mockResolvedValue(user)
+});
+
+const createUser = (overrides = {}) => ({
+    _id: USER_ID,
+    accountStatus: 'active',
+    tokenVersion: 0,
+    save: jest.fn().mockResolvedValue(undefined),
+    ...overrides
 });
 
 describe('ensureAuthenticated edge cases', () => {
     let app;
 
     beforeEach(() => {
-        process.env.JWT_SECRET = 'test-jwt-secret-for-authentication-tests';
+        process.env.JWT_SECRET =
+            'test-jwt-secret-for-authentication-tests';
+
+        jest.resetAllMocks();
+
         app = createTestApp();
-        jest.clearAllMocks();
     });
 
     afterAll(() => {
@@ -51,9 +76,13 @@ describe('ensureAuthenticated edge cases', () => {
     });
 
     test('rejects a missing authorization header', async () => {
-        const response = await request(app).get('/protected');
+        const response = await request(app)
+            .get('/protected');
 
         expect(response.status).toBe(401);
+        expect(response.body.message).toBe(
+            'Authorization token missing.'
+        );
         expect(User.findById).not.toHaveBeenCalled();
     });
 
@@ -63,6 +92,9 @@ describe('ensureAuthenticated edge cases', () => {
             .set('Authorization', 'Bearer   ');
 
         expect(response.status).toBe(401);
+        expect(response.body.message).toBe(
+            'Invalid authorization header format.'
+        );
         expect(User.findById).not.toHaveBeenCalled();
     });
 
@@ -80,18 +112,27 @@ describe('ensureAuthenticated edge cases', () => {
     });
 
     test('rejects a token whose decoded identity is not a string', async () => {
-        const token = createToken({ id: 123 });
+        const token = createToken({
+            id: 123,
+            tokenVersion: 0
+        });
 
         const response = await request(app)
             .get('/protected')
             .set('Authorization', `Bearer ${token}`);
 
         expect(response.status).toBe(401);
+        expect(response.body.message).toBe(
+            'Invalid authorization token.'
+        );
         expect(User.findById).not.toHaveBeenCalled();
     });
 
     test('rejects a token without an identity claim', async () => {
-        const token = createToken({ role: 'farmer' });
+        const token = createToken({
+            role: 'farmer',
+            tokenVersion: 0
+        });
 
         const response = await request(app)
             .get('/protected')
@@ -101,14 +142,116 @@ describe('ensureAuthenticated edge cases', () => {
         expect(User.findById).not.toHaveBeenCalled();
     });
 
-    test('rejects a suspended account with no suspension expiry', async () => {
+    test('rejects a token without tokenVersion', async () => {
+        const token = createToken({
+            id: USER_ID
+        });
+
+        const response = await request(app)
+            .get('/protected')
+            .set('Authorization', `Bearer ${token}`);
+
+        expect(response.status).toBe(401);
+        expect(response.body.message).toBe(
+            'Invalid authorization token.'
+        );
+        expect(User.findById).not.toHaveBeenCalled();
+    });
+
+    test.each([
+        ['negative', -1],
+        ['fractional', 1.5],
+        ['string', '0'],
+        ['null', null],
+        ['unsafe integer', Number.MAX_SAFE_INTEGER + 1]
+    ])(
+        'rejects a token with a %s tokenVersion',
+        async (_description, tokenVersion) => {
+            const token = createToken({
+                id: USER_ID,
+                tokenVersion
+            });
+
+            const response = await request(app)
+                .get('/protected')
+                .set('Authorization', `Bearer ${token}`);
+
+            expect(response.status).toBe(401);
+            expect(response.body.message).toBe(
+                'Invalid authorization token.'
+            );
+            expect(User.findById).not.toHaveBeenCalled();
+        }
+    );
+
+    test('rejects a revoked token version', async () => {
+        const user = createUser({
+            tokenVersion: 2
+        });
+
         User.findById.mockReturnValue(
-            createUserQuery({
-                _id: '507f1f77bcf86cd799439011',
-                accountStatus: 'suspended',
-                suspendedUntil: null,
-                save: jest.fn()
-            })
+            createUserQuery(user)
+        );
+
+        const response = await request(app)
+            .get('/protected')
+            .set('Authorization', `Bearer ${createToken()}`);
+
+        expect(response.status).toBe(401);
+        expect(response.body.message).toBe(
+            'Your session has expired. Please log in again.'
+        );
+    });
+
+    test('accepts an active account with a matching token version', async () => {
+        const user = createUser({
+            tokenVersion: 3
+        });
+
+        User.findById.mockReturnValue(
+            createUserQuery(user)
+        );
+
+        const token = createToken({
+            id: USER_ID,
+            tokenVersion: 3
+        });
+
+        const response = await request(app)
+            .get('/protected')
+            .set('Authorization', `Bearer ${token}`);
+
+        expect(response.status).toBe(200);
+        expect(response.body).toEqual({
+            success: true,
+            userId: USER_ID
+        });
+    });
+
+    test('supports legacy users without a stored tokenVersion when the token version is zero', async () => {
+        const user = createUser();
+
+        delete user.tokenVersion;
+
+        User.findById.mockReturnValue(
+            createUserQuery(user)
+        );
+
+        const response = await request(app)
+            .get('/protected')
+            .set('Authorization', `Bearer ${createToken()}`);
+
+        expect(response.status).toBe(200);
+    });
+
+    test('rejects a suspended account with no suspension expiry', async () => {
+        const user = createUser({
+            accountStatus: 'suspended',
+            suspendedUntil: null
+        });
+
+        User.findById.mockReturnValue(
+            createUserQuery(user)
         );
 
         const response = await request(app)
@@ -116,20 +259,26 @@ describe('ensureAuthenticated edge cases', () => {
             .set('Authorization', `Bearer ${createToken()}`);
 
         expect(response.status).toBe(403);
-        expect(User.findById).toHaveBeenCalledWith(
-            '507f1f77bcf86cd799439011'
+        expect(response.body.message).toBe(
+            'Your account has been suspended.'
         );
+
+        expect(User.findById).toHaveBeenCalledWith(
+            USER_ID
+        );
+
+        expect(user.save).not.toHaveBeenCalled();
     });
 
     test('rejects a suspended account whose suspension has not expired', async () => {
-        const user = {
-            _id: '507f1f77bcf86cd799439011',
+        const user = createUser({
             accountStatus: 'suspended',
-            suspendedUntil: new Date(Date.now() + 60_000),
-            save: jest.fn()
-        };
+            suspendedUntil: new Date(Date.now() + 60_000)
+        });
 
-        User.findById.mockReturnValue(createUserQuery(user));
+        User.findById.mockReturnValue(
+            createUserQuery(user)
+        );
 
         const response = await request(app)
             .get('/protected')
@@ -140,16 +289,16 @@ describe('ensureAuthenticated edge cases', () => {
     });
 
     test('reactivates an account whose suspension has expired', async () => {
-        const user = {
-            _id: '507f1f77bcf86cd799439011',
+        const user = createUser({
             accountStatus: 'suspended',
             suspensionReason: 'Temporary suspension',
             suspendedAt: new Date(Date.now() - 120_000),
-            suspendedUntil: new Date(Date.now() - 60_000),
-            save: jest.fn().mockResolvedValue(undefined)
-        };
+            suspendedUntil: new Date(Date.now() - 60_000)
+        });
 
-        User.findById.mockReturnValue(createUserQuery(user));
+        User.findById.mockReturnValue(
+            createUserQuery(user)
+        );
 
         const response = await request(app)
             .get('/protected')
@@ -166,7 +315,9 @@ describe('ensureAuthenticated edge cases', () => {
 
     test('returns an error if loading the user fails', async () => {
         User.findById.mockReturnValue({
-            select: jest.fn().mockRejectedValue(new Error('Database unavailable'))
+            select: jest.fn().mockRejectedValue(
+                new Error('Database unavailable')
+            )
         });
 
         const response = await request(app)
@@ -177,14 +328,17 @@ describe('ensureAuthenticated edge cases', () => {
     });
 
     test('returns an error if saving an expired suspension fails', async () => {
-        const user = {
-            _id: '507f1f77bcf86cd799439011',
+        const user = createUser({
             accountStatus: 'suspended',
             suspendedUntil: new Date(Date.now() - 60_000),
-            save: jest.fn().mockRejectedValue(new Error('Save failed'))
-        };
+            save: jest.fn().mockRejectedValue(
+                new Error('Save failed')
+            )
+        });
 
-        User.findById.mockReturnValue(createUserQuery(user));
+        User.findById.mockReturnValue(
+            createUserQuery(user)
+        );
 
         const response = await request(app)
             .get('/protected')
