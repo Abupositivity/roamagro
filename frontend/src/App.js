@@ -29,6 +29,9 @@ import Connections from './components/connections/Connections';
 import AdminReports from './pages/AdminReports';
 import Subscription from './pages/Subscription';
 import PaymentResult from './pages/PaymentResult';
+import AdminAdvertisements from "./pages/AdminAdvertisements";
+import AdvertiserReport from './pages/AdvertiserReport';
+import AdminAdvertisingGuide from "./pages/AdminAdvertisingGuide";
 
 import Login from './components/auth/Login';
 import Register from './components/auth/Register';
@@ -248,6 +251,28 @@ const AppContent = () => {
                 />
 
                 <Route
+                    path="/admin/advertisements"
+                    element={
+                        <RoleRoute roles={['admin']}>
+                            <PageLayout>
+                                <AdminAdvertisements />
+                            </PageLayout>
+                        </RoleRoute>
+                    }
+                />
+
+                <Route
+                    path="/admin/advertising-guide"
+                    element={
+                        <RoleRoute roles={["admin"]}>
+                            <PageLayout>
+                                <AdminAdvertisingGuide />
+                            </PageLayout>
+                        </RoleRoute>
+                    }
+                />
+
+                <Route
                     path="/extension/dashboard"
                     element={
                         <RoleRoute roles={['extension_officer']}>
@@ -386,6 +411,11 @@ const AppContent = () => {
                             replace
                         />
                     }
+                />
+                
+                <Route
+                    path="/ads/report/:token"
+                    element={<AdvertiserReport />}
                 />
 
                 <Route

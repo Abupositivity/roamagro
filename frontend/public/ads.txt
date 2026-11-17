@@ -1,0 +1,2 @@
+# Google AdSense publisher record
+google.com, pub-1775340630911262, DIRECT, f08c47fec0942fa0

@@ -33,7 +33,8 @@ import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import RefreshIcon from '@mui/icons-material/Refresh';
-
+import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined';
+import MenuBookOutlinedIcon from '@mui/icons-material/MenuBookOutlined';
 import { useDispatch, useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -47,6 +48,7 @@ import MarketplacePreview from '../components/dashboard/MarketplacePreview';
 import PriceTicker from '../components/dashboard/PriceTicker';
 import AgriFeed from '../components/community/AgriFeed';
 import ExtensionTipForm from '../components/community/ExtensionTipForm';
+import AdPlacement from "../components/advertising/AdPlacement";
 
 import {
     refreshDashboard,
@@ -682,6 +684,7 @@ const AdminDashboard = () => {
                 <QuickActions />
                 <RecentProjects />
                 <MarketplacePreview />
+                <AdPlacement placement="dashboard" />
                 <PriceTicker />
 
                 <Box>
@@ -880,6 +883,126 @@ const AdminDashboard = () => {
                             >
                                 {t('Manage Reports')}
                             </Button>
+                        </Stack>
+                    </CardContent>
+                </Card>
+
+                <Card
+                    elevation={2}
+                    sx={{
+                        borderRadius: 3,
+                        borderLeft: '5px solid',
+                        borderColor: 'primary.main',
+                    }}
+                >
+                    <CardContent>
+                        <Stack
+                            direction={{
+                                xs: 'column',
+                                md: 'row',
+                            }}
+                            spacing={2}
+                            justifyContent="space-between"
+                            alignItems={{
+                                xs: 'stretch',
+                                md: 'center',
+                            }}
+                        >
+                            <Stack
+                                direction="row"
+                                spacing={2}
+                                alignItems="center"
+                                sx={{
+                                    minWidth: 0,
+                                    flex: 1,
+                                }}
+                            >
+                                <Box
+                                    sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        width: 48,
+                                        height: 48,
+                                        borderRadius: 2,
+                                        bgcolor: 'primary.main',
+                                        color: 'white',
+                                        flexShrink: 0,
+                                    }}
+                                >
+                                    <CampaignOutlinedIcon />
+                                </Box>
+
+                                <Box sx={{ minWidth: 0 }}>
+                                    <Typography
+                                        variant="h6"
+                                        fontWeight={800}
+                                    >
+                                        {t('Advertisement Management')}
+                                    </Typography>
+
+                                    <Typography
+                                        variant="body2"
+                                        color="text.secondary"
+                                        sx={{ mt: 0.25 }}
+                                    >
+                                        {t(
+                                            'Create and manage agricultural advertisements, campaign schedules, and engagement.'
+                                        )}
+                                    </Typography>
+                                </Box>
+                            </Stack>
+
+                            <Stack
+                                direction="column"
+                                spacing={1}
+                                sx={{
+                                    flexShrink: 0,
+                                    width: {
+                                        xs: '100%',
+                                        md: 'auto',
+                                    },
+                                    minWidth: {
+                                        md: 220,
+                                    },
+                                }}
+                            >
+                                <Button
+                                    fullWidth
+                                    variant="contained"
+                                    endIcon={
+                                        <ArrowForwardIosIcon
+                                            sx={{
+                                                fontSize: '12px!important',
+                                            }}
+                                        />
+                                    }
+                                    onClick={() =>
+                                        navigate('/admin/advertisements')
+                                    }
+                                    sx={{
+                                        borderRadius: 2.5,
+                                    }}
+                                >
+                                    {t('Manage Advertisements')}
+                                </Button>
+
+                                <Button
+                                    fullWidth
+                                    variant="outlined"
+                                    startIcon={
+                                        <MenuBookOutlinedIcon />
+                                    }
+                                    onClick={() =>
+                                        navigate('/admin/advertising-guide')
+                                    }
+                                    sx={{
+                                        borderRadius: 2.5,
+                                    }}
+                                >
+                                    {t('Advertising Guide')}
+                                </Button>
+                            </Stack>
                         </Stack>
                     </CardContent>
                 </Card>

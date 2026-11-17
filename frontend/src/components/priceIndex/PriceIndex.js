@@ -42,6 +42,7 @@ import MarketComparison from './MarketComparison';
 import PriceAlertForm from './PriceAlertForm';
 import PriceAlertList from './PriceAlertList';
 import PriceInsights from './PriceInsights';
+import ExternalAdPlacement from '../../components/advertising/ExternalAdPlacement';
 
 const PRICE_PAGE_SIZE = 12;
 
@@ -441,6 +442,11 @@ const PriceIndex = () => {
                     prices={filteredPrices}
                 />
             </Box>
+
+            <Box my={3}>
+                <ExternalAdPlacement placement="price-index" />
+            </Box>
+
 
             <Box my={3}>
                 <PriceSearchBar

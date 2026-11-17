@@ -29,6 +29,7 @@ const userRoutes = require('./routes/userRoutes');
 const connectionRoutes = require('./routes/connectionRoutes');
 const subscriptionRoutes = require('./routes/subscriptionRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
+const advertisementRoutes = require('./routes/advertisementRoutes');
 
 const {handlePaystackWebhook,} = require('./controllers/paymentController');
 
@@ -211,6 +212,7 @@ const createApp = ({ sessionStore } = {}) => {
     app.use('/api/v1/connections', connectionRoutes);
     app.use('/api/v1/subscription', subscriptionRoutes);
     app.use('/api/v1/payments', paymentRoutes);
+    app.use('/api/v1/advertisements', advertisementRoutes);
 
     app.get('/', (req, res) => {
         res.json({
