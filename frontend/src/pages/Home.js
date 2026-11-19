@@ -9,6 +9,7 @@ import {
     Stack,
     Typography,
 } from '@mui/material';
+
 import {
     Agriculture,
     Store,
@@ -18,9 +19,13 @@ import {
     AccountBalance,
     TrendingUp,
 } from '@mui/icons-material';
+
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+
 import logo from '../assets/images/logo.gif';
+
+import InstallAppButton from '../components/pwa/InstallAppButton';
 
 const Home = () => {
     const { t } = useTranslation();
@@ -181,7 +186,13 @@ const Home = () => {
                                 sm: 'row',
                             }}
                             justifyContent="center"
+                            alignItems={{
+                                xs: 'stretch',
+                                sm: 'center',
+                            }}
                             spacing={2}
+                            useFlexGap
+                            flexWrap="wrap"
                             sx={{ mt: 4 }}
                         >
                             <Button
@@ -209,6 +220,15 @@ const Home = () => {
                             >
                                 {t('Login')}
                             </Button>
+
+                            <InstallAppButton
+                                variant="outlined"
+                                size="large"
+                                sx={{
+                                    minWidth: 180,
+                                    py: 1.4,
+                                }}
+                            />
                         </Stack>
                     </Box>
 
@@ -242,7 +262,11 @@ const Home = () => {
                                     item
                                     xs={12}
                                     sm={6}
-                                    md={feature.title === t('Community') ? 12 : 6}
+                                    md={
+                                        feature.title === t('Community')
+                                            ? 12
+                                            : 6
+                                    }
                                     key={feature.title}
                                 >
                                     <Card

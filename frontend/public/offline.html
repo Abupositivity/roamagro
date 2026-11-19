@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1"
+    />
+
+    <meta name="theme-color" content="#00BF63" />
+    <meta name="robots" content="noindex, nofollow" />
+
+    <title>RoamAgro - Offline</title>
+
+    <link
+      rel="icon"
+      href="/icons/roamagro-192.png"
+    />
+
+    <style>
+      :root {
+        color-scheme: light dark;
+        --primary: #00BF63;
+        --background: #f5f7f6;
+        --surface: #ffffff;
+        --text: #17211c;
+        --muted: #607066;
+        --border: #e0e7e3;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        min-height: 100dvh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        font-family: Arial, Helvetica, sans-serif;
+        background: var(--background);
+        color: var(--text);
+      }
+
+      .card {
+        width: 100%;
+        max-width: 440px;
+        padding: 32px 24px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        text-align: center;
+      }
+
+      .logo {
+        width: 80px;
+        height: 80px;
+        object-fit: contain;
+        margin-bottom: 12px;
+      }
+
+      .brand {
+        margin: 0;
+        color: var(--primary);
+        font-size: 26px;
+        font-weight: 700;
+      }
+
+      .tagline {
+        margin: 8px 0 28px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .offline-icon {
+        width: 64px;
+        height: 64px;
+        margin: 0 auto 16px;
+        color: var(--muted);
+      }
+
+      h1 {
+        font-size: 23px;
+        margin: 0 0 12px;
+      }
+
+      h2 {
+        font-size: 18px;
+        margin: 20px 0 8px;
+      }
+
+      p {
+        font-size: 15px;
+        line-height: 1.6;
+        margin: 0 0 12px;
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+
+      .language-divider {
+        border: 0;
+        border-top: 1px solid var(--border);
+        margin: 22px 0;
+      }
+
+      .retry-button {
+        display: block;
+        width: 100%;
+        margin-top: 24px;
+        padding: 14px 20px;
+        background: var(--primary);
+        border-radius: 10px;
+        color: #071b10;
+        text-decoration: none;
+        font-size: 15px;
+        font-weight: 700;
+      }
+
+      .retry-button:hover {
+        background: #00a957;
+      }
+
+      .retry-button:focus-visible {
+        outline: 3px solid var(--primary);
+        outline-offset: 4px;
+      }
+
+      .footer {
+        margin-top: 22px;
+        margin-bottom: 0;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --background: #101512;
+          --surface: #19211c;
+          --text: #f0f5f2;
+          --muted: #a4b4aa;
+          --border: #344339;
+        }
+      }
+
+      @media (max-width: 360px) {
+        body {
+          padding: 12px;
+        }
+
+        .card {
+          padding: 24px 16px;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <main class="card">
+      <img
+        class="logo"
+        src="/icons/roamagro-192.png"
+        alt="RoamAgro logo"
+        width="80"
+        height="80"
+      />
+
+      <p class="brand">RoamAgro</p>
+
+      <p class="tagline">
+        Your Agribusiness Companion
+      </p>
+
+      <svg
+        class="offline-icon"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.7"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M2 8.82a15 15 0 0 1 20 0" />
+        <path d="M5 12.86a10 10 0 0 1 14 0" />
+        <path d="M8.53 16.42a5 5 0 0 1 6.94 0" />
+        <path d="M12 20h.01" />
+        <path d="M3 3l18 18" />
+      </svg>
+
+      <section lang="en">
+        <h1>You are offline</h1>
+
+        <p>
+          RoamAgro cannot connect to the internet
+          right now.
+        </p>
+
+        <p class="muted">
+          Please check your internet connection
+          and try again.
+        </p>
+      </section>
+
+      <hr class="language-divider" />
+
+      <section lang="ha">
+        <h2>Babu haɗin intanet</h2>
+
+        <p>
+          RoamAgro ba ta iya haɗuwa da intanet
+          a yanzu.
+        </p>
+
+        <p class="muted">
+          Da fatan za ka duba haɗin intanet
+          sannan ka sake gwadawa.
+        </p>
+      </section>
+
+      <a class="retry-button" href="/">
+        Try Again / Sake Gwadawa
+      </a>
+
+      <p class="footer">
+        RoamAgro — Your Agribusiness Companion
+      </p>
+    </main>
+  </body>
+</html>

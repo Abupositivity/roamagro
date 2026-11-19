@@ -33,6 +33,8 @@ import AdminAdvertisements from "./pages/AdminAdvertisements";
 import AdvertiserReport from './pages/AdvertiserReport';
 import AdminAdvertisingGuide from "./pages/AdminAdvertisingGuide";
 
+import { PWAInstallDialogHost } from './components/pwa/InstallAppDialog';
+
 import Login from './components/auth/Login';
 import Register from './components/auth/Register';
 import ForgotPassword from './components/auth/ForgotPassword';
@@ -175,6 +177,8 @@ const AppContent = () => {
             <CssBaseline />
 
             <ConnectivityNotice />
+
+             <PWAInstallDialogHost />
 
             {showSwitchers && (
                 <Box

@@ -1069,7 +1069,36 @@ const resources = {
             "Negotiable": "Ta Tattaunawa",
             "Flexible": "Mai Sassauci",
             "7 days": "Kwanaki 7",
-            "30 days": "Kwanaki 30"
+            "30 days": "Kwanaki 30",
+
+            // PWA installation
+            "Install RoamAgro": "Sanya RoamAgro",
+            "Installing...": "Ana sanyawa...",
+            "Install RoamAgro on your device for quick and easy access without opening your browser each time.": "Sanya RoamAgro a na'urarka domin samun damar amfani da shi cikin sauƙi da sauri ba tare da buɗe burauza a kowane lokaci ba.",
+            "The installation prompt could not be opened. Please follow the instructions below.": "Ba a iya buɗe taga ta sanya manhajar ba. Da fatan ka bi umarnin da ke ƙasa.",
+
+            // iPhone and iPad installation
+            "Open RoamAgro in Safari.": "Buɗe RoamAgro a cikin Safari.",
+            "Tap the Share button.": "Danna maɓallin Share (Raba).",
+            "Select Add to Home Screen.": "Zaɓi Add to Home Screen (Ƙara zuwa Fuskar Farko).",
+            "Tap Add to complete the installation.": "Danna Add (Ƙara) domin kammala sanya manhajar.",
+            "If Open as Web App is available, make sure it is enabled.": "Idan akwai zaɓin Open as Web App, tabbatar an kunna shi.",
+
+            // Android installation
+            "Open RoamAgro in Chrome or another supported browser.": "Buɗe RoamAgro a cikin Chrome ko wata burauza da ke tallafawa sanya manhaja.",
+            "Open the browser menu.": "Buɗe jerin zaɓuɓɓukan burauza.",
+            "Select Install app or Add to Home screen.": "Zaɓi Install app (Sanya Manhaja) ko Add to Home screen (Ƙara zuwa Fuskar Farko).",
+            "Follow the instructions to complete the installation.": "Bi umarnin domin kammala sanya manhajar.",
+
+            // Desktop installation
+            "Open RoamAgro in Chrome or Microsoft Edge.": "Buɗe RoamAgro a cikin Chrome ko Microsoft Edge.",
+            "Look for the install icon in the address bar or open the browser menu.": "Nemo alamar sanya manhaja a sandar adireshi ko ka buɗe jerin zaɓuɓɓukan burauza.",
+            "Select the option to install RoamAgro.": "Zaɓi hanyar sanya RoamAgro.",
+
+            // Browser compatibility and connectivity
+            "Your browser may not support app installation. You can continue using RoamAgro in your browser.": "Mai yiwuwa burauzarka ba ta tallafawa sanya manhaja. Za ka iya ci gaba da amfani da RoamAgro a cikin burauzarka.",
+            "If the installation option is unavailable, you can continue using RoamAgro in your browser.": "Idan babu zaɓin sanya manhajar, za ka iya ci gaba da amfani da RoamAgro a cikin burauzarka.",
+            "An internet connection is required to access live information and manage your records.": "Ana buƙatar haɗin intanet domin samun sabbin bayanai da gudanar da bayananka."
         }
     }
 };

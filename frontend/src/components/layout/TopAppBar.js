@@ -29,6 +29,7 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import LogoutIcon from "@mui/icons-material/Logout";
 import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 import WorkspacePremiumOutlinedIcon from "@mui/icons-material/WorkspacePremiumOutlined";
+import InstallMobileOutlinedIcon from "@mui/icons-material/InstallMobileOutlined";
 
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -37,12 +38,20 @@ import { useDispatch, useSelector } from "react-redux";
 import { logout } from "../../redux/actions/authActions";
 import { fetchUnreadCount } from "../../redux/actions/notificationActions";
 
+import { usePWAInstall } from "../../context/PWAInstallContext";
+
 const POLL_INTERVAL = 60 * 1000;
 
 const TopAppBar = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const dispatch = useDispatch();
+
+    const {
+        showInstallOption,
+        isInstalling,
+        requestInstall
+    } = usePWAInstall();
 
     const [anchorEl, setAnchorEl] = useState(null);
     const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
@@ -183,6 +192,14 @@ const TopAppBar = () => {
     const handleNavigate = (path) => {
         handleClose();
         navigate(path);
+    };
+
+    const handleInstall = () => {
+        handleClose();
+
+        // Keep the installation request within the
+        // user's original click interaction.
+        requestInstall();
     };
 
     return (
@@ -356,6 +373,22 @@ const TopAppBar = () => {
                             />
                             {t("Settings")}
                         </MenuItem>
+
+                        {showInstallOption && (
+                            <MenuItem
+                                onClick={handleInstall}
+                                disabled={isInstalling}
+                            >
+                                <InstallMobileOutlinedIcon
+                                    fontSize="small"
+                                    sx={{ mr: 1 }}
+                                />
+
+                                {isInstalling
+                                    ? t("Installing...")
+                                    : t("Install RoamAgro")}
+                            </MenuItem>
+                        )}
 
                         <MenuItem onClick={handleLogoutOpen}>
                             <LogoutIcon
