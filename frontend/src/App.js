@@ -1,4 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, {
+    useState,
+    useEffect,
+    lazy,
+    Suspense,
+} from 'react';
+
 import {
     Routes,
     Route,
@@ -18,47 +24,127 @@ import {
 import store from './redux/store';
 import './styles/theme';
 
+// Essential components loaded immediately.
 import Home from './pages/Home';
-import Dashboard from './pages/Dashboard';
-import AdminDashboard from './pages/AdminDashboard';
-import ExtensionDashboard from './pages/ExtensionDashboard';
-import Settings from './pages/Settings';
-import Notifications from './pages/Notifications';
-import Profile from './pages/Profile';
-import Connections from './components/connections/Connections';
-import AdminReports from './pages/AdminReports';
-import Subscription from './pages/Subscription';
-import PaymentResult from './pages/PaymentResult';
-import AdminAdvertisements from "./pages/AdminAdvertisements";
-import AdvertiserReport from './pages/AdvertiserReport';
-import AdminAdvertisingGuide from "./pages/AdminAdvertisingGuide";
-
-import { PWAInstallDialogHost } from './components/pwa/InstallAppDialog';
-
-import Login from './components/auth/Login';
-import Register from './components/auth/Register';
-import ForgotPassword from './components/auth/ForgotPassword';
-import ResetPassword from './components/auth/ResetPassword';
-import VerifyEmail from './components/auth/VerifyEmail';
-
-import Marketplace from './components/marketplace/Marketplace';
-import PriceIndex from './components/priceIndex/PriceIndex';
-import Community from './components/community/Community';
-import FarmProject from './components/farmProjects/FarmProject';
-import FinancialDashboard from './components/financial/FinancialDashboard';
 
 import PageLayout from './components/layout/PageLayout';
 import ConnectivityNotice from './components/layout/ConnectivityNotice';
+import PageLoader from './components/layout/PageLoader';
+import RouteErrorBoundary from './components/layout/RouteErrorBoundary';
 
 import ThemeSwitcher from './components/ThemeSwitcher';
 import LanguageSwitcher from './components/LanguageSwitcher';
+
+import {
+    PWAInstallDialogHost,
+} from './components/pwa/InstallAppDialog';
+
+// Authentication pages.
+const Login = lazy(
+    () => import('./components/auth/Login')
+);
+
+const Register = lazy(
+    () => import('./components/auth/Register')
+);
+
+const ForgotPassword = lazy(
+    () => import('./components/auth/ForgotPassword')
+);
+
+const ResetPassword = lazy(
+    () => import('./components/auth/ResetPassword')
+);
+
+const VerifyEmail = lazy(
+    () => import('./components/auth/VerifyEmail')
+);
+
+// Dashboard pages.
+const Dashboard = lazy(
+    () => import('./pages/Dashboard')
+);
+
+const AdminDashboard = lazy(
+    () => import('./pages/AdminDashboard')
+);
+
+const ExtensionDashboard = lazy(
+    () => import('./pages/ExtensionDashboard')
+);
+
+// User management pages.
+const Settings = lazy(
+    () => import('./pages/Settings')
+);
+
+const Notifications = lazy(
+    () => import('./pages/Notifications')
+);
+
+const Profile = lazy(
+    () => import('./pages/Profile')
+);
+
+const Connections = lazy(
+    () => import('./components/connections/Connections')
+);
+
+// Core application features.
+const Marketplace = lazy(
+    () => import('./components/marketplace/Marketplace')
+);
+
+const PriceIndex = lazy(
+    () => import('./components/priceIndex/PriceIndex')
+);
+
+const Community = lazy(
+    () => import('./components/community/Community')
+);
+
+const FarmProject = lazy(
+    () => import('./components/farmProjects/FarmProject')
+);
+
+const FinancialDashboard = lazy(
+    () => import('./components/financial/FinancialDashboard')
+);
+
+// Subscription and payment pages.
+const Subscription = lazy(
+    () => import('./pages/Subscription')
+);
+
+const PaymentResult = lazy(
+    () => import('./pages/PaymentResult')
+);
+
+// Administration and advertising pages.
+const AdminReports = lazy(
+    () => import('./pages/AdminReports')
+);
+
+const AdminAdvertisements = lazy(
+    () => import('./pages/AdminAdvertisements')
+);
+
+const AdvertiserReport = lazy(
+    () => import('./pages/AdvertiserReport')
+);
+
+const AdminAdvertisingGuide = lazy(
+    () => import('./pages/AdminAdvertisingGuide')
+);
 
 const getDashboardPath = (role) => {
     switch (role) {
         case 'admin':
             return '/admin/dashboard';
+
         case 'extension_officer':
             return '/extension/dashboard';
+
         case 'farmer':
         case 'buyer':
         default:
@@ -127,6 +213,7 @@ const UserDashboardRoute = () => {
 
 const AppContent = () => {
     const location = useLocation();
+
     const [darkMode, setDarkMode] = useState(false);
 
     useEffect(() => {
@@ -146,18 +233,22 @@ const AppContent = () => {
     const theme = createTheme({
         palette: {
             mode: darkMode ? 'dark' : 'light',
+
             primary: {
                 main: '#00BF63',
             },
+
             background: {
                 default: darkMode
                     ? '#121212'
                     : '#F8F9FA',
             },
         },
+
         shape: {
             borderRadius: 12,
         },
+
         typography: {
             fontFamily: 'Roboto, sans-serif',
         },
@@ -178,7 +269,7 @@ const AppContent = () => {
 
             <ConnectivityNotice />
 
-             <PWAInstallDialogHost />
+            <PWAInstallDialogHost />
 
             {showSwitchers && (
                 <Box
@@ -194,244 +285,251 @@ const AppContent = () => {
                         darkMode={darkMode}
                         setDarkMode={setDarkMode}
                     />
+
                     <LanguageSwitcher />
                 </Box>
             )}
 
-            <Routes>
-                <Route
-                    path="/"
-                    element={<Home />}
-                />
-
-                <Route
-                    path="/login"
-                    element={<Login />}
-                />
-
-                <Route
-                    path="/register"
-                    element={<Register />}
-                />
-
-                <Route
-                    path="/forgot-password"
-                    element={<ForgotPassword />}
-                />
-
-                <Route
-                    path="/reset-password"
-                    element={<ResetPassword />}
-                />
-
-                <Route
-                    path="/verify-email"
-                    element={<VerifyEmail />}
-                />
-
-                <Route
-                    path="/dashboard"
-                    element={<UserDashboardRoute />}
-                />
-
-                <Route
-                    path="/admin/dashboard"
-                    element={
-                        <RoleRoute roles={['admin']}>
-                            <AdminDashboard />
-                        </RoleRoute>
-                    }
-                />
-
-                <Route
-                    path="/admin/reports"
-                    element={
-                        <RoleRoute roles={['admin']}>
-                            <PageLayout>
-                                <AdminReports />
-                            </PageLayout>
-                        </RoleRoute>
-                    }
-                />
-
-                <Route
-                    path="/admin/advertisements"
-                    element={
-                        <RoleRoute roles={['admin']}>
-                            <PageLayout>
-                                <AdminAdvertisements />
-                            </PageLayout>
-                        </RoleRoute>
-                    }
-                />
-
-                <Route
-                    path="/admin/advertising-guide"
-                    element={
-                        <RoleRoute roles={["admin"]}>
-                            <PageLayout>
-                                <AdminAdvertisingGuide />
-                            </PageLayout>
-                        </RoleRoute>
-                    }
-                />
-
-                <Route
-                    path="/extension/dashboard"
-                    element={
-                        <RoleRoute roles={['extension_officer']}>
-                            <ExtensionDashboard />
-                        </RoleRoute>
-                    }
-                />
-
-                <Route
-                    path="/farm-projects"
-                    element={
-                        <ProtectedRoute>
-                            <PageLayout>
-                                <FarmProject />
-                            </PageLayout>
-                        </ProtectedRoute>
-                    }
-                />
-
-                <Route
-                    path="/financial"
-                    element={
-                        <ProtectedRoute>
-                            <PageLayout>
-                                <FinancialDashboard />
-                            </PageLayout>
-                        </ProtectedRoute>
-                    }
-                />
-
-                <Route
-                    path="/marketplace"
-                    element={
-                        <ProtectedRoute>
-                            <PageLayout>
-                                <Marketplace />
-                            </PageLayout>
-                        </ProtectedRoute>
-                    }
-                />
-
-                <Route
-                    path="/price-index"
-                    element={
-                        <ProtectedRoute>
-                            <PageLayout>
-                                <PriceIndex />
-                            </PageLayout>
-                        </ProtectedRoute>
-                    }
-                />
-
-                <Route
-                    path="/community"
-                    element={
-                        <ProtectedRoute>
-                            <PageLayout>
-                                <Community />
-                            </PageLayout>
-                        </ProtectedRoute>
-                    }
-                />
-
-                <Route
-                    path="/settings"
-                    element={
-                        <ProtectedRoute>
-                            <Settings
-                                darkMode={darkMode}
-                                setDarkMode={setDarkMode}
-                            />
-                        </ProtectedRoute>
-                    }
-                />
-
-                <Route
-                    path="/notifications"
-                    element={
-                        <ProtectedRoute>
-                            <PageLayout>
-                                <Notifications />
-                            </PageLayout>
-                        </ProtectedRoute>
-                    }
-                />
-
-                <Route
-                    path="/profile"
-                    element={
-                        <ProtectedRoute>
-                            <PageLayout>
-                                <Profile />
-                            </PageLayout>
-                        </ProtectedRoute>
-                    }
-                />
-
-                <Route
-                    path="/connections"
-                    element={
-                        <ProtectedRoute>
-                            <PageLayout>
-                                <Connections />
-                            </PageLayout>
-                        </ProtectedRoute>
-                    }
-                />
-
-                <Route
-                    path="/subscription"
-                    element={
-                        <ProtectedRoute>
-                            <PageLayout>
-                                <Subscription />
-                            </PageLayout>
-                        </ProtectedRoute>
-                    }
-                />
-
-                <Route
-                    path="/payment-result"
-                    element={
-                        <ProtectedRoute>
-                            <PageLayout>
-                                <PaymentResult />
-                            </PageLayout>
-                        </ProtectedRoute>
-                    }
-                />
-
-                <Route
-                    path="/auth/google/callback"
-                    element={
-                        <Navigate
-                            to="/dashboard"
-                            replace
+            <RouteErrorBoundary key={location.pathname}>
+                <Suspense fallback={<PageLoader />}>
+                    <Routes>
+                        <Route
+                            path="/"
+                            element={<Home />}
                         />
-                    }
-                />
-                
-                <Route
-                    path="/ads/report/:token"
-                    element={<AdvertiserReport />}
-                />
 
-                <Route
-                    path="*"
-                    element={
-                        <Navigate
-                            to="/"
-                            replace
+                        <Route
+                            path="/login"
+                            element={<Login />}
                         />
-                    }
-                />
-            </Routes>
+
+                        <Route
+                            path="/register"
+                            element={<Register />}
+                        />
+
+                        <Route
+                            path="/forgot-password"
+                            element={<ForgotPassword />}
+                        />
+
+                        <Route
+                            path="/reset-password"
+                            element={<ResetPassword />}
+                        />
+
+                        <Route
+                            path="/verify-email"
+                            element={<VerifyEmail />}
+                        />
+
+                        <Route
+                            path="/dashboard"
+                            element={<UserDashboardRoute />}
+                        />
+
+                        <Route
+                            path="/admin/dashboard"
+                            element={
+                                <RoleRoute roles={['admin']}>
+                                    <AdminDashboard />
+                                </RoleRoute>
+                            }
+                        />
+
+                        <Route
+                            path="/admin/reports"
+                            element={
+                                <RoleRoute roles={['admin']}>
+                                    <PageLayout>
+                                        <AdminReports />
+                                    </PageLayout>
+                                </RoleRoute>
+                            }
+                        />
+
+                        <Route
+                            path="/admin/advertisements"
+                            element={
+                                <RoleRoute roles={['admin']}>
+                                    <PageLayout>
+                                        <AdminAdvertisements />
+                                    </PageLayout>
+                                </RoleRoute>
+                            }
+                        />
+
+                        <Route
+                            path="/admin/advertising-guide"
+                            element={
+                                <RoleRoute roles={['admin']}>
+                                    <PageLayout>
+                                        <AdminAdvertisingGuide />
+                                    </PageLayout>
+                                </RoleRoute>
+                            }
+                        />
+
+                        <Route
+                            path="/extension/dashboard"
+                            element={
+                                <RoleRoute
+                                    roles={['extension_officer']}
+                                >
+                                    <ExtensionDashboard />
+                                </RoleRoute>
+                            }
+                        />
+
+                        <Route
+                            path="/farm-projects"
+                            element={
+                                <ProtectedRoute>
+                                    <PageLayout>
+                                        <FarmProject />
+                                    </PageLayout>
+                                </ProtectedRoute>
+                            }
+                        />
+
+                        <Route
+                            path="/financial"
+                            element={
+                                <ProtectedRoute>
+                                    <PageLayout>
+                                        <FinancialDashboard />
+                                    </PageLayout>
+                                </ProtectedRoute>
+                            }
+                        />
+
+                        <Route
+                            path="/marketplace"
+                            element={
+                                <ProtectedRoute>
+                                    <PageLayout>
+                                        <Marketplace />
+                                    </PageLayout>
+                                </ProtectedRoute>
+                            }
+                        />
+
+                        <Route
+                            path="/price-index"
+                            element={
+                                <ProtectedRoute>
+                                    <PageLayout>
+                                        <PriceIndex />
+                                    </PageLayout>
+                                </ProtectedRoute>
+                            }
+                        />
+
+                        <Route
+                            path="/community"
+                            element={
+                                <ProtectedRoute>
+                                    <PageLayout>
+                                        <Community />
+                                    </PageLayout>
+                                </ProtectedRoute>
+                            }
+                        />
+
+                        <Route
+                            path="/settings"
+                            element={
+                                <ProtectedRoute>
+                                    <Settings
+                                        darkMode={darkMode}
+                                        setDarkMode={setDarkMode}
+                                    />
+                                </ProtectedRoute>
+                            }
+                        />
+
+                        <Route
+                            path="/notifications"
+                            element={
+                                <ProtectedRoute>
+                                    <PageLayout>
+                                        <Notifications />
+                                    </PageLayout>
+                                </ProtectedRoute>
+                            }
+                        />
+
+                        <Route
+                            path="/profile"
+                            element={
+                                <ProtectedRoute>
+                                    <PageLayout>
+                                        <Profile />
+                                    </PageLayout>
+                                </ProtectedRoute>
+                            }
+                        />
+
+                        <Route
+                            path="/connections"
+                            element={
+                                <ProtectedRoute>
+                                    <PageLayout>
+                                        <Connections />
+                                    </PageLayout>
+                                </ProtectedRoute>
+                            }
+                        />
+
+                        <Route
+                            path="/subscription"
+                            element={
+                                <ProtectedRoute>
+                                    <PageLayout>
+                                        <Subscription />
+                                    </PageLayout>
+                                </ProtectedRoute>
+                            }
+                        />
+
+                        <Route
+                            path="/payment-result"
+                            element={
+                                <ProtectedRoute>
+                                    <PageLayout>
+                                        <PaymentResult />
+                                    </PageLayout>
+                                </ProtectedRoute>
+                            }
+                        />
+
+                        <Route
+                            path="/auth/google/callback"
+                            element={
+                                <Navigate
+                                    to="/dashboard"
+                                    replace
+                                />
+                            }
+                        />
+
+                        <Route
+                            path="/ads/report/:token"
+                            element={<AdvertiserReport />}
+                        />
+
+                        <Route
+                            path="*"
+                            element={
+                                <Navigate
+                                    to="/"
+                                    replace
+                                />
+                            }
+                        />
+                    </Routes>
+                </Suspense>
+            </RouteErrorBoundary>
         </ThemeProvider>
     );
 };

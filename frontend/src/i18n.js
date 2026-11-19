@@ -1098,7 +1098,11 @@ const resources = {
             // Browser compatibility and connectivity
             "Your browser may not support app installation. You can continue using RoamAgro in your browser.": "Mai yiwuwa burauzarka ba ta tallafawa sanya manhaja. Za ka iya ci gaba da amfani da RoamAgro a cikin burauzarka.",
             "If the installation option is unavailable, you can continue using RoamAgro in your browser.": "Idan babu zaɓin sanya manhajar, za ka iya ci gaba da amfani da RoamAgro a cikin burauzarka.",
-            "An internet connection is required to access live information and manage your records.": "Ana buƙatar haɗin intanet domin samun sabbin bayanai da gudanar da bayananka."
+            "An internet connection is required to access live information and manage your records.": "Ana buƙatar haɗin intanet domin samun sabbin bayanai da gudanar da bayananka.",
+
+            "Loading page..." : "Ana loda shafi...",
+            "Unable to load this page." : "Ba a iya loda wannan shafin ba.",
+            "Please check your internet connection and try again." : "Da fatan ka duba haɗin intanet ɗinka sannan ka sake gwadawa."
         }
     }
 };
