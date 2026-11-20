@@ -40,7 +40,10 @@ import { fetchUnreadCount } from "../../redux/actions/notificationActions";
 
 import { usePWAInstall } from "../../context/PWAInstallContext";
 
+import { getAvatarImage } from "../../utils/cloudinaryImage";
+
 const POLL_INTERVAL = 60 * 1000;
+const NAVIGATION_AVATAR_SIZE = 120;
 
 const TopAppBar = () => {
     const { t } = useTranslation();
@@ -71,6 +74,11 @@ const TopAppBar = () => {
         user?.id ||
         user?.email ||
         (user ? "authenticated" : null);
+
+    const optimizedProfilePhoto = getAvatarImage(
+        user?.profilePhoto,
+        NAVIGATION_AVATAR_SIZE
+    );
 
     const open = Boolean(anchorEl);
 
@@ -289,7 +297,13 @@ const TopAppBar = () => {
                             }}
                         >
                             <Avatar
-                                src={user?.profilePhoto || undefined}
+                                src={optimizedProfilePhoto || undefined}
+                                slotProps={{
+                                    img: {
+                                        loading: "eager",
+                                        decoding: "async"
+                                    }
+                                }}
                                 sx={{
                                     width: {
                                         xs: 32,

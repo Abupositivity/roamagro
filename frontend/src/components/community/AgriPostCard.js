@@ -1,5 +1,6 @@
-import React,{useEffect, useRef,useState}from'react';
-import{
+import React, { useRef, useState } from 'react';
+
+import {
     Avatar,
     Box,
     Button,
@@ -18,28 +19,40 @@ import{
     Stack,
     TextField,
     Typography,
-}from'@mui/material';
-import FavoriteIcon from'@mui/icons-material/Favorite';
-import FavoriteBorderIcon from'@mui/icons-material/FavoriteBorder';
-import ChatBubbleOutlineIcon from'@mui/icons-material/ChatBubbleOutline';
-import ShareIcon from'@mui/icons-material/Share';
-import MoreVertIcon from'@mui/icons-material/MoreVert';
-import DeleteOutlineIcon from'@mui/icons-material/DeleteOutline';
-import EditOutlinedIcon from'@mui/icons-material/EditOutlined';
-import CameraAltIcon from'@mui/icons-material/CameraAlt';
-import {useDispatch,useSelector}from'react-redux';
-import {useTranslation}from'react-i18next';
-import{
+} from '@mui/material';
+
+import FavoriteIcon from '@mui/icons-material/Favorite';
+import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
+import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
+import ShareIcon from '@mui/icons-material/Share';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import CameraAltIcon from '@mui/icons-material/CameraAlt';
+import BrokenImageOutlinedIcon from '@mui/icons-material/BrokenImageOutlined';
+
+import { useDispatch, useSelector } from 'react-redux';
+import { useTranslation } from 'react-i18next';
+
+import {
     addComment,
     deleteComment,
     likePost,
     updateTopic,
     deleteTopic,
     sharePost,
-}from'../../redux/actions/communityActions';
-import CommentDialog from'./CommentDialog';
+} from '../../redux/actions/communityActions';
 
-const categories=[
+import {
+    getAvatarImage,
+    getFeedImage,
+    getFeedImageSrcSet,
+    getResponsiveImage,
+} from '../../utils/cloudinaryImage';
+
+import CommentDialog from './CommentDialog';
+
+const categories = [
     'Crop Production',
     'Livestock',
     'Poultry',
@@ -57,12 +70,146 @@ const categories=[
     'General',
 ];
 
-const MAX_IMAGE_SIZE=1200;
-const IMAGE_QUALITY=0.75;
+const MAX_IMAGE_SIZE = 1200;
+const IMAGE_QUALITY = 0.75;
 
-const compressImage=file=>
-    new Promise((resolve,reject)=>{
-        if(!file?.type?.startsWith('image/')){
+const AUTHOR_AVATAR_SIZE = 132;
+const POST_IMAGE_WIDTH = 800;
+const PREVIEW_IMAGE_WIDTH = 800;
+
+const COMMUNITY_IMAGE_SIZES = [
+    'auto',
+    '(max-width: 599px) 90vw',
+    '(max-width: 899px) 90vw',
+    '800px',
+].join(', ');
+
+const POST_IMAGE_STYLES = {
+    mt: 2,
+    width: '100%',
+    aspectRatio: '4 / 3',
+    maxHeight: {
+        xs: 280,
+        sm: 380,
+    },
+    borderRadius: 2,
+    objectFit: 'cover',
+    backgroundColor: 'action.hover',
+    display: 'block',
+};
+
+const PREVIEW_IMAGE_STYLES = {
+    width: '100%',
+    maxHeight: 250,
+    objectFit: 'cover',
+    display: 'block',
+    backgroundColor: 'action.hover',
+};
+
+const OptimizedPostImage = ({
+    source,
+    alt,
+    preview = false,
+}) => {
+    const { t } = useTranslation();
+
+    const [useOriginal, setUseOriginal] =
+        useState(false);
+
+    const [imageFailed, setImageFailed] =
+        useState(false);
+
+    if (!source) {
+        return null;
+    }
+
+    const optimizedSource = preview
+        ? getResponsiveImage(
+              source,
+              PREVIEW_IMAGE_WIDTH
+          )
+        : getFeedImage(
+              source,
+              POST_IMAGE_WIDTH
+          );
+
+    const imageSource = useOriginal
+        ? source
+        : optimizedSource;
+
+    const srcSet =
+        !preview && !useOriginal
+            ? getFeedImageSrcSet(source)
+            : undefined;
+
+    const handleImageError = () => {
+        if (
+            !useOriginal &&
+            (optimizedSource !== source || srcSet)
+        ) {
+            setUseOriginal(true);
+            return;
+        }
+
+        setImageFailed(true);
+    };
+
+    if (imageFailed) {
+        return (
+            <Box
+                role="img"
+                aria-label={t('Image unavailable')}
+                sx={{
+                    ...(preview
+                        ? PREVIEW_IMAGE_STYLES
+                        : POST_IMAGE_STYLES),
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    aspectRatio: '4 / 3',
+                    color: 'text.secondary',
+                    gap: 1,
+                }}
+            >
+                <BrokenImageOutlinedIcon
+                    fontSize="large"
+                />
+
+                <Typography variant="body2">
+                    {t('Image unavailable')}
+                </Typography>
+            </Box>
+        );
+    }
+
+    return (
+        <CardMedia
+            key={useOriginal ? 'original' : 'optimized'}
+            component="img"
+            image={imageSource}
+            srcSet={srcSet}
+            sizes={
+                srcSet
+                    ? COMMUNITY_IMAGE_SIZES
+                    : undefined
+            }
+            alt={alt}
+            loading={preview ? 'eager' : 'lazy'}
+            decoding="async"
+            onError={handleImageError}
+            sx={
+                preview
+                    ? PREVIEW_IMAGE_STYLES
+                    : POST_IMAGE_STYLES
+            }
+        />
+    );
+};
+
+const compressImage = file =>
+    new Promise((resolve, reject) => {
+        if (!file?.type?.startsWith('image/')) {
             reject(
                 new Error(
                     'Please select an image file.'
@@ -71,44 +218,44 @@ const compressImage=file=>
             return;
         }
 
-        const reader=new FileReader();
+        const reader = new FileReader();
 
-        reader.onload=event=>{
-            const image=new Image();
+        reader.onload = event => {
+            const image = new Image();
 
-            image.onload=()=>{
-                let width=image.width;
-                let height=image.height;
+            image.onload = () => {
+                let width = image.width;
+                let height = image.height;
 
-                if(
-                    width>MAX_IMAGE_SIZE||
-                    height>MAX_IMAGE_SIZE
-                ){
-                    if(width>height){
-                        height=
-                            (height/width)*
+                if (
+                    width > MAX_IMAGE_SIZE ||
+                    height > MAX_IMAGE_SIZE
+                ) {
+                    if (width > height) {
+                        height =
+                            (height / width) *
                             MAX_IMAGE_SIZE;
-                        width=MAX_IMAGE_SIZE;
-                    }else{
-                        width=
-                            (width/height)*
+
+                        width = MAX_IMAGE_SIZE;
+                    } else {
+                        width =
+                            (width / height) *
                             MAX_IMAGE_SIZE;
-                        height=MAX_IMAGE_SIZE;
+
+                        height = MAX_IMAGE_SIZE;
                     }
                 }
 
-                const canvas=
-                    document.createElement(
-                        'canvas'
-                    );
+                const canvas =
+                    document.createElement('canvas');
 
-                canvas.width=Math.round(width);
-                canvas.height=Math.round(height);
+                canvas.width = Math.round(width);
+                canvas.height = Math.round(height);
 
-                const context=
+                const context =
                     canvas.getContext('2d');
 
-                if(!context){
+                if (!context) {
                     reject(
                         new Error(
                             'Unable to process image.'
@@ -125,14 +272,14 @@ const compressImage=file=>
                     canvas.height
                 );
 
-                try{
+                try {
                     resolve(
                         canvas.toDataURL(
                             'image/jpeg',
                             IMAGE_QUALITY
                         )
                     );
-                }catch{
+                } catch {
                     reject(
                         new Error(
                             'Unable to compress image.'
@@ -141,7 +288,7 @@ const compressImage=file=>
                 }
             };
 
-            image.onerror=()=>{
+            image.onerror = () => {
                 reject(
                     new Error(
                         'Unable to process image.'
@@ -149,10 +296,10 @@ const compressImage=file=>
                 );
             };
 
-            image.src=event.target.result;
+            image.src = event.target.result;
         };
 
-        reader.onerror=()=>{
+        reader.onerror = () => {
             reject(
                 new Error(
                     'Unable to read image.'
@@ -163,178 +310,167 @@ const compressImage=file=>
         reader.readAsDataURL(file);
     });
 
-const getInitial=name=>{
-    if(!name)return'F';
-    return name.trim().charAt(0).toUpperCase();
+const getInitial = name => {
+    if (!name) return 'F';
+
+    return name
+        .trim()
+        .charAt(0)
+        .toUpperCase();
 };
 
-const formatDate=date=>{
-    if(!date)return'';
+const formatDate = date => {
+    if (!date) return '';
 
-    const postDate=new Date(date);
+    const postDate = new Date(date);
 
-    if(Number.isNaN(postDate.getTime())){
-        return'';
+    if (Number.isNaN(postDate.getTime())) {
+        return '';
     }
 
-    const now=new Date();
+    const now = new Date();
 
-    const today=new Date(
+    const today = new Date(
         now.getFullYear(),
         now.getMonth(),
         now.getDate()
     );
 
-    const target=new Date(
+    const target = new Date(
         postDate.getFullYear(),
         postDate.getMonth(),
         postDate.getDate()
     );
 
-    const difference=Math.round(
-        (today-target)/86400000
+    const difference = Math.round(
+        (today - target) / 86400000
     );
 
-    if(difference===0)return'Today';
-    if(difference===1)return'Yesterday';
+    if (difference === 0) return 'Today';
 
-    if(
-        difference>1&&
-        difference<7
-    ){
-        return`${difference} days ago`;
+    if (difference === 1) return 'Yesterday';
+
+    if (
+        difference > 1 &&
+        difference < 7
+    ) {
+        return `${difference} days ago`;
     }
 
     return postDate.toLocaleDateString(
         undefined,
         {
-            day:'numeric',
-            month:'short',
+            day: 'numeric',
+            month: 'short',
             year:
-                postDate.getFullYear()!==
+                postDate.getFullYear() !==
                 now.getFullYear()
-                    ?'numeric'
-                    :undefined,
+                    ? 'numeric'
+                    : undefined,
         }
     );
 };
 
-const AgriPostCard=({
+const AgriPostCard = ({
     post,
     onOpenProfile,
-})=>{
-    const{t}=useTranslation();
-    const dispatch=useDispatch();
+}) => {
+    const { t } = useTranslation();
 
-    const currentUser=useSelector(
-        state=>state.auth?.user
+    const dispatch = useDispatch();
+
+    const currentUser = useSelector(
+        state => state.auth?.user
     );
 
-    const fileInputRef=useRef(null);
+    const fileInputRef = useRef(null);
 
-    const[
-        openComments,
-        setOpenComments,
-    ]=useState(false);
+    const [openComments, setOpenComments] =
+        useState(false);
 
-    const[
-        menuAnchor,
-        setMenuAnchor,
-    ]=useState(null);
+    const [menuAnchor, setMenuAnchor] =
+        useState(null);
 
-    const[
-        editOpen,
-        setEditOpen,
-    ]=useState(false);
+    const [editOpen, setEditOpen] =
+        useState(false);
 
-    const[
-        deleteLoading,
-        setDeleteLoading,
-    ]=useState(false);
+    const [deleteLoading, setDeleteLoading] =
+        useState(false);
 
-    const[
-        shareLoading,
-        setShareLoading,
-    ]=useState(false);
+    const [shareLoading, setShareLoading] =
+        useState(false);
 
-    const [postImageFailed, setPostImageFailed] = useState(false);
-        useEffect(() => {
-        setPostImageFailed(false);
-    }, [post.image]);
+    const [imageLoading, setImageLoading] =
+        useState(false);
 
-    const[
-        imageLoading,
-        setImageLoading,
-    ]=useState(false);
+    const [imageError, setImageError] =
+        useState('');
 
-    const[
-        imageError,
-        setImageError,
-    ]=useState('');
-
-    const[
-        editData,
-        setEditData,
-    ]=useState({
-        title:post.title||'',
-        content:post.content||'',
-        category:post.category||'General',
-        image:post.image||'',
+    const [editData, setEditData] = useState({
+        title: post.title || '',
+        content: post.content || '',
+        category: post.category || 'General',
+        image: post.image || '',
     });
 
-    const userId=
-        currentUser?._id||
+    const userId =
+        currentUser?._id ||
         currentUser?.id;
 
-    const postUserId=
-        post.user?._id||
-        post.user?.id||
+    const postUserId =
+        post.user?._id ||
+        post.user?.id ||
         post.user;
 
-    const isOwner=Boolean(
-        userId&&
-        postUserId&&
-        userId.toString()===
+    const isOwner = Boolean(
+        userId &&
+        postUserId &&
+        userId.toString() ===
             postUserId.toString()
     );
 
-    const isOwnProfile=Boolean(
-        userId&&
-        postUserId&&
-        userId.toString()===
+    const isOwnProfile = Boolean(
+        userId &&
+        postUserId &&
+        userId.toString() ===
             postUserId.toString()
     );
 
-    const liked=Boolean(
+    const liked = Boolean(
         post.likes?.some(
-            like=>
+            like =>
                 (
-                    like?._id||
+                    like?._id ||
                     like
-                ).toString()===
+                ).toString() ===
                 userId?.toString()
         )
     );
 
-    const likeCount=
-        post.likes?.length||0;
+    const likeCount =
+        post.likes?.length || 0;
 
-    const commentCount=
-        post.comments?.length||0;
+    const commentCount =
+        post.comments?.length || 0;
 
-    const shareCount=
-        post.shares||0;
+    const shareCount =
+        post.shares || 0;
 
-    const authorName=
-        post.user?.name||
+    const authorName =
+        post.user?.name ||
         'Farmer';
 
-    const handleOpenProfile=()=>{
-        if(
-            !onOpenProfile||
-            !postUserId||
+    const authorPhoto = getAvatarImage(
+        post.user?.profilePhoto,
+        AUTHOR_AVATAR_SIZE
+    );
+
+    const handleOpenProfile = () => {
+        if (
+            !onOpenProfile ||
+            !postUserId ||
             isOwnProfile
-        ){
+        ) {
             return;
         }
 
@@ -343,13 +479,13 @@ const AgriPostCard=({
         );
     };
 
-    const handleLike=()=>{
+    const handleLike = () => {
         dispatch(
             likePost(post._id)
         );
     };
 
-    const handleAddComment=content=>{
+    const handleAddComment = content => {
         dispatch(
             addComment(
                 post._id,
@@ -358,7 +494,7 @@ const AgriPostCard=({
         );
     };
 
-    const handleDeleteComment=commentId=>{
+    const handleDeleteComment = commentId => {
         dispatch(
             deleteComment(
                 post._id,
@@ -367,14 +503,14 @@ const AgriPostCard=({
         );
     };
 
-    const handleOpenEdit=()=>{
+    const handleOpenEdit = () => {
         setEditData({
-            title:post.title||'',
-            content:post.content||'',
+            title: post.title || '',
+            content: post.content || '',
             category:
-                post.category||
+                post.category ||
                 'General',
-            image:post.image||'',
+            image: post.image || '',
         });
 
         setImageError('');
@@ -382,9 +518,9 @@ const AgriPostCard=({
         setEditOpen(true);
     };
 
-    const handleEditChange=event=>{
+    const handleEditChange = event => {
         setEditData(
-            previous=>({
+            previous => ({
                 ...previous,
                 [event.target.name]:
                     event.target.value,
@@ -392,83 +528,81 @@ const AgriPostCard=({
         );
     };
 
-    const handleImageSelect=async event=>{
-        const file=
+    const handleImageSelect = async event => {
+        const file =
             event.target.files?.[0];
 
-        if(!file){
+        if (!file) {
             return;
         }
 
         setImageError('');
         setImageLoading(true);
 
-        try{
-            const image=
+        try {
+            const image =
                 await compressImage(file);
 
             setEditData(
-                previous=>({
+                previous => ({
                     ...previous,
                     image,
                 })
             );
-        }catch(error){
+        } catch (error) {
             setImageError(
-                error.message||
-                t(
-                    'Unable to add image.'
-                )
+                error.message ||
+                t('Unable to add image.')
             );
-        }finally{
+        } finally {
             setImageLoading(false);
-            event.target.value='';
+            event.target.value = '';
         }
     };
 
-    const handleRemoveImage=()=>{
+    const handleRemoveImage = () => {
         setEditData(
-            previous=>({
+            previous => ({
                 ...previous,
-                image:'',
+                image: '',
             })
         );
 
         setImageError('');
     };
 
-    const handleUpdate=async()=>{
-        if(
-            !editData.title.trim()||
-            !editData.content.trim()||
+    const handleUpdate = async () => {
+        if (
+            !editData.title.trim() ||
+            !editData.content.trim() ||
             imageLoading
-        ){
+        ) {
             return;
         }
 
-        const result=await dispatch(
+        const result = await dispatch(
             updateTopic(
                 post._id,
                 editData
             )
         );
 
-        if(result?.success){
+        if (result?.success) {
             setEditOpen(false);
             setImageError('');
         }
     };
 
-    const handleDelete=async()=>{
+    const handleDelete = async () => {
         setMenuAnchor(null);
 
-        const confirmed=window.confirm(
+        const confirmed = window.confirm(
             t(
                 'Are you sure you want to delete this post?'
             )
         );
 
-        if(!confirmed){
+        if (!confirmed) {
             return;
         }
 
@@ -481,32 +615,32 @@ const AgriPostCard=({
         setDeleteLoading(false);
     };
 
-    const handleShare=async()=>{
-        if(shareLoading){
+    const handleShare = async () => {
+        if (shareLoading) {
             return;
         }
 
         setShareLoading(true);
 
-        const shareUrl=
+        const shareUrl =
             `${window.location.origin}/community?post=${post._id}`;
 
-        try{
-            if(navigator.share){
+        try {
+            if (navigator.share) {
                 await navigator.share({
                     title:
-                        post.title||
+                        post.title ||
                         'RoamAgro Community',
                     text:
-                        post.content||
+                        post.content ||
                         '',
-                    url:shareUrl,
+                    url: shareUrl,
                 });
 
                 await dispatch(
                     sharePost(post._id)
                 );
-            }else if(navigator.clipboard){
+            } else if (navigator.clipboard) {
                 await navigator.clipboard.writeText(
                     shareUrl
                 );
@@ -518,22 +652,22 @@ const AgriPostCard=({
                 window.alert(
                     t('Post link copied.')
                 );
-            }else{
+            } else {
                 window.prompt(
                     t('Copy this post link:'),
                     shareUrl
                 );
             }
-        }catch(error){
-            if(
-                error?.name===
+        } catch (error) {
+            if (
+                error?.name ===
                 'AbortError'
-            ){
+            ) {
                 return;
             }
 
-            try{
-                if(navigator.clipboard){
+            try {
+                if (navigator.clipboard) {
                     await navigator.clipboard.writeText(
                         shareUrl
                     );
@@ -546,40 +680,40 @@ const AgriPostCard=({
                         t('Post link copied.')
                     );
                 }
-            }catch{
+            } catch {
                 window.alert(
                     t(
                         'Unable to share this post.'
                     )
                 );
             }
-        }finally{
+        } finally {
             setShareLoading(false);
         }
     };
 
-    return(
+    return (
         <>
             <Card
                 elevation={1}
                 sx={{
-                    borderRadius:3,
-                    overflow:'hidden',
-                    mb:2,
-                    border:'1px solid',
-                    borderColor:'divider',
+                    borderRadius: 3,
+                    overflow: 'hidden',
+                    mb: 2,
+                    border: '1px solid',
+                    borderColor: 'divider',
                 }}
             >
                 <CardContent
                     sx={{
-                        p:{
-                            xs:2,
-                            sm:2.5,
+                        p: {
+                            xs: 2,
+                            sm: 2.5,
                         },
-                        '&:last-child':{
-                            pb:{
-                                xs:2,
-                                sm:2.5,
+                        '&:last-child': {
+                            pb: {
+                                xs: 2,
+                                sm: 2.5,
                             },
                         },
                     }}
@@ -590,74 +724,73 @@ const AgriPostCard=({
                         alignItems="center"
                     >
                         <Avatar
-                            src={
-                                post.user?.profilePhoto
-                            }
+                            src={authorPhoto || undefined}
                             alt={authorName}
-                            onClick={
-                                handleOpenProfile
-                            }
+                            onClick={handleOpenProfile}
+                            slotProps={{
+                                img: {
+                                    loading: 'lazy',
+                                    decoding: 'async',
+                                    width: 44,
+                                    height: 44,
+                                },
+                            }}
                             sx={{
-                                width:44,
-                                height:44,
-                                fontWeight:700,
+                                width: 44,
+                                height: 44,
+                                fontWeight: 700,
                                 cursor:
-                                    onOpenProfile&&
-                                    postUserId&&
+                                    onOpenProfile &&
+                                    postUserId &&
                                     !isOwnProfile
-                                        ?'pointer'
-                                        :'default',
+                                        ? 'pointer'
+                                        : 'default',
                                 '&:hover':
-                                    onOpenProfile&&
-                                    postUserId&&
+                                    onOpenProfile &&
+                                    postUserId &&
                                     !isOwnProfile
-                                        ?{
-                                            boxShadow:
-                                                0+
-                                                ' 0 0 0 3px rgba(0,191,99,0.18)',
-                                        }
-                                        :{},
+                                        ? {
+                                              boxShadow:
+                                                  '0 0 0 3px rgba(0,191,99,0.18)',
+                                          }
+                                        : {},
                             }}
                         >
-                            {getInitial(
-                                authorName
-                            )}
+                            {getInitial(authorName)}
                         </Avatar>
 
                         <Box
                             sx={{
-                                flex:1,
-                                minWidth:0,
+                                flex: 1,
+                                minWidth: 0,
                             }}
                         >
                             <Typography
                                 fontWeight={700}
-                                onClick={
-                                    handleOpenProfile
-                                }
+                                onClick={handleOpenProfile}
                                 sx={{
-                                    fontSize:{
-                                        xs:'0.95rem',
-                                        sm:'1rem',
+                                    fontSize: {
+                                        xs: '0.95rem',
+                                        sm: '1rem',
                                     },
-                                    overflow:'hidden',
-                                    textOverflow:'ellipsis',
-                                    whiteSpace:'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
                                     cursor:
-                                        onOpenProfile&&
-                                        postUserId&&
+                                        onOpenProfile &&
+                                        postUserId &&
                                         !isOwnProfile
-                                            ?'pointer'
-                                            :'default',
+                                            ? 'pointer'
+                                            : 'default',
                                     '&:hover':
-                                        onOpenProfile&&
-                                        postUserId&&
+                                        onOpenProfile &&
+                                        postUserId &&
                                         !isOwnProfile
-                                            ?{
-                                                color:
-                                                    'primary.main',
-                                            }
-                                            :{},
+                                            ? {
+                                                  color:
+                                                      'primary.main',
+                                              }
+                                            : {},
                                 }}
                             >
                                 {authorName}
@@ -675,27 +808,27 @@ const AgriPostCard=({
 
                         <Chip
                             label={
-                                post.category||
+                                post.category ||
                                 'General'
                             }
                             color="success"
                             size="small"
                             sx={{
-                                maxWidth:{
-                                    xs:120,
-                                    sm:180,
+                                maxWidth: {
+                                    xs: 120,
+                                    sm: 180,
                                 },
-                                '& .MuiChip-label':{
-                                    overflow:'hidden',
-                                    textOverflow:'ellipsis',
+                                '& .MuiChip-label': {
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
                                 },
                             }}
                         />
 
-                        {isOwner&&(
+                        {isOwner && (
                             <IconButton
                                 size="large"
-                                onClick={event=>
+                                onClick={event =>
                                     setMenuAnchor(
                                         event.currentTarget
                                     )
@@ -704,25 +837,25 @@ const AgriPostCard=({
                                     'Post options'
                                 )}
                                 sx={{
-                                    ml:-0.5,
+                                    ml: -0.5,
                                 }}
                             >
-                                <MoreVertIcon/>
+                                <MoreVertIcon />
                             </IconButton>
                         )}
                     </Stack>
 
-                    <Box sx={{mt:2}}>
+                    <Box sx={{ mt: 2 }}>
                         <Typography
                             variant="h6"
                             fontWeight={700}
                             sx={{
-                                fontSize:{
-                                    xs:'1.05rem',
-                                    sm:'1.2rem',
+                                fontSize: {
+                                    xs: '1.05rem',
+                                    sm: '1.2rem',
                                 },
-                                lineHeight:1.35,
-                                wordBreak:'break-word',
+                                lineHeight: 1.35,
+                                wordBreak: 'break-word',
                             }}
                         >
                             {post.title}
@@ -731,13 +864,13 @@ const AgriPostCard=({
                         <Typography
                             color="text.primary"
                             sx={{
-                                mt:1,
-                                lineHeight:1.65,
-                                whiteSpace:'pre-wrap',
-                                wordBreak:'break-word',
-                                fontSize:{
-                                    xs:'0.95rem',
-                                    sm:'1rem',
+                                mt: 1,
+                                lineHeight: 1.65,
+                                whiteSpace: 'pre-wrap',
+                                wordBreak: 'break-word',
+                                fontSize: {
+                                    xs: '0.95rem',
+                                    sm: '1rem',
                                 },
                             }}
                         >
@@ -745,61 +878,49 @@ const AgriPostCard=({
                         </Typography>
                     </Box>
 
-                    {post.image && !postImageFailed && (
-                        <CardMedia
-                            component="img"
-                            image={post.image}
-                            alt={post.title || t("Community post image")}
-                            loading="lazy"
-                            decoding="async"
-                            onError={() => setPostImageFailed(true)}
-                            sx={{
-                                mt: 2,
-                                width: "100%",
-                                aspectRatio: "4 / 3",
-                                maxHeight: {
-                                    xs: 280,
-                                    sm: 380
-                                },
-                                borderRadius: 2,
-                                objectFit: "cover",
-                                backgroundColor: "action.hover"
-                            }}
+                    {post.image && (
+                        <OptimizedPostImage
+                            key={post.image}
+                            source={post.image}
+                            alt={
+                                post.title ||
+                                t('Community post image')
+                            }
                         />
                     )}
 
-                    <Divider sx={{my:1.5}}/>
+                    <Divider sx={{ my: 1.5 }} />
 
                     <Stack
                         direction="row"
                         alignItems="center"
                         justifyContent="space-between"
                         sx={{
-                            width:'100%',
-                            gap:.5,
+                            width: '100%',
+                            gap: 0.5,
                         }}
                     >
                         <Button
                             size="medium"
                             color={
                                 liked
-                                    ?'error'
-                                    :'inherit'
+                                    ? 'error'
+                                    : 'inherit'
                             }
                             onClick={handleLike}
                             startIcon={
                                 liked
-                                    ?<FavoriteIcon/>
-                                    :<FavoriteBorderIcon/>
+                                    ? <FavoriteIcon />
+                                    : <FavoriteBorderIcon />
                             }
                             sx={{
-                                minWidth:0,
-                                px:{
-                                    xs:1,
-                                    sm:1.5,
+                                minWidth: 0,
+                                px: {
+                                    xs: 1,
+                                    sm: 1.5,
                                 },
-                                textTransform:'none',
-                                fontWeight:600,
+                                textTransform: 'none',
+                                fontWeight: 600,
                             }}
                         >
                             {likeCount}
@@ -807,36 +928,36 @@ const AgriPostCard=({
                             <Box
                                 component="span"
                                 sx={{
-                                    display:{
-                                        xs:'none',
-                                        sm:'inline',
+                                    display: {
+                                        xs: 'none',
+                                        sm: 'inline',
                                     },
-                                    ml:.5,
+                                    ml: 0.5,
                                 }}
                             >
                                 {liked
-                                    ?t('Liked')
-                                    :t('Like')}
+                                    ? t('Liked')
+                                    : t('Like')}
                             </Box>
                         </Button>
 
                         <Button
                             size="medium"
                             color="inherit"
-                            onClick={()=>
+                            onClick={() =>
                                 setOpenComments(true)
                             }
                             startIcon={
-                                <ChatBubbleOutlineIcon/>
+                                <ChatBubbleOutlineIcon />
                             }
                             sx={{
-                                minWidth:0,
-                                px:{
-                                    xs:1,
-                                    sm:1.5,
+                                minWidth: 0,
+                                px: {
+                                    xs: 1,
+                                    sm: 1.5,
                                 },
-                                textTransform:'none',
-                                fontWeight:600,
+                                textTransform: 'none',
+                                fontWeight: 600,
                             }}
                         >
                             {commentCount}
@@ -844,11 +965,11 @@ const AgriPostCard=({
                             <Box
                                 component="span"
                                 sx={{
-                                    display:{
-                                        xs:'none',
-                                        sm:'inline',
+                                    display: {
+                                        xs: 'none',
+                                        sm: 'inline',
                                     },
-                                    ml:.5,
+                                    ml: 0.5,
                                 }}
                             >
                                 {t('Comment')}
@@ -861,38 +982,38 @@ const AgriPostCard=({
                             onClick={handleShare}
                             disabled={shareLoading}
                             startIcon={
-                                <ShareIcon/>
+                                <ShareIcon />
                             }
                             sx={{
-                                minWidth:0,
-                                px:{
-                                    xs:1,
-                                    sm:1.5,
+                                minWidth: 0,
+                                px: {
+                                    xs: 1,
+                                    sm: 1.5,
                                 },
-                                textTransform:'none',
-                                fontWeight:600,
+                                textTransform: 'none',
+                                fontWeight: 600,
                             }}
                         >
                             <Box
                                 component="span"
                                 sx={{
-                                    display:{
-                                        xs:'none',
-                                        sm:'inline',
+                                    display: {
+                                        xs: 'none',
+                                        sm: 'inline',
                                     },
                                 }}
                             >
                                 {shareLoading
-                                    ?t('Sharing...')
-                                    :t('Share')}
+                                    ? t('Sharing...')
+                                    : t('Share')}
                             </Box>
 
                             <Box
                                 component="span"
                                 sx={{
-                                    display:{
-                                        xs:'inline',
-                                        sm:'none',
+                                    display: {
+                                        xs: 'inline',
+                                        sm: 'none',
                                     },
                                 }}
                             >
@@ -906,40 +1027,42 @@ const AgriPostCard=({
             <Menu
                 anchorEl={menuAnchor}
                 open={Boolean(menuAnchor)}
-                onClose={()=>
+                onClose={() =>
                     setMenuAnchor(null)
                 }
             >
                 <MenuItem
                     onClick={handleOpenEdit}
-                    sx={{minHeight:48}}
+                    sx={{ minHeight: 48 }}
                 >
                     <EditOutlinedIcon
                         fontSize="small"
-                        sx={{mr:1.5}}
+                        sx={{ mr: 1.5 }}
                     />
+
                     {t('Edit Post')}
                 </MenuItem>
 
                 <MenuItem
                     onClick={handleDelete}
                     disabled={deleteLoading}
-                    sx={{minHeight:48}}
+                    sx={{ minHeight: 48 }}
                 >
                     <DeleteOutlineIcon
                         fontSize="small"
-                        sx={{mr:1.5}}
+                        sx={{ mr: 1.5 }}
                     />
+
                     {deleteLoading
-                        ?t('Deleting...')
-                        :t('Delete Post')}
+                        ? t('Deleting...')
+                        : t('Delete Post')}
                 </MenuItem>
             </Menu>
 
             <Dialog
                 open={editOpen}
-                onClose={()=>{
-                    if(!imageLoading){
+                onClose={() => {
+                    if (!imageLoading) {
                         setEditOpen(false);
                     }
                 }}
@@ -953,18 +1076,14 @@ const AgriPostCard=({
                 <DialogContent>
                     <Stack
                         spacing={2}
-                        sx={{mt:1}}
+                        sx={{ mt: 1 }}
                     >
                         <TextField
                             fullWidth
                             label={t('Title')}
                             name="title"
-                            value={
-                                editData.title
-                            }
-                            onChange={
-                                handleEditChange
-                            }
+                            value={editData.title}
+                            onChange={handleEditChange}
                             autoFocus
                         />
 
@@ -976,12 +1095,8 @@ const AgriPostCard=({
                                 'What do you want to share?'
                             )}
                             name="content"
-                            value={
-                                editData.content
-                            }
-                            onChange={
-                                handleEditChange
-                            }
+                            value={editData.content}
+                            onChange={handleEditChange}
                         />
 
                         <TextField
@@ -989,22 +1104,14 @@ const AgriPostCard=({
                             fullWidth
                             label={t('Category')}
                             name="category"
-                            value={
-                                editData.category
-                            }
-                            onChange={
-                                handleEditChange
-                            }
+                            value={editData.category}
+                            onChange={handleEditChange}
                         >
                             {categories.map(
-                                category=>(
+                                category => (
                                     <MenuItem
-                                        key={
-                                            category
-                                        }
-                                        value={
-                                            category
-                                        }
+                                        key={category}
+                                        value={category}
                                     >
                                         {t(category)}
                                     </MenuItem>
@@ -1016,11 +1123,9 @@ const AgriPostCard=({
                             <Typography
                                 variant="subtitle2"
                                 fontWeight={600}
-                                mb={.5}
+                                mb={0.5}
                             >
-                                {t(
-                                    'Photo (optional)'
-                                )}
+                                {t('Photo (optional)')}
                             </Typography>
 
                             <Typography
@@ -1034,38 +1139,32 @@ const AgriPostCard=({
                             </Typography>
 
                             <input
-                                ref={
-                                    fileInputRef
-                                }
+                                ref={fileInputRef}
                                 type="file"
                                 accept="image/*"
                                 capture="environment"
                                 hidden
-                                onChange={
-                                    handleImageSelect
-                                }
+                                onChange={handleImageSelect}
                             />
 
-                            {!editData.image&&(
+                            {!editData.image && (
                                 <Button
                                     variant="outlined"
                                     startIcon={
-                                        <CameraAltIcon/>
+                                        <CameraAltIcon />
                                     }
-                                    onClick={()=>
+                                    onClick={() =>
                                         fileInputRef.current?.click()
                                     }
-                                    disabled={
-                                        imageLoading
-                                    }
+                                    disabled={imageLoading}
                                 >
                                     {imageLoading
-                                        ?t('Processing...')
-                                        :t('Add Photo')}
+                                        ? t('Processing...')
+                                        : t('Add Photo')}
                                 </Button>
                             )}
 
-                            {imageError&&(
+                            {imageError && (
                                 <Typography
                                     variant="body2"
                                     color="error"
@@ -1075,53 +1174,40 @@ const AgriPostCard=({
                                 </Typography>
                             )}
 
-                            {editData.image&&(
+                            {editData.image && (
                                 <Box
                                     sx={{
-                                        position:'relative',
-                                        mt:2,
-                                        width:'100%',
-                                        maxWidth:400,
-                                        borderRadius:2,
-                                        overflow:'hidden',
+                                        position: 'relative',
+                                        mt: 2,
+                                        width: '100%',
+                                        maxWidth: 400,
+                                        borderRadius: 2,
+                                        overflow: 'hidden',
                                     }}
                                 >
-                                    <Box
-                                        component="img"
-                                        src={
-                                            editData.image
-                                        }
+                                    <OptimizedPostImage
+                                        key={editData.image}
+                                        source={editData.image}
                                         alt={t(
                                             'Community post'
                                         )}
-                                        sx={{
-                                            width:'100%',
-                                            maxHeight:250,
-                                            objectFit:'cover',
-                                            display:'block',
-                                            backgroundColor:
-                                                'action.hover',
-                                        }}
+                                        preview
                                     />
 
                                     <IconButton
                                         size="small"
-                                        onClick={
-                                            handleRemoveImage
-                                        }
-                                        disabled={
-                                            imageLoading
-                                        }
+                                        onClick={handleRemoveImage}
+                                        disabled={imageLoading}
                                         aria-label={t(
                                             'Remove photo'
                                         )}
                                         sx={{
-                                            position:'absolute',
-                                            top:8,
-                                            right:8,
+                                            position: 'absolute',
+                                            top: 8,
+                                            right: 8,
                                             backgroundColor:
                                                 'rgba(255,255,255,0.9)',
-                                            '&:hover':{
+                                            '&:hover': {
                                                 backgroundColor:
                                                     'white',
                                             },
@@ -1134,20 +1220,18 @@ const AgriPostCard=({
                                 </Box>
                             )}
 
-                            {editData.image&&(
+                            {editData.image && (
                                 <Button
                                     variant="text"
                                     size="small"
                                     startIcon={
-                                        <CameraAltIcon/>
+                                        <CameraAltIcon />
                                     }
-                                    onClick={()=>
+                                    onClick={() =>
                                         fileInputRef.current?.click()
                                     }
-                                    disabled={
-                                        imageLoading
-                                    }
-                                    sx={{mt:1}}
+                                    disabled={imageLoading}
+                                    sx={{ mt: 1 }}
                                 >
                                     {t('Change Photo')}
                                 </Button>
@@ -1158,12 +1242,12 @@ const AgriPostCard=({
 
                 <DialogActions
                     sx={{
-                        px:3,
-                        pb:2,
+                        px: 3,
+                        pb: 2,
                     }}
                 >
                     <Button
-                        onClick={()=>
+                        onClick={() =>
                             setEditOpen(false)
                         }
                         disabled={imageLoading}
@@ -1175,8 +1259,8 @@ const AgriPostCard=({
                         variant="contained"
                         onClick={handleUpdate}
                         disabled={
-                            !editData.title.trim()||
-                            !editData.content.trim()||
+                            !editData.title.trim() ||
+                            !editData.content.trim() ||
                             imageLoading
                         }
                     >
@@ -1187,16 +1271,12 @@ const AgriPostCard=({
 
             <CommentDialog
                 open={openComments}
-                onClose={()=>
+                onClose={() =>
                     setOpenComments(false)
                 }
                 post={post}
-                onAddComment={
-                    handleAddComment
-                }
-                onDeleteComment={
-                    handleDeleteComment
-                }
+                onAddComment={handleAddComment}
+                onDeleteComment={handleDeleteComment}
             />
         </>
     );

@@ -3,6 +3,7 @@ import React, {
     useRef,
     useState
 } from "react";
+
 import {
     Box,
     Button,
@@ -15,10 +16,13 @@ import {
     Typography,
     MenuItem
 } from "@mui/material";
+
 import CameraAltIcon from "@mui/icons-material/CameraAlt";
 import AddPhotoAlternateOutlinedIcon from "@mui/icons-material/AddPhotoAlternateOutlined";
 import DeleteIcon from "@mui/icons-material/Delete";
+
 import { useTranslation } from "react-i18next";
+
 import compressImage from "../../utils/compressImage";
 
 const categories = [
@@ -53,16 +57,22 @@ const PostComposer = ({
     const cameraInputRef = useRef(null);
     const imageSelectionRef = useRef(0);
 
-    const [imageError, setImageError] = useState("");
-    const [imageProcessing, setImageProcessing] = useState(false);
-    const [imagePreview, setImagePreview] = useState("");
+    const [imageError, setImageError] =
+        useState("");
+
+    const [imageProcessing, setImageProcessing] =
+        useState(false);
+
+    const [imagePreview, setImagePreview] =
+        useState("");
 
     useEffect(() => {
         if (
             typeof File !== "undefined" &&
             formData.image instanceof File
         ) {
-            const previewUrl = URL.createObjectURL(formData.image);
+            const previewUrl =
+                URL.createObjectURL(formData.image);
 
             setImagePreview(previewUrl);
 
@@ -86,19 +96,25 @@ const PostComposer = ({
 
     const handleImageSelect = async (event) => {
         const file = event.target.files?.[0];
+
         event.target.value = "";
 
         if (!file) return;
 
-        const selectionId = ++imageSelectionRef.current;
+        const selectionId =
+            ++imageSelectionRef.current;
 
         setImageError("");
         setImageProcessing(true);
 
         try {
-            const compressedFile = await compressImage(file);
+            const compressedFile =
+                await compressImage(file);
 
-            if (selectionId !== imageSelectionRef.current) {
+            if (
+                selectionId !==
+                imageSelectionRef.current
+            ) {
                 return;
             }
 
@@ -109,7 +125,10 @@ const PostComposer = ({
                 }
             });
         } catch (processingError) {
-            if (selectionId !== imageSelectionRef.current) {
+            if (
+                selectionId !==
+                imageSelectionRef.current
+            ) {
                 return;
             }
 
@@ -120,7 +139,10 @@ const PostComposer = ({
                 )
             );
         } finally {
-            if (selectionId === imageSelectionRef.current) {
+            if (
+                selectionId ===
+                imageSelectionRef.current
+            ) {
                 setImageProcessing(false);
             }
         }
@@ -128,6 +150,7 @@ const PostComposer = ({
 
     const handleRemoveImage = () => {
         imageSelectionRef.current += 1;
+
         setImageProcessing(false);
         setImageError("");
 
@@ -150,7 +173,11 @@ const PostComposer = ({
     const handleSubmit = (event) => {
         event.preventDefault();
 
-        if (posting || loading || imageProcessing) {
+        if (
+            posting ||
+            loading ||
+            imageProcessing
+        ) {
             return;
         }
 
@@ -166,11 +193,17 @@ const PostComposer = ({
             }}
         >
             <CardContent>
-                <Typography variant="h6" gutterBottom>
+                <Typography
+                    variant="h6"
+                    gutterBottom
+                >
                     {t("Share with the Community")}
                 </Typography>
 
-                <Box component="form" onSubmit={handleSubmit}>
+                <Box
+                    component="form"
+                    onSubmit={handleSubmit}
+                >
                     <Stack spacing={2}>
                         <TextField
                             fullWidth
@@ -187,7 +220,9 @@ const PostComposer = ({
                             fullWidth
                             multiline
                             rows={4}
-                            label={t("What would you like to share?")}
+                            label={t(
+                                "What would you like to share?"
+                            )}
                             name="content"
                             value={formData.content}
                             onChange={onChange}
@@ -254,7 +289,10 @@ const PostComposer = ({
                             />
 
                             <Stack
-                                direction={{ xs: "column", sm: "row" }}
+                                direction={{
+                                    xs: "column",
+                                    sm: "row"
+                                }}
                                 spacing={1}
                             >
                                 <Button
@@ -290,7 +328,9 @@ const PostComposer = ({
 
                                 <Button
                                     variant="outlined"
-                                    startIcon={<CameraAltIcon />}
+                                    startIcon={
+                                        <CameraAltIcon />
+                                    }
                                     onClick={() =>
                                         cameraInputRef.current?.click()
                                     }
@@ -331,7 +371,8 @@ const PostComposer = ({
                                         component="img"
                                         src={imagePreview}
                                         alt={t("Community post")}
-                                        loading="lazy"
+                                        loading="eager"
+                                        decoding="async"
                                         sx={{
                                             display: "block",
                                             width: "100%",
@@ -348,7 +389,9 @@ const PostComposer = ({
                                             loading ||
                                             imageProcessing
                                         }
-                                        aria-label={t("Remove photo")}
+                                        aria-label={t(
+                                            "Remove photo"
+                                        )}
                                         sx={{
                                             position: "absolute",
                                             top: 8,
@@ -356,11 +399,14 @@ const PostComposer = ({
                                             backgroundColor:
                                                 "rgba(255,255,255,0.9)",
                                             "&:hover": {
-                                                backgroundColor: "white"
+                                                backgroundColor:
+                                                    "white"
                                             }
                                         }}
                                     >
-                                        <DeleteIcon fontSize="small" />
+                                        <DeleteIcon
+                                            fontSize="small"
+                                        />
                                     </IconButton>
                                 </Box>
                             )}

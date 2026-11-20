@@ -1,5 +1,6 @@
-import React from'react';
-import{
+import React from 'react';
+
+import {
     Avatar,
     Box,
     Card,
@@ -7,52 +8,63 @@ import{
     Chip,
     Stack,
     Typography
-}from'@mui/material';
-import LocationOnOutlinedIcon from'@mui/icons-material/LocationOnOutlined';
-import BadgeOutlinedIcon from'@mui/icons-material/BadgeOutlined';
-import ConnectionButton from'./ConnectionButton';
+} from '@mui/material';
 
-const getInitials=name=>
+import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
+import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
+
+import ConnectionButton from './ConnectionButton';
+
+import {
+    getAvatarImage
+} from '../../utils/cloudinaryImage';
+
+const getInitials = name =>
     name
         ?.split(' ')
         .filter(Boolean)
-        .slice(0,2)
+        .slice(0, 2)
         .map(
-            part=>
+            part =>
                 part.charAt(0).toUpperCase()
         )
-        .join('')||
+        .join('') ||
     'U';
 
-const getRoleLabel=role=>{
-    const labels={
-        farmer:'Farmer',
-        buyer:'Buyer',
-        extension_officer:'Extension Officer',
-        admin:'Administrator'
+const getRoleLabel = role => {
+    const labels = {
+        farmer: 'Farmer',
+        buyer: 'Buyer',
+        extension_officer: 'Extension Officer',
+        admin: 'Administrator'
     };
 
-    return labels[role]||'User';
+    return labels[role] || 'User';
 };
 
-const UserCard=({
+const UserCard = ({
     user,
-    connectionStatus='none',
+    connectionStatus = 'none',
     onOpenProfile,
     onConnectionChange
-})=>{
-    const openProfile=()=>{
-        if(onOpenProfile){
+}) => {
+    const openProfile = () => {
+        if (onOpenProfile) {
             onOpenProfile(user._id);
         }
     };
 
-    return(
+    const profilePhoto = getAvatarImage(
+        user.profilePhoto,
+        180
+    );
+
+    return (
         <Card
             elevation={1}
             sx={{
-                borderRadius:3,
-                height:'100%'
+                borderRadius: 3,
+                height: '100%'
             }}
         >
             <CardContent>
@@ -64,45 +76,53 @@ const UserCard=({
                     >
                         <Avatar
                             src={
-                                user.profilePhoto||
+                                profilePhoto ||
                                 undefined
                             }
+                            alt={user.name || ''}
+                            slotProps={{
+                                img: {
+                                    loading: 'lazy',
+                                    decoding: 'async',
+                                    width: 58,
+                                    height: 58
+                                }
+                            }}
                             sx={{
-                                width:58,
-                                height:58,
-                                bgcolor:'primary.main',
-                                fontWeight:700,
-                                cursor:onOpenProfile?
-                                    'pointer':
-                                    'default'
+                                width: 58,
+                                height: 58,
+                                bgcolor: 'primary.main',
+                                fontWeight: 700,
+                                cursor: onOpenProfile
+                                    ? 'pointer'
+                                    : 'default'
                             }}
                             onClick={openProfile}
                         >
-                            {!user.profilePhoto&&
-                                getInitials(user.name)}
+                            {getInitials(user.name)}
                         </Avatar>
 
                         <Box
                             sx={{
-                                minWidth:0,
-                                flex:1
+                                minWidth: 0,
+                                flex: 1
                             }}
                         >
                             <Typography
                                 fontWeight={800}
                                 onClick={openProfile}
                                 sx={{
-                                    overflow:'hidden',
-                                    textOverflow:'ellipsis',
-                                    whiteSpace:'nowrap',
-                                    cursor:onOpenProfile?
-                                        'pointer':
-                                        'default',
-                                    '&:hover':onOpenProfile?
-                                        {
-                                            color:'primary.main'
-                                        }:
-                                        {}
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                    cursor: onOpenProfile
+                                        ? 'pointer'
+                                        : 'default',
+                                    '&:hover': onOpenProfile
+                                        ? {
+                                            color: 'primary.main'
+                                        }
+                                        : {}
                                 }}
                             >
                                 {user.name}
@@ -111,7 +131,7 @@ const UserCard=({
                             <Chip
                                 size="small"
                                 icon={
-                                    <BadgeOutlinedIcon/>
+                                    <BadgeOutlinedIcon />
                                 }
                                 label={
                                     getRoleLabel(
@@ -120,27 +140,27 @@ const UserCard=({
                                 }
                                 color="success"
                                 variant="outlined"
-                                sx={{mt:.5}}
+                                sx={{ mt: .5 }}
                             />
                         </Box>
                     </Stack>
 
-                    {user.bio&&(
+                    {user.bio && (
                         <Typography
                             variant="body2"
                             color="text.secondary"
                             sx={{
-                                display:'-webkit-box',
-                                WebkitLineClamp:3,
-                                WebkitBoxOrient:'vertical',
-                                overflow:'hidden'
+                                display: '-webkit-box',
+                                WebkitLineClamp: 3,
+                                WebkitBoxOrient: 'vertical',
+                                overflow: 'hidden'
                             }}
                         >
                             {user.bio}
                         </Typography>
                     )}
 
-                    {(user.state||user.location)&&(
+                    {(user.state || user.location) && (
                         <Stack
                             direction="row"
                             spacing={.7}
@@ -167,8 +187,8 @@ const UserCard=({
 
                     <Stack
                         direction={{
-                            xs:'column',
-                            sm:'row'
+                            xs: 'column',
+                            sm: 'row'
                         }}
                         spacing={1}
                     >

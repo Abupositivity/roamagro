@@ -24,7 +24,10 @@ import {
 } from '@mui/material';
 
 import RefreshIcon from '@mui/icons-material/Refresh';
+
 import api from '../services/api';
+
+import AdvertisementMedia from '../components/advertising/AdvertisementMedia';
 
 const formatDate = (value) => {
     if (!value) return '—';
@@ -157,7 +160,8 @@ const AdvertiserReport = () => {
                     ? 'warning'
                     : 'default';
 
-    const metricDefinitions = report?.metricDefinitions || {};
+    const metricDefinitions =
+        report?.metricDefinitions || {};
 
     return (
         <Container
@@ -180,7 +184,10 @@ const AdvertiserReport = () => {
                             ROAMAGRO
                         </Typography>
 
-                        <Typography variant="h5" fontWeight={700}>
+                        <Typography
+                            variant="h5"
+                            fontWeight={700}
+                        >
                             {t('Advertising Report')}
                         </Typography>
                     </Box>
@@ -196,7 +203,12 @@ const AdvertiserReport = () => {
                 </Stack>
 
                 {loading && (
-                    <Box sx={{ textAlign: 'center', py: 4 }}>
+                    <Box
+                        sx={{
+                            textAlign: 'center',
+                            py: 4,
+                        }}
+                    >
                         <CircularProgress />
                     </Box>
                 )}
@@ -211,15 +223,10 @@ const AdvertiserReport = () => {
                     <>
                         <Card variant="outlined">
                             {report.imageUrl && (
-                                <Box
-                                    component="img"
-                                    src={report.imageUrl}
+                                <AdvertisementMedia
+                                    source={report.imageUrl}
                                     alt={report.title}
-                                    sx={{
-                                        width: '100%',
-                                        maxHeight: 250,
-                                        objectFit: 'cover',
-                                    }}
+                                    variant="report"
                                 />
                             )}
 
@@ -349,21 +356,29 @@ const AdvertiserReport = () => {
                                     <Typography variant="body2">
                                         {t('Package')}: {' '}
                                         <strong>
-                                            {t(report.packageName || 'custom')}
+                                            {t(
+                                                report.packageName ||
+                                                'custom'
+                                            )}
                                         </strong>
                                     </Typography>
 
                                     <Typography variant="body2">
                                         {t('Campaign fee')}: {' '}
                                         <strong>
-                                            {formatMoney(report.amountPaid)}
+                                            {formatMoney(
+                                                report.amountPaid
+                                            )}
                                         </strong>
                                     </Typography>
 
                                     <Typography variant="body2">
                                         {t('Payment status')}: {' '}
                                         <strong>
-                                            {t(report.paymentStatus || 'unpaid')}
+                                            {t(
+                                                report.paymentStatus ||
+                                                'unpaid'
+                                            )}
                                         </strong>
                                     </Typography>
 
@@ -398,12 +413,27 @@ const AdvertiserReport = () => {
 
                                 <Stack spacing={2} sx={{ mt: 2 }}>
                                     {[
-                                        ['Impressions', metricDefinitions.impressions],
-                                        ['Clicks', metricDefinitions.clicks],
-                                        ['Click-through rate', metricDefinitions.ctr],
-                                        ['Effective cost per click', metricDefinitions.effectiveCpc],
+                                        [
+                                            'Impressions',
+                                            metricDefinitions.impressions,
+                                        ],
+                                        [
+                                            'Clicks',
+                                            metricDefinitions.clicks,
+                                        ],
+                                        [
+                                            'Click-through rate',
+                                            metricDefinitions.ctr,
+                                        ],
+                                        [
+                                            'Effective cost per click',
+                                            metricDefinitions.effectiveCpc,
+                                        ],
                                     ]
-                                        .filter(([, definition]) => Boolean(definition))
+                                        .filter(
+                                            ([, definition]) =>
+                                                Boolean(definition)
+                                        )
                                         .map(([label, definition]) => (
                                             <Box key={label}>
                                                 <Typography

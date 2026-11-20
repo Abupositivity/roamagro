@@ -45,6 +45,8 @@ import { Link as RouterLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 
+import AdvertisementMedia from '../components/advertising/AdvertisementMedia';
+
 const PLACEMENTS = [
     'dashboard',
     'extension-dashboard',
@@ -1065,17 +1067,10 @@ const AdminAdvertisements = () => {
                                         borderRadius: 3,
                                     }}
                                 >
-                                    <Box
-                                        component="img"
-                                        src={advertisement.imageUrl}
+                                    <AdvertisementMedia
+                                        source={advertisement.imageUrl}
                                         alt={advertisement.title}
-                                        loading="lazy"
-                                        sx={{
-                                            width: '100%',
-                                            height: 190,
-                                            objectFit: 'cover',
-                                            bgcolor: 'action.hover',
-                                        }}
+                                        variant="thumbnail"
                                     />
 
                                     <CardContent>
@@ -1544,17 +1539,10 @@ const AdminAdvertisements = () => {
                         </Box>
 
                         {previewSource && (
-                            <Box
-                                component="img"
-                                src={previewSource}
+                            <AdvertisementMedia
+                                source={previewSource}
                                 alt={t('Advertisement preview')}
-                                sx={{
-                                    width: '100%',
-                                    maxHeight: 220,
-                                    objectFit: 'contain',
-                                    borderRadius: 2,
-                                    bgcolor: 'action.hover',
-                                }}
+                                variant="preview"
                             />
                         )}
 

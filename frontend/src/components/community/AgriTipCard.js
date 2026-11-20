@@ -1,4 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, {
+    useEffect,
+    useRef,
+    useState,
+} from 'react';
 
 import {
     Alert,
@@ -35,8 +39,13 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import SendOutlinedIcon from '@mui/icons-material/SendOutlined';
+import ImageNotSupportedOutlinedIcon from '@mui/icons-material/ImageNotSupportedOutlined';
 
-import { useDispatch, useSelector } from 'react-redux';
+import {
+    useDispatch,
+    useSelector,
+} from 'react-redux';
+
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -51,28 +60,185 @@ import {
 
 import compressImage from '../../utils/compressImage';
 
+import {
+    getAvatarImage,
+    getFeedImage,
+    getFeedImageSrcSet,
+    getResponsiveImage,
+} from '../../utils/cloudinaryImage';
+
 const getId = (value) =>
-    value?._id?.toString() || value?.id?.toString() || value?.toString();
+    value?._id?.toString() ||
+    value?.id?.toString() ||
+    value?.toString();
+
+const FEED_IMAGE_SIZES = [
+    'auto',
+    '(max-width: 599px) 100vw',
+    '(max-width: 899px) 90vw',
+    '800px',
+].join(', ');
+
+const OptimizedTipImage = ({
+    source,
+    alt,
+    preview = false,
+}) => {
+    const { t } = useTranslation();
+
+    const [
+        useOriginal,
+        setUseOriginal,
+    ] = useState(false);
+
+    const [
+        imageFailed,
+        setImageFailed,
+    ] = useState(false);
+
+    const optimizedImage = preview
+        ? getResponsiveImage(source, 800)
+        : getFeedImage(source, 800);
+
+    const displayImage = useOriginal
+        ? source
+        : optimizedImage;
+
+    const srcSet =
+        !preview && !useOriginal
+            ? getFeedImageSrcSet(source)
+            : undefined;
+
+    const handleImageError = () => {
+        if (
+            !useOriginal &&
+            (
+                optimizedImage !== source ||
+                srcSet
+            )
+        ) {
+            setUseOriginal(true);
+            return;
+        }
+
+        setImageFailed(true);
+    };
+
+    if (!source) {
+        return null;
+    }
+
+    if (imageFailed) {
+        return (
+            <Box
+                role="status"
+                sx={{
+                    width: '100%',
+                    aspectRatio: '16 / 9',
+                    maxHeight: preview ? 220 : 260,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    bgcolor: 'action.hover',
+                    color: 'text.secondary',
+                    borderRadius: preview ? 2 : 0,
+                }}
+            >
+                <Stack
+                    spacing={1}
+                    alignItems="center"
+                >
+                    <ImageNotSupportedOutlinedIcon
+                        fontSize="large"
+                        aria-hidden="true"
+                    />
+
+                    <Typography variant="body2">
+                        {t('Image unavailable')}
+                    </Typography>
+                </Stack>
+            </Box>
+        );
+    }
+
+    return (
+        <CardMedia
+            key={displayImage}
+            component="img"
+            src={displayImage}
+            srcSet={srcSet}
+            sizes={
+                srcSet
+                    ? FEED_IMAGE_SIZES
+                    : undefined
+            }
+            alt={alt}
+            loading={preview ? 'eager' : 'lazy'}
+            decoding="async"
+            onError={handleImageError}
+            sx={{
+                display: 'block',
+                width: '100%',
+                aspectRatio: preview
+                    ? undefined
+                    : '16 / 9',
+                maxHeight: preview ? 220 : 260,
+                objectFit: preview
+                    ? 'contain'
+                    : 'cover',
+                backgroundColor: 'action.hover',
+                borderRadius: preview ? 2 : 0,
+            }}
+        />
+    );
+};
 
 const AgriTipCard = ({ tip }) => {
     const { t } = useTranslation();
     const dispatch = useDispatch();
-    const currentUser = useSelector((state) => state.auth?.user);
+
+    const currentUser = useSelector(
+        (state) => state.auth?.user
+    );
+
     const fileInputRef = useRef(null);
     const imageSelectionRef = useRef(0);
 
-    const [menuAnchor, setMenuAnchor] = useState(null);
-    const [editOpen, setEditOpen] = useState(false);
-    const [commentsOpen, setCommentsOpen] = useState(false);
-    const [commentText, setCommentText] = useState('');
-    const [editError, setEditError] = useState('');
-    const [commentError, setCommentError] = useState('');
-    const [imageError, setImageError] = useState('');
-    const [imageProcessing, setImageProcessing] = useState(false);
-    const [imagePreview, setImagePreview] = useState('');
-    const [saving, setSaving] = useState(false);
-    const [commenting, setCommenting] = useState(false);
-    const [sharing, setSharing] = useState(false);
+    const [menuAnchor, setMenuAnchor] =
+        useState(null);
+
+    const [editOpen, setEditOpen] =
+        useState(false);
+
+    const [commentsOpen, setCommentsOpen] =
+        useState(false);
+
+    const [commentText, setCommentText] =
+        useState('');
+
+    const [editError, setEditError] =
+        useState('');
+
+    const [commentError, setCommentError] =
+        useState('');
+
+    const [imageError, setImageError] =
+        useState('');
+
+    const [imageProcessing, setImageProcessing] =
+        useState(false);
+
+    const [imagePreview, setImagePreview] =
+        useState('');
+
+    const [saving, setSaving] =
+        useState(false);
+
+    const [commenting, setCommenting] =
+        useState(false);
+
+    const [sharing, setSharing] =
+        useState(false);
 
     const [editData, setEditData] = useState({
         title: tip.title || '',
@@ -90,7 +256,9 @@ const AgriTipCard = ({ tip }) => {
             typeof File !== 'undefined' &&
             editData.image instanceof File
         ) {
-            const previewUrl = URL.createObjectURL(editData.image);
+            const previewUrl =
+                URL.createObjectURL(editData.image);
+
             setImagePreview(previewUrl);
 
             return () => {
@@ -112,15 +280,23 @@ const AgriTipCard = ({ tip }) => {
     }, []);
 
     const userId = getId(currentUser);
+
     const creatorId = getId(tip.createdBy);
-    const isAdmin = currentUser?.role === 'admin';
-    const isExtensionOfficer = currentUser?.role === 'extension_officer';
+
+    const isAdmin =
+        currentUser?.role === 'admin';
+
+    const isExtensionOfficer =
+        currentUser?.role === 'extension_officer';
 
     const canManage = Boolean(
         userId &&
         (
             isAdmin ||
-            (isExtensionOfficer && userId === creatorId)
+            (
+                isExtensionOfficer &&
+                userId === creatorId
+            )
         )
     );
 
@@ -133,39 +309,64 @@ const AgriTipCard = ({ tip }) => {
     );
 
     const priorityColor = () => {
-        if (tip.priority === 'Urgent') return 'error';
-        if (tip.priority === 'Important') return 'warning';
+        if (tip.priority === 'Urgent') {
+            return 'error';
+        }
+
+        if (tip.priority === 'Important') {
+            return 'warning';
+        }
+
         return 'success';
     };
 
     const handleImageChange = async (event) => {
         const file = event.target.files?.[0];
+
         event.target.value = '';
 
         if (!file) return;
 
-        const selectionId = ++imageSelectionRef.current;
+        const selectionId =
+            ++imageSelectionRef.current;
 
         setImageError('');
         setImageProcessing(true);
 
         try {
-            const compressedFile = await compressImage(file);
+            const compressedFile =
+                await compressImage(file);
 
-            if (selectionId !== imageSelectionRef.current) return;
+            if (
+                selectionId !==
+                imageSelectionRef.current
+            ) {
+                return;
+            }
 
             setEditData((previous) => ({
                 ...previous,
                 image: compressedFile,
             }));
         } catch (error) {
-            if (selectionId !== imageSelectionRef.current) return;
+            if (
+                selectionId !==
+                imageSelectionRef.current
+            ) {
+                return;
+            }
 
             setImageError(
-                t(error.message || 'Unable to process this image.')
+                t(
+                    error.message ||
+                    'Unable to process this image.'
+                )
             );
         } finally {
-            if (selectionId === imageSelectionRef.current) {
+            if (
+                selectionId ===
+                imageSelectionRef.current
+            ) {
                 setImageProcessing(false);
             }
         }
@@ -173,6 +374,7 @@ const AgriTipCard = ({ tip }) => {
 
     const handleRemoveImage = () => {
         imageSelectionRef.current += 1;
+
         setImageProcessing(false);
         setImageError('');
 
@@ -188,6 +390,7 @@ const AgriTipCard = ({ tip }) => {
 
     const openEdit = () => {
         imageSelectionRef.current += 1;
+
         setImageProcessing(false);
 
         setEditData({
@@ -211,6 +414,7 @@ const AgriTipCard = ({ tip }) => {
         if (saving) return;
 
         imageSelectionRef.current += 1;
+
         setImageProcessing(false);
         setEditOpen(false);
         setImageError('');
@@ -244,16 +448,20 @@ const AgriTipCard = ({ tip }) => {
 
             if (!result?.success) {
                 setEditError(
-                    result?.message || t('Unable to update tip.')
+                    result?.message ||
+                    t('Unable to update tip.')
                 );
+
                 return;
             }
 
             imageSelectionRef.current += 1;
+
             setEditOpen(false);
         } catch (error) {
             setEditError(
-                error?.message || t('Unable to update tip.')
+                error?.message ||
+                t('Unable to update tip.')
             );
         } finally {
             setSaving(false);
@@ -263,48 +471,76 @@ const AgriTipCard = ({ tip }) => {
     const handleDelete = async () => {
         setMenuAnchor(null);
 
-        if (!window.confirm(t('Delete this agricultural tip?'))) return;
+        if (
+            !window.confirm(
+                t('Delete this agricultural tip?')
+            )
+        ) {
+            return;
+        }
 
-        await dispatch(deleteAgriTip(tip._id));
+        await dispatch(
+            deleteAgriTip(tip._id)
+        );
     };
 
     const handleLike = () => {
-        dispatch(likeAgriTip(tip._id));
+        dispatch(
+            likeAgriTip(tip._id)
+        );
     };
 
     const handleAddComment = async () => {
         const content = commentText.trim();
+
         if (!content) return;
 
         setCommenting(true);
         setCommentError('');
 
         const result = await dispatch(
-            addAgriTipComment(tip._id, content)
+            addAgriTipComment(
+                tip._id,
+                content
+            )
         );
 
         setCommenting(false);
 
         if (!result.success) {
             setCommentError(
-                result.message || t('Unable to add comment.')
+                result.message ||
+                t('Unable to add comment.')
             );
+
             return;
         }
 
         setCommentText('');
     };
 
-    const handleDeleteComment = async (commentId) => {
-        if (!window.confirm(t('Delete this comment?'))) return;
+    const handleDeleteComment = async (
+        commentId
+    ) => {
+        if (
+            !window.confirm(
+                t('Delete this comment?')
+            )
+        ) {
+            return;
+        }
 
         const result = await dispatch(
-            deleteAgriTipComment(tip._id, commentId)
+            deleteAgriTipComment(
+                tip._id,
+                commentId
+            )
         );
 
         if (!result.success) {
             setCommentError(
-                result.message || t('Unable to delete comment.')
+                result.message ||
+                t('Unable to delete comment.')
             );
         }
     };
@@ -313,7 +549,9 @@ const AgriTipCard = ({ tip }) => {
         if (shared) {
             if (
                 !window.confirm(
-                    t('Remove this agricultural tip from the Community?')
+                    t(
+                        'Remove this agricultural tip from the Community?'
+                    )
                 )
             ) {
                 return;
@@ -330,7 +568,9 @@ const AgriTipCard = ({ tip }) => {
             if (!result.success) {
                 setCommentError(
                     result.message ||
-                    t('Unable to remove this tip from the Community.')
+                    t(
+                        'Unable to remove this tip from the Community.'
+                    )
                 );
             }
 
@@ -349,32 +589,29 @@ const AgriTipCard = ({ tip }) => {
         if (!result.success) {
             setCommentError(
                 result.message ||
-                t('Unable to share this tip to the Community.')
+                t(
+                    'Unable to share this tip to the Community.'
+                )
             );
         }
     };
 
     return (
         <>
-            <Card elevation={2} sx={{ borderRadius: 3 }}>
+            <Card
+                elevation={2}
+                sx={{
+                    borderRadius: 3,
+                }}
+            >
                 {tip.image && (
-                    <CardMedia
-                        component="img"
-                        image={tip.image}
-                        alt={tip.title || t('Agricultural tip image')}
-                        loading="lazy"
-                        decoding="async"
-                        onError={(event) => {
-                            event.currentTarget.style.display = 'none';
-                        }}
-                        sx={{
-                            display: 'block',
-                            width: '100%',
-                            aspectRatio: '16 / 9',
-                            maxHeight: 260,
-                            objectFit: 'cover',
-                            backgroundColor: 'action.hover',
-                        }}
+                    <OptimizedTipImage
+                        key={tip.image}
+                        source={tip.image}
+                        alt={
+                            tip.title ||
+                            t('Agricultural tip image')
+                        }
                     />
                 )}
 
@@ -386,7 +623,10 @@ const AgriTipCard = ({ tip }) => {
                         spacing={2}
                         mb={2}
                     >
-                        <Typography variant="h6" fontWeight={700}>
+                        <Typography
+                            variant="h6"
+                            fontWeight={700}
+                        >
                             {tip.title}
                         </Typography>
 
@@ -403,9 +643,13 @@ const AgriTipCard = ({ tip }) => {
 
                             {canManage && (
                                 <IconButton
-                                    aria-label={t('Tip options')}
+                                    aria-label={t(
+                                        'Tip options'
+                                    )}
                                     onClick={(event) =>
-                                        setMenuAnchor(event.currentTarget)
+                                        setMenuAnchor(
+                                            event.currentTarget
+                                        )
                                     }
                                     size="small"
                                 >
@@ -418,13 +662,16 @@ const AgriTipCard = ({ tip }) => {
                     <Menu
                         anchorEl={menuAnchor}
                         open={Boolean(menuAnchor)}
-                        onClose={() => setMenuAnchor(null)}
+                        onClose={() =>
+                            setMenuAnchor(null)
+                        }
                     >
                         <MenuItem onClick={openEdit}>
                             <EditOutlinedIcon
                                 fontSize="small"
                                 sx={{ mr: 1 }}
                             />
+
                             {t('Edit')}
                         </MenuItem>
 
@@ -433,6 +680,7 @@ const AgriTipCard = ({ tip }) => {
                                 fontSize="small"
                                 sx={{ mr: 1 }}
                             />
+
                             {t('Delete')}
                         </MenuItem>
                     </Menu>
@@ -451,12 +699,14 @@ const AgriTipCard = ({ tip }) => {
                             color="success"
                             variant="outlined"
                         />
+
                         <Chip
                             icon={<LanguageIcon />}
                             label={t(tip.language)}
                             size="small"
                             variant="outlined"
                         />
+
                         <Chip
                             icon={<LocationOnIcon />}
                             label={t(tip.region)}
@@ -467,7 +717,9 @@ const AgriTipCard = ({ tip }) => {
 
                     <Typography
                         variant="body1"
-                        sx={{ whiteSpace: 'pre-line' }}
+                        sx={{
+                            whiteSpace: 'pre-line',
+                        }}
                     >
                         {tip.content}
                     </Typography>
@@ -478,7 +730,10 @@ const AgriTipCard = ({ tip }) => {
                                 variant="body2"
                                 color="text.secondary"
                             >
-                                <strong>{t('Shared by')}:</strong>{' '}
+                                <strong>
+                                    {t('Shared by')}:
+                                </strong>
+                                {' '}
                                 {tip.createdBy.name}
                             </Typography>
                         )}
@@ -488,7 +743,10 @@ const AgriTipCard = ({ tip }) => {
                                 variant="body2"
                                 color="text.secondary"
                             >
-                                <strong>{t('Source')}:</strong>{' '}
+                                <strong>
+                                    {t('Source')}:
+                                </strong>
+                                {' '}
                                 {tip.source}
                             </Typography>
                         )}
@@ -500,7 +758,9 @@ const AgriTipCard = ({ tip }) => {
                             mt={1}
                         >
                             {tip.createdAt
-                                ? new Date(tip.createdAt).toLocaleDateString()
+                                ? new Date(
+                                    tip.createdAt
+                                ).toLocaleDateString()
                                 : ''}
                         </Typography>
                     </Box>
@@ -519,14 +779,22 @@ const AgriTipCard = ({ tip }) => {
                                     : <FavoriteBorderIcon />
                             }
                             onClick={handleLike}
-                            color={liked ? 'error' : 'inherit'}
+                            color={
+                                liked
+                                    ? 'error'
+                                    : 'inherit'
+                            }
                         >
                             {t('Like')} ({tip.likes?.length || 0})
                         </Button>
 
                         <Button
-                            startIcon={<ChatBubbleOutlineIcon />}
-                            onClick={() => setCommentsOpen(true)}
+                            startIcon={
+                                <ChatBubbleOutlineIcon />
+                            }
+                            onClick={() =>
+                                setCommentsOpen(true)
+                            }
                             color="inherit"
                         >
                             {t('Comment')} ({tip.comments?.length || 0})
@@ -536,7 +804,11 @@ const AgriTipCard = ({ tip }) => {
                             startIcon={<ShareIcon />}
                             onClick={handleShare}
                             disabled={sharing}
-                            color={shared ? 'success' : 'inherit'}
+                            color={
+                                shared
+                                    ? 'success'
+                                    : 'inherit'
+                            }
                         >
                             {sharing
                                 ? t('Updating...')
@@ -560,7 +832,10 @@ const AgriTipCard = ({ tip }) => {
                 </DialogTitle>
 
                 <DialogContent>
-                    <Stack spacing={2} sx={{ pt: 1 }}>
+                    <Stack
+                        spacing={2}
+                        sx={{ pt: 1 }}
+                    >
                         {editError && (
                             <Alert severity="error">
                                 {editError}
@@ -576,7 +851,9 @@ const AgriTipCard = ({ tip }) => {
                         <TextField
                             label={t('Title')}
                             value={editData.title}
-                            inputProps={{ maxLength: 150 }}
+                            inputProps={{
+                                maxLength: 150,
+                            }}
                             onChange={(event) =>
                                 setEditData({
                                     ...editData,
@@ -632,16 +909,18 @@ const AgriTipCard = ({ tip }) => {
                             fullWidth
                             disabled={!isAdmin}
                         >
-                            {['Normal', 'Important', 'Urgent'].map(
-                                (priority) => (
-                                    <MenuItem
-                                        key={priority}
-                                        value={priority}
-                                    >
-                                        {t(priority)}
-                                    </MenuItem>
-                                )
-                            )}
+                            {[
+                                'Normal',
+                                'Important',
+                                'Urgent',
+                            ].map((priority) => (
+                                <MenuItem
+                                    key={priority}
+                                    value={priority}
+                                >
+                                    {t(priority)}
+                                </MenuItem>
+                            ))}
                         </TextField>
 
                         <TextField
@@ -656,7 +935,10 @@ const AgriTipCard = ({ tip }) => {
                             select
                             fullWidth
                         >
-                            {['English', 'Hausa'].map((language) => (
+                            {[
+                                'English',
+                                'Hausa',
+                            ].map((language) => (
                                 <MenuItem
                                     key={language}
                                     value={language}
@@ -690,17 +972,13 @@ const AgriTipCard = ({ tip }) => {
                             fullWidth
                         />
 
-                        {imagePreview && (
+                        {editOpen && imagePreview && (
                             <Box>
-                                <CardMedia
-                                    component="img"
-                                    image={imagePreview}
+                                <OptimizedTipImage
+                                    key={imagePreview}
+                                    source={imagePreview}
                                     alt={t('Tip image preview')}
-                                    sx={{
-                                        maxHeight: 220,
-                                        objectFit: 'contain',
-                                        borderRadius: 2,
-                                    }}
+                                    preview
                                 />
 
                                 <Button
@@ -737,7 +1015,10 @@ const AgriTipCard = ({ tip }) => {
                             onClick={() =>
                                 fileInputRef.current?.click()
                             }
-                            disabled={saving || imageProcessing}
+                            disabled={
+                                saving ||
+                                imageProcessing
+                            }
                         >
                             {imageProcessing
                                 ? t('Processing image...')
@@ -781,93 +1062,135 @@ const AgriTipCard = ({ tip }) => {
                 fullWidth
                 maxWidth="sm"
             >
-                <DialogTitle>{t('Comments')}</DialogTitle>
+                <DialogTitle>
+                    {t('Comments')}
+                </DialogTitle>
 
                 <DialogContent>
-                    <Stack spacing={2} sx={{ pt: 1 }}>
+                    <Stack
+                        spacing={2}
+                        sx={{ pt: 1 }}
+                    >
                         {commentError && (
                             <Alert severity="error">
                                 {commentError}
                             </Alert>
                         )}
 
-                        {tip.comments?.length
-                            ? tip.comments.map((comment) => {
-                                const commentUserId = getId(comment.user);
-                                const canDelete = Boolean(
-                                    userId && commentUserId === userId
-                                );
+                        {commentsOpen && (
+                            tip.comments?.length
+                                ? tip.comments.map((comment) => {
+                                    const commentUserId =
+                                        getId(comment.user);
 
-                                return (
-                                    <Box key={comment._id}>
-                                        <Stack
-                                            direction="row"
-                                            spacing={1.5}
-                                            alignItems="flex-start"
-                                        >
-                                            <Avatar
-                                                src={comment.user?.profilePhoto}
+                                    const canDelete = Boolean(
+                                        userId &&
+                                        commentUserId === userId
+                                    );
+
+                                    return (
+                                        <Box key={comment._id}>
+                                            <Stack
+                                                direction="row"
+                                                spacing={1.5}
+                                                alignItems="flex-start"
                                             >
-                                                {comment.user?.name?.charAt(0) || '?'}
-                                            </Avatar>
-
-                                            <Box flex={1}>
-                                                <Typography fontWeight={600}>
-                                                    {comment.user?.name || t('User')}
-                                                </Typography>
-
-                                                <Typography
+                                                <Avatar
+                                                    src={
+                                                        getAvatarImage(
+                                                            comment.user?.profilePhoto,
+                                                            120
+                                                        ) || undefined
+                                                    }
+                                                    alt={
+                                                        comment.user?.name ||
+                                                        t('User')
+                                                    }
+                                                    slotProps={{
+                                                        img: {
+                                                            loading: 'lazy',
+                                                            decoding: 'async',
+                                                            width: 40,
+                                                            height: 40,
+                                                        },
+                                                    }}
                                                     sx={{
-                                                        whiteSpace: 'pre-line',
+                                                        width: 40,
+                                                        height: 40,
                                                     }}
                                                 >
-                                                    {comment.content}
-                                                </Typography>
+                                                    {comment.user?.name?.charAt(0) || '?'}
+                                                </Avatar>
 
-                                                <Typography
-                                                    variant="caption"
-                                                    color="text.secondary"
-                                                >
-                                                    {comment.createdAt
-                                                        ? new Date(
-                                                            comment.createdAt
-                                                        ).toLocaleString()
-                                                        : ''}
-                                                </Typography>
-                                            </Box>
+                                                <Box flex={1}>
+                                                    <Typography
+                                                        fontWeight={600}
+                                                    >
+                                                        {comment.user?.name ||
+                                                            t('User')}
+                                                    </Typography>
 
-                                            {canDelete && (
-                                                <IconButton
-                                                    aria-label={t('Delete comment')}
-                                                    size="small"
-                                                    onClick={() =>
-                                                        handleDeleteComment(
-                                                            comment._id
-                                                        )
-                                                    }
-                                                >
-                                                    <DeleteOutlineIcon fontSize="small" />
-                                                </IconButton>
-                                            )}
-                                        </Stack>
+                                                    <Typography
+                                                        sx={{
+                                                            whiteSpace: 'pre-line',
+                                                        }}
+                                                    >
+                                                        {comment.content}
+                                                    </Typography>
 
-                                        <Divider sx={{ mt: 1.5 }} />
-                                    </Box>
-                                );
-                            })
-                            : (
-                                <Typography color="text.secondary">
-                                    {t(
-                                        'No comments yet. Be the first to comment.'
-                                    )}
-                                </Typography>
-                            )}
+                                                    <Typography
+                                                        variant="caption"
+                                                        color="text.secondary"
+                                                    >
+                                                        {comment.createdAt
+                                                            ? new Date(
+                                                                comment.createdAt
+                                                            ).toLocaleString()
+                                                            : ''}
+                                                    </Typography>
+                                                </Box>
+
+                                                {canDelete && (
+                                                    <IconButton
+                                                        aria-label={t(
+                                                            'Delete comment'
+                                                        )}
+                                                        size="small"
+                                                        onClick={() =>
+                                                            handleDeleteComment(
+                                                                comment._id
+                                                            )
+                                                        }
+                                                    >
+                                                        <DeleteOutlineIcon fontSize="small" />
+                                                    </IconButton>
+                                                )}
+                                            </Stack>
+
+                                            <Divider
+                                                sx={{
+                                                    mt: 1.5,
+                                                }}
+                                            />
+                                        </Box>
+                                    );
+                                })
+                                : (
+                                    <Typography color="text.secondary">
+                                        {t(
+                                            'No comments yet. Be the first to comment.'
+                                        )}
+                                    </Typography>
+                                )
+                        )}
 
                         <TextField
                             label={t('Write a comment')}
                             value={commentText}
                             onChange={(event) =>
-                                setCommentText(event.target.value)
+                                setCommentText(
+                                    event.target.value
+                                )
                             }
                             multiline
                             minRows={2}
@@ -876,9 +1199,14 @@ const AgriTipCard = ({ tip }) => {
 
                         <Button
                             variant="contained"
-                            startIcon={<SendOutlinedIcon />}
+                            startIcon={
+                                <SendOutlinedIcon />
+                            }
                             onClick={handleAddComment}
-                            disabled={commenting || !commentText.trim()}
+                            disabled={
+                                commenting ||
+                                !commentText.trim()
+                            }
                         >
                             {commenting
                                 ? t('Posting...')
@@ -889,7 +1217,9 @@ const AgriTipCard = ({ tip }) => {
 
                 <DialogActions>
                     <Button
-                        onClick={() => setCommentsOpen(false)}
+                        onClick={() =>
+                            setCommentsOpen(false)
+                        }
                     >
                         {t('Close')}
                     </Button>

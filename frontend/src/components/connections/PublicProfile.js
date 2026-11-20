@@ -1,27 +1,62 @@
-import React,{useEffect,useState}from'react';
-import{Alert,Avatar,Box,Button,Card,CardContent,Chip,CircularProgress,Container,Dialog,DialogActions,DialogContent,DialogTitle,Divider,Grid,MenuItem,Stack,TextField,Typography}from'@mui/material';
-import ArrowBackIcon from'@mui/icons-material/ArrowBack';
-import PeopleAltOutlinedIcon from'@mui/icons-material/PeopleAltOutlined';
-import StorefrontOutlinedIcon from'@mui/icons-material/StorefrontOutlined';
-import ForumOutlinedIcon from'@mui/icons-material/ForumOutlined';
-import BadgeOutlinedIcon from'@mui/icons-material/BadgeOutlined';
-import LocationOnOutlinedIcon from'@mui/icons-material/LocationOnOutlined';
-import{useDispatch,useSelector}from'react-redux';
-import{useTranslation}from'react-i18next';
-import{getPublicProfile}from'../../redux/actions/connectionActions';
-import ConnectionButton from'./ConnectionButton';
-import api from'../../services/api';
+import React, { useEffect, useState } from 'react';
 
-const getInitials=name=>name?.split(' ').filter(Boolean).slice(0,2).map(part=>part.charAt(0).toUpperCase()).join('')||'U';
+import {
+    Alert,
+    Avatar,
+    Box,
+    Button,
+    Card,
+    CardContent,
+    Chip,
+    CircularProgress,
+    Container,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
+    Divider,
+    Grid,
+    MenuItem,
+    Stack,
+    TextField,
+    Typography
+} from '@mui/material';
 
-const getRoleLabel=role=>({
-    farmer:'Farmer',
-    buyer:'Buyer',
-    extension_officer:'Extension Officer',
-    admin:'Administrator'
-}[role]||'User');
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined';
+import StorefrontOutlinedIcon from '@mui/icons-material/StorefrontOutlined';
+import ForumOutlinedIcon from '@mui/icons-material/ForumOutlined';
+import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
+import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
 
-const REPORT_REASONS=[
+import { useDispatch, useSelector } from 'react-redux';
+import { useTranslation } from 'react-i18next';
+
+import { getPublicProfile } from '../../redux/actions/connectionActions';
+
+import ConnectionButton from './ConnectionButton';
+import api from '../../services/api';
+
+import { getAvatarImage } from '../../utils/cloudinaryImage';
+
+const PROFILE_IMAGE_SIZE = 396;
+
+const getInitials = name =>
+    name
+        ?.split(' ')
+        .filter(Boolean)
+        .slice(0, 2)
+        .map(part => part.charAt(0).toUpperCase())
+        .join('') || 'U';
+
+const getRoleLabel = role => ({
+    farmer: 'Farmer',
+    buyer: 'Buyer',
+    extension_officer: 'Extension Officer',
+    admin: 'Administrator'
+}[role] || 'User');
+
+const REPORT_REASONS = [
     'Spam',
     'Harassment or bullying',
     'Inappropriate content',
@@ -31,35 +66,35 @@ const REPORT_REASONS=[
     'Other'
 ];
 
-const PublicProfile=({userId,onBack})=>{
-    const{t}=useTranslation();
-    const dispatch=useDispatch();
+const PublicProfile = ({ userId, onBack }) => {
+    const { t } = useTranslation();
+    const dispatch = useDispatch();
 
-    const{publicProfile,loading,error}=useSelector(
-        state=>state.connections||state.connection
+    const { publicProfile, loading, error } = useSelector(
+        state => state.connections || state.connection
     );
 
-    const profile=publicProfile?.user;
-    const status=publicProfile?.connectionStatus||'none';
+    const profile = publicProfile?.user;
+    const status = publicProfile?.connectionStatus || 'none';
 
-    const[reportOpen,setReportOpen]=useState(false);
-    const[reportReason,setReportReason]=useState('');
-    const[reportDescription,setReportDescription]=useState('');
-    const[reportLoading,setReportLoading]=useState(false);
-    const[reportError,setReportError]=useState('');
-    const[reportSuccess,setReportSuccess]=useState(false);
+    const [reportOpen, setReportOpen] = useState(false);
+    const [reportReason, setReportReason] = useState('');
+    const [reportDescription, setReportDescription] = useState('');
+    const [reportLoading, setReportLoading] = useState(false);
+    const [reportError, setReportError] = useState('');
+    const [reportSuccess, setReportSuccess] = useState(false);
 
-    useEffect(()=>{
-        if(userId){
+    useEffect(() => {
+        if (userId) {
             dispatch(getPublicProfile(userId));
         }
-    },[dispatch,userId]);
+    }, [dispatch, userId]);
 
-    const handleConnectionChange=()=>{
+    const handleConnectionChange = () => {
         dispatch(getPublicProfile(userId));
     };
 
-    const openReport=()=>{
+    const openReport = () => {
         setReportReason('');
         setReportDescription('');
         setReportError('');
@@ -67,24 +102,24 @@ const PublicProfile=({userId,onBack})=>{
         setReportOpen(true);
     };
 
-    const closeReport=()=>{
-        if(reportLoading)return;
+    const closeReport = () => {
+        if (reportLoading) return;
 
         setReportOpen(false);
         setReportError('');
     };
 
-    const submitReport=async()=>{
+    const submitReport = async () => {
         setReportError('');
 
-        if(!reportReason){
+        if (!reportReason) {
             setReportError(
                 t('Please select a reason for this report.')
             );
             return;
         }
 
-        if(reportDescription.trim().length>1000){
+        if (reportDescription.trim().length > 1000) {
             setReportError(
                 t('Report details must not exceed 1000 characters.')
             );
@@ -93,88 +128,92 @@ const PublicProfile=({userId,onBack})=>{
 
         setReportLoading(true);
 
-        try{
-            await api.reportUser(userId,{
-                reason:reportReason,
-                description:reportDescription.trim()
+        try {
+            await api.reportUser(userId, {
+                reason: reportReason,
+                description: reportDescription.trim()
             });
 
             setReportSuccess(true);
             setReportReason('');
             setReportDescription('');
-        }catch(requestError){
+        } catch (requestError) {
             setReportError(
-                requestError.response?.data?.message||
+                requestError.response?.data?.message ||
                 t('Unable to submit this report. Please try again.')
             );
-        }finally{
+        } finally {
             setReportLoading(false);
         }
     };
 
-    if(loading&&!profile){
-        return(
+    if (loading && !profile) {
+        return (
             <Container
                 sx={{
-                    py:6,
-                    display:'flex',
-                    justifyContent:'center'
+                    py: 6,
+                    display: 'flex',
+                    justifyContent: 'center'
                 }}
             >
-                <CircularProgress/>
+                <CircularProgress />
             </Container>
         );
     }
 
-    if(error&&!profile){
-        return(
-            <Container sx={{py:3}}>
+    if (error && !profile) {
+        return (
+            <Container sx={{ py: 3 }}>
                 <Button
-                    startIcon={<ArrowBackIcon/>}
+                    startIcon={<ArrowBackIcon />}
                     onClick={onBack}
                 >
                     {t('Back')}
                 </Button>
 
-                <Alert
-                    severity="error"
-                    sx={{mt:2}}
-                >
+                <Alert severity="error" sx={{ mt: 2 }}>
                     {error}
                 </Alert>
             </Container>
         );
     }
 
-    if(!profile)return null;
+    if (!profile) return null;
 
-    const initials=getInitials(profile.name);
-    const stats=publicProfile.stats||{};
-    const marketplaceListings=
-        publicProfile.marketplaceListings||[];
-    const communityPosts=
-        publicProfile.communityPosts||[];
+    const initials = getInitials(profile.name);
+    const stats = publicProfile.stats || {};
 
-    return(
+    const marketplaceListings =
+        publicProfile.marketplaceListings || [];
+
+    const communityPosts =
+        publicProfile.communityPosts || [];
+
+    const optimizedProfilePhoto = getAvatarImage(
+        profile.profilePhoto,
+        PROFILE_IMAGE_SIZE
+    );
+
+    return (
         <Container
             maxWidth="md"
             sx={{
-                py:{
-                    xs:2,
-                    sm:4
+                py: {
+                    xs: 2,
+                    sm: 4
                 },
-                pb:{
-                    xs:10,
-                    sm:6
+                pb: {
+                    xs: 10,
+                    sm: 6
                 }
             }}
         >
             <Stack spacing={2.5}>
                 <Button
-                    startIcon={<ArrowBackIcon/>}
+                    startIcon={<ArrowBackIcon />}
                     onClick={onBack}
                     sx={{
-                        alignSelf:'flex-start'
+                        alignSelf: 'flex-start'
                     }}
                 >
                     {t('Back to Connections')}
@@ -183,15 +222,15 @@ const PublicProfile=({userId,onBack})=>{
                 <Card
                     elevation={2}
                     sx={{
-                        borderRadius:4,
-                        overflow:'hidden'
+                        borderRadius: 4,
+                        overflow: 'hidden'
                     }}
                 >
                     <Box
                         sx={{
-                            height:{
-                                xs:90,
-                                sm:130
+                            height: {
+                                xs: 90,
+                                sm: 130
                             },
                             background:
                                 'linear-gradient(135deg,#00BF63 0%,#008f4a 100%)'
@@ -200,61 +239,63 @@ const PublicProfile=({userId,onBack})=>{
 
                     <CardContent
                         sx={{
-                            mt:{
-                                xs:-6,
-                                sm:-7
+                            mt: {
+                                xs: -6,
+                                sm: -7
                             },
-                            px:{
-                                xs:2,
-                                sm:4
+                            px: {
+                                xs: 2,
+                                sm: 4
                             },
-                            pb:3
+                            pb: 3
                         }}
                     >
                         <Stack
                             direction={{
-                                xs:'column',
-                                sm:'row'
+                                xs: 'column',
+                                sm: 'row'
                             }}
                             spacing={2}
                             alignItems={{
-                                xs:'center',
-                                sm:'flex-end'
+                                xs: 'center',
+                                sm: 'flex-end'
                             }}
                         >
                             <Avatar
-                                src={
-                                    profile.profilePhoto||
-                                    undefined
-                                }
+                                src={optimizedProfilePhoto || undefined}
+                                alt={profile.name || ''}
+                                slotProps={{
+                                    img: {
+                                        loading: 'eager',
+                                        decoding: 'async'
+                                    }
+                                }}
                                 sx={{
-                                    width:{
-                                        xs:104,
-                                        sm:124
+                                    width: {
+                                        xs: 104,
+                                        sm: 124
                                     },
-                                    height:{
-                                        xs:104,
-                                        sm:124
+                                    height: {
+                                        xs: 104,
+                                        sm: 124
                                     },
-                                    border:'5px solid',
-                                    borderColor:
-                                        'background.paper',
-                                    bgcolor:'primary.main',
-                                    fontSize:38,
-                                    fontWeight:700
+                                    border: '5px solid',
+                                    borderColor: 'background.paper',
+                                    bgcolor: 'primary.main',
+                                    fontSize: 38,
+                                    fontWeight: 700
                                 }}
                             >
-                                {!profile.profilePhoto&&
-                                    initials}
+                                {initials}
                             </Avatar>
 
                             <Box
                                 sx={{
-                                    flex:1,
-                                    minWidth:0,
-                                    textAlign:{
-                                        xs:'center',
-                                        sm:'left'
+                                    flex: 1,
+                                    minWidth: 0,
+                                    textAlign: {
+                                        xs: 'center',
+                                        sm: 'left'
                                     }
                                 }}
                             >
@@ -262,34 +303,31 @@ const PublicProfile=({userId,onBack})=>{
                                     variant="h5"
                                     fontWeight={800}
                                     sx={{
-                                        overflowWrap:'anywhere'
+                                        overflowWrap: 'anywhere'
                                     }}
                                 >
                                     {profile.name}
                                 </Typography>
 
                                 <Chip
-                                    icon={
-                                        <BadgeOutlinedIcon/>
-                                    }
+                                    icon={<BadgeOutlinedIcon />}
                                     label={getRoleLabel(profile.role)}
                                     size="small"
                                     color="success"
                                     variant="outlined"
-                                    sx={{mt:1}}
+                                    sx={{ mt: 1 }}
                                 />
 
-                                {(profile.state||
-                                    profile.location)&&(
+                                {(profile.state || profile.location) && (
                                     <Stack
                                         direction="row"
                                         spacing={.5}
                                         justifyContent={{
-                                            xs:'center',
-                                            sm:'flex-start'
+                                            xs: 'center',
+                                            sm: 'flex-start'
                                         }}
                                         alignItems="center"
-                                        sx={{mt:1}}
+                                        sx={{ mt: 1 }}
                                     >
                                         <LocationOnOutlinedIcon
                                             fontSize="small"
@@ -300,8 +338,7 @@ const PublicProfile=({userId,onBack})=>{
                                             variant="body2"
                                             color="text.secondary"
                                             sx={{
-                                                overflowWrap:
-                                                    'anywhere'
+                                                overflowWrap: 'anywhere'
                                             }}
                                         >
                                             {[
@@ -317,12 +354,12 @@ const PublicProfile=({userId,onBack})=>{
 
                             <Box
                                 sx={{
-                                    width:{
-                                        xs:'100%',
-                                        sm:'auto'
+                                    width: {
+                                        xs: '100%',
+                                        sm: 'auto'
                                     },
-                                    minWidth:{
-                                        sm:180
+                                    minWidth: {
+                                        sm: 180
                                     }
                                 }}
                             >
@@ -330,9 +367,7 @@ const PublicProfile=({userId,onBack})=>{
                                     userId={profile._id}
                                     userName={profile.name}
                                     status={status}
-                                    onChange={
-                                        handleConnectionChange
-                                    }
+                                    onChange={handleConnectionChange}
                                     onReport={openReport}
                                     fullWidth
                                 />
@@ -341,10 +376,10 @@ const PublicProfile=({userId,onBack})=>{
                     </CardContent>
                 </Card>
 
-                {profile.bio&&(
+                {profile.bio && (
                     <Card
                         elevation={1}
-                        sx={{borderRadius:4}}
+                        sx={{ borderRadius: 4 }}
                     >
                         <CardContent>
                             <Typography
@@ -358,8 +393,8 @@ const PublicProfile=({userId,onBack})=>{
                             <Typography
                                 color="text.secondary"
                                 sx={{
-                                    whiteSpace:'pre-wrap',
-                                    wordBreak:'break-word'
+                                    whiteSpace: 'pre-wrap',
+                                    wordBreak: 'break-word'
                                 }}
                             >
                                 {profile.bio}
@@ -368,26 +403,21 @@ const PublicProfile=({userId,onBack})=>{
                     </Card>
                 )}
 
-                <Grid
-                    container
-                    spacing={1.5}
-                >
+                <Grid container spacing={1.5}>
                     <Grid item xs={4}>
-                        <Card sx={{borderRadius:3}}>
+                        <Card sx={{ borderRadius: 3 }}>
                             <CardContent
                                 sx={{
-                                    textAlign:'center'
+                                    textAlign: 'center'
                                 }}
                             >
-                                <PeopleAltOutlinedIcon
-                                    color="primary"
-                                />
+                                <PeopleAltOutlinedIcon color="primary" />
 
                                 <Typography
                                     variant="h6"
                                     fontWeight={800}
                                 >
-                                    {stats.connections||0}
+                                    {stats.connections || 0}
                                 </Typography>
 
                                 <Typography
@@ -401,21 +431,19 @@ const PublicProfile=({userId,onBack})=>{
                     </Grid>
 
                     <Grid item xs={4}>
-                        <Card sx={{borderRadius:3}}>
+                        <Card sx={{ borderRadius: 3 }}>
                             <CardContent
                                 sx={{
-                                    textAlign:'center'
+                                    textAlign: 'center'
                                 }}
                             >
-                                <StorefrontOutlinedIcon
-                                    color="primary"
-                                />
+                                <StorefrontOutlinedIcon color="primary" />
 
                                 <Typography
                                     variant="h6"
                                     fontWeight={800}
                                 >
-                                    {stats.marketplaceListings||0}
+                                    {stats.marketplaceListings || 0}
                                 </Typography>
 
                                 <Typography
@@ -429,21 +457,19 @@ const PublicProfile=({userId,onBack})=>{
                     </Grid>
 
                     <Grid item xs={4}>
-                        <Card sx={{borderRadius:3}}>
+                        <Card sx={{ borderRadius: 3 }}>
                             <CardContent
                                 sx={{
-                                    textAlign:'center'
+                                    textAlign: 'center'
                                 }}
                             >
-                                <ForumOutlinedIcon
-                                    color="primary"
-                                />
+                                <ForumOutlinedIcon color="primary" />
 
                                 <Typography
                                     variant="h6"
                                     fontWeight={800}
                                 >
-                                    {stats.communityPosts||0}
+                                    {stats.communityPosts || 0}
                                 </Typography>
 
                                 <Typography
@@ -459,7 +485,7 @@ const PublicProfile=({userId,onBack})=>{
 
                 <Card
                     elevation={1}
-                    sx={{borderRadius:4}}
+                    sx={{ borderRadius: 4 }}
                 >
                     <CardContent>
                         <Typography
@@ -469,17 +495,16 @@ const PublicProfile=({userId,onBack})=>{
                             {t('Marketplace Listings')}
                         </Typography>
 
-                        <Divider sx={{my:1.5}}/>
+                        <Divider sx={{ my: 1.5 }} />
 
-                        {marketplaceListings.length?(
+                        {marketplaceListings.length ? (
                             <Stack spacing={1.5}>
-                                {marketplaceListings.map(item=>(
+                                {marketplaceListings.map(item => (
                                     <Box key={item._id}>
                                         <Typography
                                             fontWeight={700}
                                             sx={{
-                                                overflowWrap:
-                                                    'anywhere'
+                                                overflowWrap: 'anywhere'
                                             }}
                                         >
                                             {item.title}
@@ -493,17 +518,17 @@ const PublicProfile=({userId,onBack})=>{
                                             {' · '}
                                             ₦
                                             {Number(
-                                                item.price||0
+                                                item.price || 0
                                             ).toLocaleString()}
                                             {' · '}
-                                            {item.available?
-                                                t('Available'):
-                                                t('Sold')}
+                                            {item.available
+                                                ? t('Available')
+                                                : t('Sold')}
                                         </Typography>
                                     </Box>
                                 ))}
                             </Stack>
-                        ):(
+                        ) : (
                             <Typography color="text.secondary">
                                 {t('No marketplace listings yet.')}
                             </Typography>
@@ -513,7 +538,7 @@ const PublicProfile=({userId,onBack})=>{
 
                 <Card
                     elevation={1}
-                    sx={{borderRadius:4}}
+                    sx={{ borderRadius: 4 }}
                 >
                     <CardContent>
                         <Typography
@@ -523,17 +548,16 @@ const PublicProfile=({userId,onBack})=>{
                             {t('Community Posts')}
                         </Typography>
 
-                        <Divider sx={{my:1.5}}/>
+                        <Divider sx={{ my: 1.5 }} />
 
-                        {communityPosts.length?(
+                        {communityPosts.length ? (
                             <Stack spacing={2}>
-                                {communityPosts.map(post=>(
+                                {communityPosts.map(post => (
                                     <Box key={post._id}>
                                         <Typography
                                             fontWeight={700}
                                             sx={{
-                                                overflowWrap:
-                                                    'anywhere'
+                                                overflowWrap: 'anywhere'
                                             }}
                                         >
                                             {post.title}
@@ -543,14 +567,11 @@ const PublicProfile=({userId,onBack})=>{
                                             variant="body2"
                                             color="text.secondary"
                                             sx={{
-                                                display:
-                                                    '-webkit-box',
-                                                WebkitLineClamp:3,
-                                                WebkitBoxOrient:
-                                                    'vertical',
-                                                overflow:'hidden',
-                                                wordBreak:
-                                                    'break-word'
+                                                display: '-webkit-box',
+                                                WebkitLineClamp: 3,
+                                                WebkitBoxOrient: 'vertical',
+                                                overflow: 'hidden',
+                                                wordBreak: 'break-word'
                                             }}
                                         >
                                             {post.content}
@@ -560,12 +581,12 @@ const PublicProfile=({userId,onBack})=>{
                                             size="small"
                                             label={post.category}
                                             variant="outlined"
-                                            sx={{mt:1}}
+                                            sx={{ mt: 1 }}
                                         />
                                     </Box>
                                 ))}
                             </Stack>
-                        ):(
+                        ) : (
                             <Typography color="text.secondary">
                                 {t('No community posts yet.')}
                             </Typography>
@@ -582,7 +603,7 @@ const PublicProfile=({userId,onBack})=>{
             >
                 <DialogTitle
                     sx={{
-                        fontWeight:800
+                        fontWeight: 800
                     }}
                 >
                     {t('Report User')}
@@ -590,13 +611,13 @@ const PublicProfile=({userId,onBack})=>{
 
                 <DialogContent dividers>
                     <Stack spacing={2}>
-                        {reportError&&(
+                        {reportError && (
                             <Alert severity="error">
                                 {reportError}
                             </Alert>
                         )}
 
-                        {reportSuccess&&(
+                        {reportSuccess && (
                             <Alert severity="success">
                                 {t(
                                     'Your report has been submitted successfully. Thank you for helping keep RoamAgro safe.'
@@ -604,7 +625,7 @@ const PublicProfile=({userId,onBack})=>{
                             </Alert>
                         )}
 
-                        {!reportSuccess&&(
+                        {!reportSuccess && (
                             <>
                                 <Typography
                                     variant="body2"
@@ -625,14 +646,12 @@ const PublicProfile=({userId,onBack})=>{
                                     required
                                     label={t('Reason')}
                                     value={reportReason}
-                                    onChange={event=>
-                                        setReportReason(
-                                            event.target.value
-                                        )
+                                    onChange={event =>
+                                        setReportReason(event.target.value)
                                     }
                                     disabled={reportLoading}
                                 >
-                                    {REPORT_REASONS.map(reason=>(
+                                    {REPORT_REASONS.map(reason => (
                                         <MenuItem
                                             key={reason}
                                             value={reason}
@@ -647,16 +666,11 @@ const PublicProfile=({userId,onBack})=>{
                                     multiline
                                     minRows={4}
                                     maxRows={7}
-                                    label={t(
-                                        'Additional details'
-                                    )}
+                                    label={t('Additional details')}
                                     value={reportDescription}
-                                    onChange={event=>
+                                    onChange={event =>
                                         setReportDescription(
-                                            event.target.value.slice(
-                                                0,
-                                                1000
-                                            )
+                                            event.target.value.slice(0, 1000)
                                         )
                                     }
                                     disabled={reportLoading}
@@ -672,11 +686,11 @@ const PublicProfile=({userId,onBack})=>{
 
                 <DialogActions
                     sx={{
-                        p:2,
-                        gap:1,
-                        flexDirection:{
-                            xs:'column-reverse',
-                            sm:'row'
+                        p: 2,
+                        gap: 1,
+                        flexDirection: {
+                            xs: 'column-reverse',
+                            sm: 'row'
                         }
                     }}
                 >
@@ -685,17 +699,17 @@ const PublicProfile=({userId,onBack})=>{
                         disabled={reportLoading}
                         fullWidth
                         sx={{
-                            maxWidth:{
-                                sm:140
+                            maxWidth: {
+                                sm: 140
                             }
                         }}
                     >
-                        {reportSuccess?
-                            t('Done'):
-                            t('Cancel')}
+                        {reportSuccess
+                            ? t('Done')
+                            : t('Cancel')}
                     </Button>
 
-                    {!reportSuccess&&(
+                    {!reportSuccess && (
                         <Button
                             variant="contained"
                             color="error"
@@ -703,21 +717,22 @@ const PublicProfile=({userId,onBack})=>{
                             disabled={reportLoading}
                             fullWidth
                             sx={{
-                                maxWidth:{
-                                    sm:180
+                                maxWidth: {
+                                    sm: 180
                                 }
                             }}
                         >
-                            {reportLoading?(
+                            {reportLoading ? (
                                 <>
                                     <CircularProgress
                                         size={18}
                                         color="inherit"
-                                        sx={{mr:1}}
+                                        sx={{ mr: 1 }}
                                     />
+
                                     {t('Submitting...')}
                                 </>
-                            ):t('Submit Report')}
+                            ) : t('Submit Report')}
                         </Button>
                     )}
                 </DialogActions>

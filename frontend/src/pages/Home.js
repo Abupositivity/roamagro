@@ -110,6 +110,10 @@ const Home = () => {
                             component="img"
                             src={logo}
                             alt="RoamAgro"
+                            width={180}
+                            height={180}
+                            loading="eager"
+                            decoding="async"
                             sx={{
                                 width: {
                                     xs: 100,

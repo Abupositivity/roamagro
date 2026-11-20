@@ -5,14 +5,23 @@ import React, {
     useMemo,
     useState
 } from "react";
+
 import {
     Box,
     IconButton,
     Typography
 } from "@mui/material";
+
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+
 import ImagePreviewDialog from "./ImagePreviewDialog";
+
+import {
+    getMarketplaceThumbnail,
+    getMarketplaceSrcSet,
+    getImagePreview
+} from "../../utils/cloudinaryImage";
 
 const PLACEHOLDER = `data:image/svg+xml,${encodeURIComponent(`
 <svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400">
@@ -27,13 +36,30 @@ const PLACEHOLDER = `data:image/svg+xml,${encodeURIComponent(`
 </svg>
 `)}`;
 
+const IMAGE_SIZES = [
+    "(min-width: 1536px) 350px",
+    "(min-width: 1200px) 25vw",
+    "(min-width: 900px) 33vw",
+    "(min-width: 600px) 50vw",
+    "100vw"
+].join(", ");
+
 const MarketplaceImage = ({
     images = [],
     title = "Marketplace listing"
 }) => {
     const [open, setOpen] = useState(false);
-    const [activeIndex, setActiveIndex] = useState(0);
-    const [failedImages, setFailedImages] = useState({});
+
+    const [activeIndex, setActiveIndex] =
+        useState(0);
+
+    const [failedImages, setFailedImages] =
+        useState({});
+
+    const [
+        originalFallbacks,
+        setOriginalFallbacks
+    ] = useState({});
 
     const validImages = useMemo(() => {
         if (!Array.isArray(images)) {
@@ -52,6 +78,8 @@ const MarketplaceImage = ({
     useEffect(() => {
         setActiveIndex(0);
         setOpen(false);
+        setFailedImages({});
+        setOriginalFallbacks({});
     }, [validImages]);
 
     const currentIndex = Math.min(
@@ -59,23 +87,101 @@ const MarketplaceImage = ({
         Math.max(0, imageCount - 1)
     );
 
-    const currentImage = validImages[currentIndex] || "";
+    const currentImage =
+        validImages[currentIndex] || "";
+
+    const useOriginal = Boolean(
+        originalFallbacks[currentImage]
+    );
+
+    const thumbnail = useMemo(
+        () => getMarketplaceThumbnail(
+            currentImage,
+            480
+        ),
+        [currentImage]
+    );
 
     const displayImage =
         !currentImage || failedImages[currentImage]
             ? PLACEHOLDER
-            : currentImage;
+            : useOriginal
+                ? currentImage
+                : thumbnail;
+
+    const imageSrcSet = useMemo(() => {
+        if (
+            !currentImage ||
+            useOriginal ||
+            failedImages[currentImage]
+        ) {
+            return undefined;
+        }
+
+        return getMarketplaceSrcSet(currentImage);
+    }, [
+        currentImage,
+        useOriginal,
+        failedImages
+    ]);
+
+    const previewImage = useMemo(() => {
+        if (
+            !currentImage ||
+            displayImage === PLACEHOLDER
+        ) {
+            return "";
+        }
+
+        return getImagePreview(
+            currentImage,
+            1200
+        );
+    }, [
+        currentImage,
+        displayImage
+    ]);
 
     const hasMultipleImages = imageCount > 1;
 
     const handleImageError = useCallback(() => {
-        if (!currentImage) return;
+        if (
+            !currentImage ||
+            displayImage === PLACEHOLDER
+        ) {
+            return;
+        }
 
+        // Attempt the original image if the
+        // optimized Cloudinary request fails.
+        if (
+            !useOriginal &&
+            (
+                thumbnail !== currentImage ||
+                imageSrcSet
+            )
+        ) {
+            setOriginalFallbacks(previous => ({
+                ...previous,
+                [currentImage]: true
+            }));
+
+            return;
+        }
+
+        // If the original also fails,
+        // display the local placeholder.
         setFailedImages(previous => ({
             ...previous,
             [currentImage]: true
         }));
-    }, [currentImage]);
+    }, [
+        currentImage,
+        displayImage,
+        thumbnail,
+        imageSrcSet,
+        useOriginal
+    ]);
 
     const handlePrevious = useCallback(event => {
         event?.stopPropagation();
@@ -163,8 +269,16 @@ const MarketplaceImage = ({
                 >
                     <Box
                         component="img"
-                        key={currentImage || "placeholder"}
+                        key={`${currentImage}-${displayImage}`}
                         src={displayImage}
+                        srcSet={imageSrcSet}
+                        sizes={
+                            imageSrcSet
+                                ? IMAGE_SIZES
+                                : undefined
+                        }
+                        width={480}
+                        height={320}
                         alt={
                             displayImage === PLACEHOLDER
                                 ? ""
@@ -250,7 +364,8 @@ const MarketplaceImage = ({
 
             <ImagePreviewDialog
                 open={open}
-                image={displayImage}
+                image={previewImage}
+                fallbackImage={currentImage}
                 alt={`${title} - ${currentIndex + 1}`}
                 onClose={handleClose}
             />

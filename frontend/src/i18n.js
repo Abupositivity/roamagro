@@ -1102,7 +1102,10 @@ const resources = {
 
             "Loading page..." : "Ana loda shafi...",
             "Unable to load this page." : "Ba a iya loda wannan shafin ba.",
-            "Please check your internet connection and try again." : "Da fatan ka duba haɗin intanet ɗinka sannan ka sake gwadawa."
+            "Please check your internet connection and try again." : "Da fatan ka duba haɗin intanet ɗinka sannan ka sake gwadawa.",
+
+            "Image unavailable": "Babu hoto",
+            "Close image preview": "Rufe samfotin hoto"
         }
     }
 };

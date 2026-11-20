@@ -10,39 +10,59 @@ import {
 
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 
+import {
+    getAvatarImage
+} from '../../utils/cloudinaryImage';
+
+const COMMENT_AVATAR_SIZE = 120;
+
 const CommentItem = ({
     comment,
     canDelete = false,
     onDelete,
 }) => {
+    const authorName =
+        comment.user?.name ||
+        'Farmer';
+
+    const profilePhoto = getAvatarImage(
+        comment.user?.profilePhoto,
+        COMMENT_AVATAR_SIZE
+    );
+
     return (
         <Stack
             direction="row"
             spacing={2}
             sx={{
                 py: 2,
-                borderBottom:
-                    '1px solid',
-                borderColor:
-                    'divider',
+                borderBottom: '1px solid',
+                borderColor: 'divider',
             }}
         >
             <Avatar
-                src={
-                    comment.user
-                        ?.profilePhoto
-                }
+                src={profilePhoto || undefined}
+                alt={authorName}
+                slotProps={{
+                    img: {
+                        loading: 'lazy',
+                        decoding: 'async',
+                        width: 40,
+                        height: 40,
+                    },
+                }}
+                sx={{
+                    width: 40,
+                    height: 40,
+                    flexShrink: 0,
+                }}
             >
-                {comment.user?.name?.charAt(
-                    0
-                )}
+                {authorName.charAt(0).toUpperCase()}
             </Avatar>
 
             <Box flex={1}>
                 <Typography fontWeight={600}>
-                    {comment.user
-                        ?.name ||
-                        'Farmer'}
+                    {authorName}
                 </Typography>
 
                 <Typography

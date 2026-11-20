@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 
 import {
     Box,
@@ -10,8 +10,121 @@ import {
 } from "@mui/material";
 
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import BrokenImageOutlinedIcon from "@mui/icons-material/BrokenImageOutlined";
 
 import { useTranslation } from "react-i18next";
+
+import {
+    getFeedImage,
+    getFeedImageSrcSet,
+} from "../../utils/cloudinaryImage";
+
+const ADVERTISEMENT_IMAGE_WIDTH = 480;
+
+const ADVERTISEMENT_IMAGE_SIZES = [
+    "auto",
+    "(max-width: 599px) 90vw",
+    "220px",
+].join(", ");
+
+const ADVERTISEMENT_IMAGE_STYLES = {
+    width: {
+        xs: "100%",
+        sm: 220,
+    },
+    height: {
+        xs: 180,
+        sm: 150,
+    },
+    objectFit: "cover",
+    borderRadius: 2,
+    flexShrink: 0,
+    bgcolor: "action.hover",
+    display: "block",
+};
+
+const AdvertisementImage = ({
+    source,
+    alt,
+}) => {
+    const { t } = useTranslation();
+
+    const [useOriginal, setUseOriginal] =
+        useState(false);
+
+    const [imageFailed, setImageFailed] =
+        useState(false);
+
+    const optimizedSource = getFeedImage(
+        source,
+        ADVERTISEMENT_IMAGE_WIDTH
+    );
+
+    const imageSource = useOriginal
+        ? source
+        : optimizedSource;
+
+    const srcSet = useOriginal
+        ? undefined
+        : getFeedImageSrcSet(source);
+
+    const handleImageError = () => {
+        if (
+            !useOriginal &&
+            (optimizedSource !== source || srcSet)
+        ) {
+            setUseOriginal(true);
+            return;
+        }
+
+        setImageFailed(true);
+    };
+
+    if (!source || imageFailed) {
+        return (
+            <Box
+                role="img"
+                aria-label={t("Image unavailable")}
+                sx={{
+                    ...ADVERTISEMENT_IMAGE_STYLES,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "text.secondary",
+                    gap: 1,
+                }}
+            >
+                <BrokenImageOutlinedIcon
+                    fontSize="large"
+                />
+
+                <Typography variant="body2">
+                    {t("Image unavailable")}
+                </Typography>
+            </Box>
+        );
+    }
+
+    return (
+        <Box
+            key={useOriginal ? "original" : "optimized"}
+            component="img"
+            src={imageSource}
+            srcSet={srcSet}
+            sizes={
+                srcSet
+                    ? ADVERTISEMENT_IMAGE_SIZES
+                    : undefined
+            }
+            alt={alt}
+            loading="lazy"
+            decoding="async"
+            onError={handleImageError}
+            sx={ADVERTISEMENT_IMAGE_STYLES}
+        />
+    );
+};
 
 const AdvertisementCard = ({
     advertisement,
@@ -84,25 +197,10 @@ const AdvertisementCard = ({
                         sm: "center",
                     }}
                 >
-                    <Box
-                        component="img"
-                        src={imageUrl}
+                    <AdvertisementImage
+                        key={imageUrl}
+                        source={imageUrl}
                         alt={title}
-                        loading="lazy"
-                        sx={{
-                            width: {
-                                xs: "100%",
-                                sm: 220,
-                            },
-                            height: {
-                                xs: 180,
-                                sm: 150,
-                            },
-                            objectFit: "cover",
-                            borderRadius: 2,
-                            flexShrink: 0,
-                            bgcolor: "action.hover",
-                        }}
                     />
 
                     <Box

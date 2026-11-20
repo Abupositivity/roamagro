@@ -1,87 +1,140 @@
-import React from 'react';
+import React, {
+    memo,
+    useEffect,
+    useState
+} from "react";
 
 import {
+    Box,
     Dialog,
-    DialogTitle,
     DialogContent,
-    IconButton,
-} from '@mui/material';
+    IconButton
+} from "@mui/material";
 
-import CloseIcon from '@mui/icons-material/Close';
+import CloseIcon from "@mui/icons-material/Close";
 
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from "react-i18next";
 
-import MarketplaceForm from './MarketplaceForm';
-
-const MarketplaceDialog = ({
+const ImagePreviewDialog = ({
     open,
-    loading = false,
-    listing = null,
-    onClose,
-    onSubmit,
+    image,
+    fallbackImage = "",
+    alt = "Marketplace image preview",
+    onClose
 }) => {
     const { t } = useTranslation();
+
+    const [imageFailed, setImageFailed] =
+        useState(false);
+
+    const [useFallback, setUseFallback] =
+        useState(false);
+
+    useEffect(() => {
+        setImageFailed(false);
+        setUseFallback(false);
+    }, [
+        image,
+        fallbackImage,
+        open
+    ]);
+
+    const displayImage = useFallback
+        ? fallbackImage
+        : image;
+
+    const handleImageError = () => {
+        if (
+            !useFallback &&
+            fallbackImage &&
+            fallbackImage !== image
+        ) {
+            setUseFallback(true);
+            return;
+        }
+
+        setImageFailed(true);
+    };
 
     return (
         <Dialog
             open={open}
-            fullWidth
             maxWidth="md"
-            fullScreen={false}
-            onClose={
-                loading
-                    ? undefined
-                    : onClose
-            }
+            fullWidth
+            onClose={onClose}
+            aria-label={alt}
+            slotProps={{
+                paper: {
+                    sx: {
+                        overflow: "hidden",
+                        bgcolor: "black"
+                    }
+                }
+            }}
         >
-            <DialogTitle
+            <IconButton
+                onClick={onClose}
+                aria-label={t("Close image preview")}
                 sx={{
-                    display: 'flex',
-                    justifyContent:
-                        'space-between',
-                    alignItems: 'center',
-                    pr: 1,
+                    position: "absolute",
+                    top: 8,
+                    right: 8,
+                    zIndex: 2,
+                    color: "#202124",
+                    bgcolor: "rgba(255,255,255,0.92)",
+                    "&:hover": {
+                        bgcolor: "#FFFFFF"
+                    }
                 }}
             >
-                {listing
-                    ? t('Edit Listing')
-                    : t('Create Listing')}
-
-                <IconButton
-                    size="small"
-                    disabled={loading}
-                    onClick={onClose}
-                    aria-label={t('Close')}
-                >
-                    <CloseIcon />
-                </IconButton>
-            </DialogTitle>
+                <CloseIcon />
+            </IconButton>
 
             <DialogContent
-                dividers
                 sx={{
-                    px: {
-                        xs: 2,
-                        sm: 3,
-                    },
-                    pb: 3,
+                    p: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    minHeight: 160,
+                    maxHeight: "80vh",
+                    overflow: "hidden",
+                    bgcolor: "black"
                 }}
             >
-                <MarketplaceForm
-                    loading={loading}
-                    initialValues={
-                        listing || {}
-                    }
-                    submitLabel={
-                        listing
-                            ? 'Update Listing'
-                            : 'Create Listing'
-                    }
-                    onSubmit={onSubmit}
-                />
+                {open && (
+                    displayImage && !imageFailed ? (
+                        <Box
+                            component="img"
+                            key={displayImage}
+                            src={displayImage}
+                            alt={alt}
+                            loading="eager"
+                            decoding="async"
+                            onError={handleImageError}
+                            sx={{
+                                display: "block",
+                                width: "100%",
+                                maxHeight: "80vh",
+                                objectFit: "contain"
+                            }}
+                        />
+                    ) : (
+                        <Box
+                            role="status"
+                            sx={{
+                                color: "#FFFFFF",
+                                textAlign: "center",
+                                p: 4
+                            }}
+                        >
+                            {t("Image unavailable")}
+                        </Box>
+                    )
+                )}
             </DialogContent>
         </Dialog>
     );
 };
 
-export default MarketplaceDialog;
+export default memo(ImagePreviewDialog);
