@@ -29,6 +29,7 @@ import MoreVertIcon from '@mui/icons-material/MoreVert';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import CameraAltIcon from '@mui/icons-material/CameraAlt';
+import AddPhotoAlternateOutlinedIcon from '@mui/icons-material/AddPhotoAlternateOutlined';
 import BrokenImageOutlinedIcon from '@mui/icons-material/BrokenImageOutlined';
 
 import { useDispatch, useSelector } from 'react-redux';
@@ -383,7 +384,8 @@ const AgriPostCard = ({
         state => state.auth?.user
     );
 
-    const fileInputRef = useRef(null);
+    const galleryInputRef = useRef(null);
+    const cameraInputRef = useRef(null);
 
     const [openComments, setOpenComments] =
         useState(false);
@@ -1139,7 +1141,15 @@ const AgriPostCard = ({
                             </Typography>
 
                             <input
-                                ref={fileInputRef}
+                                ref={galleryInputRef}
+                                type="file"
+                                accept="image/*"
+                                hidden
+                                onChange={handleImageSelect}
+                            />
+
+                            <input
+                                ref={cameraInputRef}
                                 type="file"
                                 accept="image/*"
                                 capture="environment"
@@ -1147,21 +1157,59 @@ const AgriPostCard = ({
                                 onChange={handleImageSelect}
                             />
 
-                            {!editData.image && (
+                            <Stack
+                                direction={{
+                                    xs: 'column',
+                                    sm: 'row',
+                                }}
+                                spacing={1}
+                            >
+                                <Button
+                                    variant="outlined"
+                                    startIcon={
+                                        <AddPhotoAlternateOutlinedIcon />
+                                    }
+                                    onClick={() =>
+                                        galleryInputRef.current?.click()
+                                    }
+                                    disabled={imageLoading}
+                                    sx={{
+                                        flex: 1,
+                                        minHeight: 44,
+                                        textTransform: 'none',
+                                    }}
+                                >
+                                    {t('Choose Photo')}
+                                </Button>
+
                                 <Button
                                     variant="outlined"
                                     startIcon={
                                         <CameraAltIcon />
                                     }
                                     onClick={() =>
-                                        fileInputRef.current?.click()
+                                        cameraInputRef.current?.click()
                                     }
                                     disabled={imageLoading}
+                                    sx={{
+                                        flex: 1,
+                                        minHeight: 44,
+                                        textTransform: 'none',
+                                    }}
                                 >
-                                    {imageLoading
-                                        ? t('Processing...')
-                                        : t('Add Photo')}
+                                    {t('Take Photo')}
                                 </Button>
+                            </Stack>
+
+                            {imageLoading && (
+                                <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                    mt={1}
+                                    role="status"
+                                >
+                                    {t('Processing...')}
+                                </Typography>
                             )}
 
                             {imageError && (
@@ -1218,23 +1266,6 @@ const AgriPostCard = ({
                                         />
                                     </IconButton>
                                 </Box>
-                            )}
-
-                            {editData.image && (
-                                <Button
-                                    variant="text"
-                                    size="small"
-                                    startIcon={
-                                        <CameraAltIcon />
-                                    }
-                                    onClick={() =>
-                                        fileInputRef.current?.click()
-                                    }
-                                    disabled={imageLoading}
-                                    sx={{ mt: 1 }}
-                                >
-                                    {t('Change Photo')}
-                                </Button>
                             )}
                         </Box>
                     </Stack>

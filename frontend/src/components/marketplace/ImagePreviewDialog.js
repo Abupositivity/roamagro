@@ -1,23 +1,60 @@
-import React, { memo, useEffect, useState } from "react";
+import React, {
+    memo,
+    useEffect,
+    useState
+} from "react";
+
 import {
     Box,
     Dialog,
     DialogContent,
     IconButton
 } from "@mui/material";
+
 import CloseIcon from "@mui/icons-material/Close";
+
+import { useTranslation } from "react-i18next";
 
 const ImagePreviewDialog = ({
     open,
     image,
+    fallbackImage = "",
     alt = "Marketplace image preview",
     onClose
 }) => {
-    const [imageFailed, setImageFailed] = useState(false);
+    const { t } = useTranslation();
+
+    const [imageFailed, setImageFailed] =
+        useState(false);
+
+    const [useFallback, setUseFallback] =
+        useState(false);
 
     useEffect(() => {
         setImageFailed(false);
-    }, [image]);
+        setUseFallback(false);
+    }, [
+        image,
+        fallbackImage,
+        open
+    ]);
+
+    const displayImage = useFallback
+        ? fallbackImage
+        : image;
+
+    const handleImageError = () => {
+        if (
+            !useFallback &&
+            fallbackImage &&
+            fallbackImage !== image
+        ) {
+            setUseFallback(true);
+            return;
+        }
+
+        setImageFailed(true);
+    };
 
     return (
         <Dialog
@@ -37,7 +74,7 @@ const ImagePreviewDialog = ({
         >
             <IconButton
                 onClick={onClose}
-                aria-label="Close image preview"
+                aria-label={t("Close image preview")}
                 sx={{
                     position: "absolute",
                     top: 8,
@@ -65,31 +102,35 @@ const ImagePreviewDialog = ({
                     bgcolor: "black"
                 }}
             >
-                {image && !imageFailed ? (
-                    <Box
-                        component="img"
-                        src={image}
-                        alt={alt}
-                        decoding="async"
-                        onError={() => setImageFailed(true)}
-                        sx={{
-                            display: "block",
-                            width: "100%",
-                            maxHeight: "80vh",
-                            objectFit: "contain"
-                        }}
-                    />
-                ) : (
-                    <Box
-                        role="status"
-                        sx={{
-                            color: "#FFFFFF",
-                            textAlign: "center",
-                            p: 4
-                        }}
-                    >
-                        Image unavailable
-                    </Box>
+                {open && (
+                    displayImage && !imageFailed ? (
+                        <Box
+                            component="img"
+                            key={displayImage}
+                            src={displayImage}
+                            alt={alt}
+                            loading="eager"
+                            decoding="async"
+                            onError={handleImageError}
+                            sx={{
+                                display: "block",
+                                width: "100%",
+                                maxHeight: "80vh",
+                                objectFit: "contain"
+                            }}
+                        />
+                    ) : (
+                        <Box
+                            role="status"
+                            sx={{
+                                color: "#FFFFFF",
+                                textAlign: "center",
+                                p: 4
+                            }}
+                        >
+                            {t("Image unavailable")}
+                        </Box>
+                    )
                 )}
             </DialogContent>
         </Dialog>
