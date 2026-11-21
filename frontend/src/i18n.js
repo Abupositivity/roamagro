@@ -1105,7 +1105,15 @@ const resources = {
             "Please check your internet connection and try again." : "Da fatan ka duba haɗin intanet ɗinka sannan ka sake gwadawa.",
 
             "Image unavailable": "Babu hoto",
-            "Close image preview": "Rufe samfotin hoto"
+            "Close image preview": "Rufe samfotin hoto",
+
+            "Loading image...": "Ana loda hoto...",
+            "Preview": "Duba hoto",
+            "Previous photo": "Hoton baya",
+            "Next photo": "Hoto na gaba",
+            "Processing images...": "Ana sarrafa hotuna...",
+            "photos added": "hotuna da aka ƙara",
+            "Some photos could not be processed. The other photos were added.": "Ba a iya sarrafa wasu hotuna ba. An ƙara sauran hotunan."
         }
     }
 };

@@ -1,8 +1,10 @@
+
 import React, {
     useEffect,
     useRef,
     useState,
 } from 'react';
+
 import {
     Grid,
     TextField,
@@ -15,17 +17,27 @@ import {
     Alert,
     CircularProgress,
 } from '@mui/material';
+
 import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import AddPhotoAlternateOutlinedIcon from '@mui/icons-material/AddPhotoAlternateOutlined';
 import DeleteIcon from '@mui/icons-material/Delete';
 import MyLocationIcon from '@mui/icons-material/MyLocation';
 import LocationOffIcon from '@mui/icons-material/LocationOff';
+import BrokenImageOutlinedIcon from '@mui/icons-material/BrokenImageOutlined';
+import RefreshIcon from '@mui/icons-material/Refresh';
+
 import { useTranslation } from 'react-i18next';
+
 import {
     useForm,
     Controller,
 } from 'react-hook-form';
+
 import compressImage from '../../utils/compressImage';
+
+import {
+    getMarketplaceThumbnail,
+} from '../../utils/cloudinaryImage';
 
 const categories = [
     'Crop',
@@ -82,6 +94,154 @@ const getCoordinates = values => {
     return { latitude, longitude };
 };
 
+const MarketplacePhotoPreview = ({
+    source,
+    alt,
+    onRemove,
+    disabled,
+}) => {
+    const { t } = useTranslation();
+
+    const [useOriginal, setUseOriginal] = useState(false);
+    const [failed, setFailed] = useState(false);
+    const [loaded, setLoaded] = useState(false);
+    const [retryCount, setRetryCount] = useState(0);
+
+    const optimizedSource = getMarketplaceThumbnail(
+        source,
+        240
+    );
+
+    const displaySource = useOriginal
+        ? source
+        : optimizedSource;
+
+    const handleError = () => {
+        setLoaded(false);
+
+        if (
+            !useOriginal &&
+            optimizedSource !== source
+        ) {
+            setUseOriginal(true);
+            return;
+        }
+
+        setFailed(true);
+    };
+
+    const handleRetry = () => {
+        setUseOriginal(false);
+        setFailed(false);
+        setLoaded(false);
+        setRetryCount(previous => previous + 1);
+    };
+
+    return (
+        <Box
+            sx={{
+                position: 'relative',
+                flexShrink: 0,
+                width: 110,
+                height: 90,
+                borderRadius: 2,
+                overflow: 'hidden',
+                border: '1px solid',
+                borderColor: 'divider',
+                bgcolor: 'action.hover',
+            }}
+        >
+            {!failed ? (
+                <>
+                    <Box
+                        component="img"
+                        key={`${displaySource}-${retryCount}`}
+                        src={displaySource}
+                        alt={alt}
+                        loading="eager"
+                        decoding="async"
+                        onLoad={() => setLoaded(true)}
+                        onError={handleError}
+                        sx={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                            display: 'block',
+                        }}
+                    />
+
+                    {!loaded && (
+                        <Box
+                            role="status"
+                            sx={{
+                                position: 'absolute',
+                                inset: 0,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                bgcolor: 'action.hover',
+                                pointerEvents: 'none',
+                            }}
+                        >
+                            <CircularProgress size={22} />
+                        </Box>
+                    )}
+                </>
+            ) : (
+                <Stack
+                    spacing={0.5}
+                    alignItems="center"
+                    justifyContent="center"
+                    sx={{
+                        width: '100%',
+                        height: '100%',
+                        color: 'text.secondary',
+                        px: 1,
+                    }}
+                >
+                    <BrokenImageOutlinedIcon
+                        fontSize="small"
+                    />
+
+                    <Button
+                        size="small"
+                        startIcon={<RefreshIcon />}
+                        onClick={handleRetry}
+                        sx={{
+                            minWidth: 0,
+                            p: 0.25,
+                            fontSize: '0.7rem',
+                        }}
+                    >
+                        {t('Retry')}
+                    </Button>
+                </Stack>
+            )}
+
+            <IconButton
+                size="small"
+                aria-label={t('Remove photo')}
+                onClick={onRemove}
+                disabled={disabled}
+                sx={{
+                    position: 'absolute',
+                    top: 2,
+                    right: 2,
+                    width: 28,
+                    height: 28,
+                    zIndex: 2,
+                    backgroundColor: 'rgba(255,255,255,0.92)',
+                    '&:hover': {
+                        backgroundColor: 'white',
+                    },
+                }}
+            >
+                <DeleteIcon fontSize="small" />
+            </IconButton>
+        </Box>
+    );
+};
+
 const MarketplaceForm = ({
     initialValues = {},
     loading = false,
@@ -103,14 +263,18 @@ const MarketplaceForm = ({
 
     const [imagePreviews, setImagePreviews] = useState([]);
     const [imageError, setImageError] = useState('');
-    const [imageProcessing, setImageProcessing] = useState(false);
+    const [imageProcessing, setImageProcessing] =
+        useState(false);
 
     const [coordinates, setCoordinates] = useState(
         getCoordinates(initialValues.coordinates)
     );
 
-    const [locationLoading, setLocationLoading] = useState(false);
-    const [locationError, setLocationError] = useState('');
+    const [locationLoading, setLocationLoading] =
+        useState(false);
+
+    const [locationError, setLocationError] =
+        useState('');
 
     const {
         handleSubmit,
@@ -145,14 +309,18 @@ const MarketplaceForm = ({
 
         imageSelectionRef.current += 1;
 
-        const initialImages = Array.isArray(initialValues.images)
+        const initialImages = Array.isArray(
+            initialValues.images
+        )
             ? initialValues.images.filter(Boolean)
             : [];
 
         imagesRef.current = initialImages;
         setImages(initialImages);
         setImageProcessing(false);
-        setCoordinates(getCoordinates(initialValues.coordinates));
+        setCoordinates(
+            getCoordinates(initialValues.coordinates)
+        );
         setImageError('');
         setLocationError('');
         setLocationLoading(false);
@@ -175,7 +343,9 @@ const MarketplaceForm = ({
                 return URL.createObjectURL(image);
             }
 
-            return typeof image === 'string' ? image : '';
+            return typeof image === 'string'
+                ? image
+                : '';
         });
 
         setImagePreviews(previews);
@@ -201,7 +371,9 @@ const MarketplaceForm = ({
     const handleUseMyLocation = () => {
         if (!navigator.geolocation) {
             setLocationError(
-                t('Location is not supported by this browser.')
+                t(
+                    'Location is not supported by this browser.'
+                )
             );
             return;
         }
@@ -215,6 +387,7 @@ const MarketplaceForm = ({
                     latitude: position.coords.latitude,
                     longitude: position.coords.longitude,
                 });
+
                 setLocationLoading(false);
             },
             () => {
@@ -223,6 +396,7 @@ const MarketplaceForm = ({
                         'Could not access your location. You can enter your town or village instead.'
                     )
                 );
+
                 setLocationLoading(false);
             },
             {
@@ -239,56 +413,98 @@ const MarketplaceForm = ({
     };
 
     const handleImageSelect = async event => {
-        const files = Array.from(event.target.files || []);
+        const files = Array.from(
+            event.target.files || []
+        );
+
         event.target.value = '';
 
-        if (!files.length) {
-            return;
-        }
+        if (!files.length) return;
 
         setImageError('');
 
-        const remainingSlots = MAX_IMAGES - imagesRef.current.length;
+        const remainingSlots =
+            MAX_IMAGES - imagesRef.current.length;
 
         if (remainingSlots <= 0) {
-            setImageError(t('You can add up to 3 images.'));
+            setImageError(
+                t('You can add up to 3 images.')
+            );
             return;
         }
 
-        const selectedFiles = files.slice(0, remainingSlots);
-        const selectionId = ++imageSelectionRef.current;
+        const selectedFiles = files.slice(
+            0,
+            remainingSlots
+        );
+
+        const selectionId =
+            ++imageSelectionRef.current;
 
         setImageProcessing(true);
 
         try {
-            const processedImages = await Promise.all(
-                selectedFiles.map(file => compressImage(file))
+            const results = await Promise.allSettled(
+                selectedFiles.map(file =>
+                    compressImage(file)
+                )
             );
 
-            if (selectionId !== imageSelectionRef.current) {
+            if (
+                selectionId !== imageSelectionRef.current
+            ) {
                 return;
             }
 
-            const updatedImages = [
-                ...imagesRef.current,
-                ...processedImages,
-            ].slice(0, MAX_IMAGES);
+            const successfulImages = results
+                .filter(
+                    result =>
+                        result.status === 'fulfilled' &&
+                        Boolean(result.value)
+                )
+                .map(result => result.value);
 
-            imagesRef.current = updatedImages;
-            setImages(updatedImages);
+            const failedCount =
+                results.length - successfulImages.length;
+
+            if (successfulImages.length > 0) {
+                const updatedImages = [
+                    ...imagesRef.current,
+                    ...successfulImages,
+                ].slice(0, MAX_IMAGES);
+
+                imagesRef.current = updatedImages;
+                setImages(updatedImages);
+            }
+
+            if (failedCount > 0) {
+                setImageError(
+                    successfulImages.length > 0
+                        ? t(
+                              'Some photos could not be processed. The other photos were added.'
+                          )
+                        : t(
+                              'Unable to add the selected image.'
+                          )
+                );
+            }
         } catch (processingError) {
-            if (selectionId !== imageSelectionRef.current) {
+            if (
+                selectionId !== imageSelectionRef.current
+            ) {
                 return;
             }
 
             setImageError(
                 t(
                     processingError.message ||
-                    'Unable to add the selected image.'
+                        'Unable to add the selected image.'
                 )
             );
         } finally {
-            if (selectionId === imageSelectionRef.current) {
+            if (
+                selectionId === imageSelectionRef.current
+            ) {
                 setImageProcessing(false);
             }
         }
@@ -298,9 +514,11 @@ const MarketplaceForm = ({
         imageSelectionRef.current += 1;
         setImageProcessing(false);
 
-        const updatedImages = imagesRef.current.filter(
-            (_, imageIndex) => imageIndex !== index
-        );
+        const updatedImages =
+            imagesRef.current.filter(
+                (_, imageIndex) =>
+                    imageIndex !== index
+            );
 
         imagesRef.current = updatedImages;
         setImages(updatedImages);
@@ -316,7 +534,11 @@ const MarketplaceForm = ({
     };
 
     const submitForm = data => {
-        if (loading || imageProcessing || locationLoading) {
+        if (
+            loading ||
+            imageProcessing ||
+            locationLoading
+        ) {
             return;
         }
 
@@ -331,7 +553,8 @@ const MarketplaceForm = ({
         onSubmit(cleanedData);
     };
 
-    const imageLimitReached = images.length >= MAX_IMAGES;
+    const imageLimitReached =
+        images.length >= MAX_IMAGES;
 
     return (
         <form onSubmit={handleSubmit(submitForm)}>
@@ -376,10 +599,10 @@ const MarketplaceForm = ({
                         control={control}
                         render={({ field }) => (
                             <TextField
+                                {...field}
                                 select
                                 fullWidth
                                 label={t('Category')}
-                                {...field}
                             >
                                 {categories.map(category => (
                                     <MenuItem
@@ -444,13 +667,16 @@ const MarketplaceForm = ({
                         control={control}
                         render={({ field }) => (
                             <TextField
+                                {...field}
                                 select
                                 fullWidth
                                 label={t('Unit')}
-                                {...field}
                             >
                                 {units.map(unit => (
-                                    <MenuItem key={unit} value={unit}>
+                                    <MenuItem
+                                        key={unit}
+                                        value={unit}
+                                    >
                                         {t(unit)}
                                     </MenuItem>
                                 ))}
@@ -468,7 +694,9 @@ const MarketplaceForm = ({
                                 {...field}
                                 fullWidth
                                 label={t('Location')}
-                                placeholder={t('e.g. Kuje, Abuja')}
+                                placeholder={t(
+                                    'e.g. Kuje, Abuja'
+                                )}
                                 helperText={t(
                                     'Enter your town, village, LGA, or state. Coordinates are optional.'
                                 )}
@@ -491,7 +719,9 @@ const MarketplaceForm = ({
                             fontWeight={600}
                             mb={0.5}
                         >
-                            {t('Help nearby buyers find your listing')}
+                            {t(
+                                'Help nearby buyers find your listing'
+                            )}
                         </Typography>
 
                         <Typography
@@ -519,21 +749,32 @@ const MarketplaceForm = ({
                                 variant="outlined"
                                 startIcon={<MyLocationIcon />}
                                 onClick={handleUseMyLocation}
-                                disabled={loading || locationLoading}
+                                disabled={
+                                    loading || locationLoading
+                                }
                             >
                                 {locationLoading
                                     ? t('Getting location...')
                                     : coordinates
-                                        ? t('Update coordinates')
-                                        : t('Use my location (optional)')}
+                                      ? t('Update coordinates')
+                                      : t(
+                                            'Use my location (optional)'
+                                        )}
                             </Button>
 
                             {coordinates && (
                                 <Button
                                     color="inherit"
-                                    startIcon={<LocationOffIcon />}
-                                    onClick={handleClearCoordinates}
-                                    disabled={loading || locationLoading}
+                                    startIcon={
+                                        <LocationOffIcon />
+                                    }
+                                    onClick={
+                                        handleClearCoordinates
+                                    }
+                                    disabled={
+                                        loading ||
+                                        locationLoading
+                                    }
                                 >
                                     {t('Remove coordinates')}
                                 </Button>
@@ -541,7 +782,10 @@ const MarketplaceForm = ({
                         </Stack>
 
                         {coordinates && (
-                            <Alert severity="success" sx={{ mt: 2 }}>
+                            <Alert
+                                severity="success"
+                                sx={{ mt: 2 }}
+                            >
                                 {t(
                                     'Location coordinates added. Nearby buyers may see this listing higher in their results.'
                                 )}
@@ -549,7 +793,10 @@ const MarketplaceForm = ({
                         )}
 
                         {locationError && (
-                            <Alert severity="info" sx={{ mt: 2 }}>
+                            <Alert
+                                severity="info"
+                                sx={{ mt: 2 }}
+                            >
                                 {locationError}
                             </Alert>
                         )}
@@ -571,10 +818,11 @@ const MarketplaceForm = ({
                             color="text.secondary"
                             mb={2}
                         >
-                            {t('Add up to 3 photos of your product.')}
+                            {t(
+                                'Add up to 3 photos of your product.'
+                            )}
                         </Typography>
 
-                        {/* Gallery: allows multiple photos */}
                         <input
                             ref={fileInputRef}
                             type="file"
@@ -584,7 +832,6 @@ const MarketplaceForm = ({
                             onChange={handleImageSelect}
                         />
 
-                        {/* Camera: captures one photo at a time */}
                         <input
                             ref={cameraInputRef}
                             type="file"
@@ -604,40 +851,46 @@ const MarketplaceForm = ({
                             <Button
                                 variant="outlined"
                                 startIcon={
-                                    imageProcessing
-                                        ? (
-                                            <CircularProgress
-                                                size={18}
-                                                color="inherit"
-                                            />
-                                        )
-                                        : <AddPhotoAlternateOutlinedIcon />
+                                    imageProcessing ? (
+                                        <CircularProgress
+                                            size={18}
+                                            color="inherit"
+                                        />
+                                    ) : (
+                                        <AddPhotoAlternateOutlinedIcon />
+                                    )
                                 }
-                                onClick={() => fileInputRef.current?.click()}
+                                onClick={() =>
+                                    fileInputRef.current?.click()
+                                }
                                 disabled={
                                     loading ||
                                     imageProcessing ||
                                     imageLimitReached
                                 }
                                 fullWidth
+                                sx={{ minHeight: 44 }}
                             >
                                 {imageProcessing
                                     ? t('Processing images...')
                                     : imageLimitReached
-                                        ? t('3 Photos Added')
-                                        : t('Choose Photos')}
+                                      ? t('3 Photos Added')
+                                      : t('Choose Photos')}
                             </Button>
 
                             <Button
                                 variant="outlined"
                                 startIcon={<CameraAltIcon />}
-                                onClick={() => cameraInputRef.current?.click()}
+                                onClick={() =>
+                                    cameraInputRef.current?.click()
+                                }
                                 disabled={
                                     loading ||
                                     imageProcessing ||
                                     imageLimitReached
                                 }
                                 fullWidth
+                                sx={{ minHeight: 44 }}
                             >
                                 {t('Take Photo')}
                             </Button>
@@ -649,8 +902,20 @@ const MarketplaceForm = ({
                             display="block"
                             mt={1}
                         >
-                            {images.length}/{MAX_IMAGES} {t('photos added')}
+                            {images.length}/{MAX_IMAGES}{' '}
+                            {t('photos added')}
                         </Typography>
+
+                        {imageProcessing && (
+                            <Typography
+                                variant="body2"
+                                color="text.secondary"
+                                mt={1}
+                                role="status"
+                            >
+                                {t('Processing images...')}
+                            </Typography>
+                        )}
 
                         {imageError && (
                             <Typography
@@ -674,54 +939,20 @@ const MarketplaceForm = ({
                                 }}
                             >
                                 {images.map((image, index) => (
-                                    <Box
-                                        key={index}
-                                        sx={{
-                                            position: 'relative',
-                                            minWidth: 100,
-                                            width: 100,
-                                            height: 80,
-                                            borderRadius: 2,
-                                            overflow: 'hidden',
-                                            border: '1px solid',
-                                            borderColor: 'divider',
-                                        }}
-                                    >
-                                        <Box
-                                            component="img"
-                                            src={imagePreviews[index] || ''}
-                                            alt={`${t('Product')} ${index + 1}`}
-                                            sx={{
-                                                width: '100%',
-                                                height: '100%',
-                                                objectFit: 'cover',
-                                                display: 'block',
-                                            }}
-                                        />
-
-                                        <IconButton
-                                            size="small"
-                                            aria-label={t('Remove photo')}
-                                            onClick={() => handleRemoveImage(index)}
-                                            disabled={
-                                                loading || imageProcessing
-                                            }
-                                            sx={{
-                                                position: 'absolute',
-                                                top: 2,
-                                                right: 2,
-                                                width: 28,
-                                                height: 28,
-                                                backgroundColor:
-                                                    'rgba(255,255,255,0.9)',
-                                                '&:hover': {
-                                                    backgroundColor: 'white',
-                                                },
-                                            }}
-                                        >
-                                            <DeleteIcon fontSize="small" />
-                                        </IconButton>
-                                    </Box>
+                                    <MarketplacePhotoPreview
+                                        key={`${index}-${imagePreviews[index] || ''}`}
+                                        source={
+                                            imagePreviews[index] || ''
+                                        }
+                                        alt={`${t('Product')} ${index + 1}`}
+                                        onRemove={() =>
+                                            handleRemoveImage(index)
+                                        }
+                                        disabled={
+                                            loading ||
+                                            imageProcessing
+                                        }
+                                    />
                                 ))}
                             </Stack>
                         )}
@@ -740,7 +971,14 @@ const MarketplaceForm = ({
                         fullWidth
                         size="large"
                     >
-                        {t(submitLabel)}
+                        {loading ? (
+                            <CircularProgress
+                                size={24}
+                                color="inherit"
+                            />
+                        ) : (
+                            t(submitLabel)
+                        )}
                     </Button>
                 </Grid>
             </Grid>

@@ -1,213 +1,212 @@
+
 import React, {
     memo,
     useCallback,
     useEffect,
     useMemo,
-    useState
-} from "react";
+    useState,
+} from 'react';
 
 import {
     Box,
+    Button,
+    CircularProgress,
     IconButton,
-    Typography
-} from "@mui/material";
+    Typography,
+} from '@mui/material';
 
-import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
-import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import BrokenImageOutlinedIcon from '@mui/icons-material/BrokenImageOutlined';
+import RefreshIcon from '@mui/icons-material/Refresh';
 
-import ImagePreviewDialog from "./ImagePreviewDialog";
+import { useTranslation } from 'react-i18next';
+
+import ImagePreviewDialog from './ImagePreviewDialog';
 
 import {
     getMarketplaceThumbnail,
     getMarketplaceSrcSet,
-    getImagePreview
-} from "../../utils/cloudinaryImage";
-
-const PLACEHOLDER = `data:image/svg+xml,${encodeURIComponent(`
-<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400">
-  <rect width="600" height="400" fill="#edf3ee"/>
-  <g fill="none" stroke="#8ba894" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
-    <rect x="220" y="105" width="160" height="130" rx="12"/>
-    <circle cx="270" cy="145" r="12"/>
-    <path d="M235 215l48-48 32 30 24-22 26 40"/>
-  </g>
-  <text x="300" y="285" font-family="Arial,sans-serif" font-size="30" font-weight="600" text-anchor="middle" fill="#42634d">RoamAgro</text>
-  <text x="300" y="320" font-family="Arial,sans-serif" font-size="18" text-anchor="middle" fill="#607568">Image unavailable</text>
-</svg>
-`)}`;
+    getImagePreview,
+} from '../../utils/cloudinaryImage';
 
 const IMAGE_SIZES = [
-    "(min-width: 1536px) 350px",
-    "(min-width: 1200px) 25vw",
-    "(min-width: 900px) 33vw",
-    "(min-width: 600px) 50vw",
-    "100vw"
-].join(", ");
+    '(min-width: 1536px) 350px',
+    '(min-width: 1200px) 25vw',
+    '(min-width: 900px) 33vw',
+    '(min-width: 600px) 50vw',
+    '100vw',
+].join(', ');
+
+const EMPTY_IMAGES = [];
 
 const MarketplaceImage = ({
-    images = [],
-    title = "Marketplace listing"
+    images = EMPTY_IMAGES,
+    title = 'Marketplace listing',
 }) => {
+    const { t } = useTranslation();
+
     const [open, setOpen] = useState(false);
+    const [activeIndex, setActiveIndex] = useState(0);
+    const [imageStates, setImageStates] = useState({});
 
-    const [activeIndex, setActiveIndex] =
-        useState(0);
+    const validImages = useMemo(
+        () =>
+            Array.isArray(images)
+                ? images.filter(
+                      image =>
+                          typeof image === 'string' &&
+                          image.trim().length > 0
+                  )
+                : [],
+        [images]
+    );
 
-    const [failedImages, setFailedImages] =
-        useState({});
-
-    const [
-        originalFallbacks,
-        setOriginalFallbacks
-    ] = useState({});
-
-    const validImages = useMemo(() => {
-        if (!Array.isArray(images)) {
-            return [];
-        }
-
-        return images.filter(
-            image =>
-                typeof image === "string" &&
-                image.trim().length > 0
-        );
-    }, [images]);
-
-    const imageCount = validImages.length;
+    const imageKey = JSON.stringify(validImages);
 
     useEffect(() => {
         setActiveIndex(0);
         setOpen(false);
-        setFailedImages({});
-        setOriginalFallbacks({});
-    }, [validImages]);
+        setImageStates({});
+    }, [imageKey]);
+
+    const imageCount = validImages.length;
 
     const currentIndex = Math.min(
         activeIndex,
         Math.max(0, imageCount - 1)
     );
 
-    const currentImage =
-        validImages[currentIndex] || "";
+    const currentImage = validImages[currentIndex] || '';
 
-    const useOriginal = Boolean(
-        originalFallbacks[currentImage]
-    );
+    const currentState = imageStates[currentImage] || {};
+
+    const useOriginal = Boolean(currentState.useOriginal);
+    const imageFailed = Boolean(currentState.failed);
+    const retryCount = currentState.retryCount || 0;
 
     const thumbnail = useMemo(
-        () => getMarketplaceThumbnail(
-            currentImage,
-            480
-        ),
+        () =>
+            currentImage
+                ? getMarketplaceThumbnail(currentImage, 480)
+                : '',
         [currentImage]
     );
 
-    const displayImage =
-        !currentImage || failedImages[currentImage]
-            ? PLACEHOLDER
-            : useOriginal
-                ? currentImage
-                : thumbnail;
+    const imageSrcSet = useMemo(
+        () =>
+            currentImage && !useOriginal && !imageFailed
+                ? getMarketplaceSrcSet(currentImage)
+                : undefined,
+        [currentImage, useOriginal, imageFailed]
+    );
 
-    const imageSrcSet = useMemo(() => {
-        if (
-            !currentImage ||
-            useOriginal ||
-            failedImages[currentImage]
-        ) {
-            return undefined;
-        }
+    const displayImage = useOriginal
+        ? currentImage
+        : thumbnail;
 
-        return getMarketplaceSrcSet(currentImage);
-    }, [
-        currentImage,
-        useOriginal,
-        failedImages
-    ]);
-
-    const previewImage = useMemo(() => {
-        if (
-            !currentImage ||
-            displayImage === PLACEHOLDER
-        ) {
-            return "";
-        }
-
-        return getImagePreview(
-            currentImage,
-            1200
-        );
-    }, [
-        currentImage,
-        displayImage
-    ]);
+    const previewImage = useMemo(
+        () =>
+            currentImage
+                ? getImagePreview(currentImage, 1200)
+                : '',
+        [currentImage]
+    );
 
     const hasMultipleImages = imageCount > 1;
 
-    const handleImageError = useCallback(() => {
-        if (
-            !currentImage ||
-            displayImage === PLACEHOLDER
-        ) {
-            return;
-        }
-
-        // Attempt the original image if the
-        // optimized Cloudinary request fails.
-        if (
-            !useOriginal &&
-            (
-                thumbnail !== currentImage ||
-                imageSrcSet
-            )
-        ) {
-            setOriginalFallbacks(previous => ({
+    const updateImageState = useCallback(
+        (source, changes) => {
+            setImageStates(previous => ({
                 ...previous,
-                [currentImage]: true
+                [source]: {
+                    ...previous[source],
+                    ...changes,
+                },
             }));
+        },
+        []
+    );
 
-            return;
-        }
+    const handleImageError = useCallback(
+        source => {
+            if (!source) return;
 
-        // If the original also fails,
-        // display the local placeholder.
-        setFailedImages(previous => ({
-            ...previous,
-            [currentImage]: true
-        }));
-    }, [
-        currentImage,
-        displayImage,
-        thumbnail,
-        imageSrcSet,
-        useOriginal
-    ]);
+            const state = imageStates[source] || {};
 
-    const handlePrevious = useCallback(event => {
-        event?.stopPropagation();
+            if (
+                !state.useOriginal &&
+                (thumbnail !== source || imageSrcSet)
+            ) {
+                updateImageState(source, {
+                    useOriginal: true,
+                    failed: false,
+                });
+                return;
+            }
 
-        if (imageCount <= 1) return;
+            updateImageState(source, {
+                failed: true,
+            });
+        },
+        [
+            imageStates,
+            thumbnail,
+            imageSrcSet,
+            updateImageState,
+        ]
+    );
 
-        setActiveIndex(previous =>
-            (previous - 1 + imageCount) % imageCount
-        );
-    }, [imageCount]);
+    const handleRetry = useCallback(
+        event => {
+            event?.stopPropagation();
 
-    const handleNext = useCallback(event => {
-        event?.stopPropagation();
+            if (!currentImage) return;
 
-        if (imageCount <= 1) return;
+            updateImageState(currentImage, {
+                useOriginal: false,
+                failed: false,
+                retryCount: retryCount + 1,
+            });
+        },
+        [
+            currentImage,
+            retryCount,
+            updateImageState,
+        ]
+    );
 
-        setActiveIndex(previous =>
-            (previous + 1) % imageCount
-        );
-    }, [imageCount]);
+    const handlePrevious = useCallback(
+        event => {
+            event?.stopPropagation();
+
+            if (imageCount <= 1) return;
+
+            setActiveIndex(previous =>
+                (previous - 1 + imageCount) % imageCount
+            );
+        },
+        [imageCount]
+    );
+
+    const handleNext = useCallback(
+        event => {
+            event?.stopPropagation();
+
+            if (imageCount <= 1) return;
+
+            setActiveIndex(previous =>
+                (previous + 1) % imageCount
+            );
+        },
+        [imageCount]
+    );
 
     const handleOpen = useCallback(() => {
-        if (displayImage !== PLACEHOLDER) {
+        if (currentImage && !imageFailed) {
             setOpen(true);
         }
-    }, [displayImage]);
+    }, [currentImage, imageFailed]);
 
     const handleClose = useCallback(() => {
         setOpen(false);
@@ -217,101 +216,86 @@ const MarketplaceImage = ({
         <>
             <Box
                 sx={{
-                    position: "relative",
-                    width: "100%",
-                    aspectRatio: "3 / 2",
-                    overflow: "hidden",
-                    bgcolor: "action.hover"
+                    position: 'relative',
+                    width: '100%',
+                    aspectRatio: '3 / 2',
+                    overflow: 'hidden',
+                    bgcolor: 'action.hover',
                 }}
             >
-                <Box
-                    onClick={handleOpen}
-                    role={
-                        displayImage !== PLACEHOLDER
-                            ? "button"
-                            : undefined
-                    }
-                    tabIndex={
-                        displayImage !== PLACEHOLDER
-                            ? 0
-                            : undefined
-                    }
-                    onKeyDown={event => {
-                        if (
-                            displayImage !== PLACEHOLDER &&
-                            (
-                                event.key === "Enter" ||
-                                event.key === " "
-                            )
-                        ) {
-                            event.preventDefault();
-                            handleOpen();
-                        }
-                    }}
-                    aria-label={
-                        displayImage !== PLACEHOLDER
-                            ? `Preview ${title} image ${currentIndex + 1}`
-                            : undefined
-                    }
-                    sx={{
-                        width: "100%",
-                        height: "100%",
-                        cursor:
-                            displayImage !== PLACEHOLDER
-                                ? "pointer"
-                                : "default",
-                        "&:focus-visible": {
-                            outline: "2px solid",
-                            outlineColor: "primary.main",
-                            outlineOffset: "-2px"
-                        }
-                    }}
-                >
+                {!currentImage || imageFailed ? (
                     <Box
-                        component="img"
-                        key={`${currentImage}-${displayImage}`}
+                        role="img"
+                        aria-label={t('Image unavailable')}
+                        sx={{
+                            width: '100%',
+                            height: '100%',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            gap: 1,
+                            p: 2,
+                            color: 'text.secondary',
+                        }}
+                    >
+                        <BrokenImageOutlinedIcon
+                            fontSize="large"
+                        />
+
+                        <Typography
+                            variant="body2"
+                            textAlign="center"
+                        >
+                            {t('Image unavailable')}
+                        </Typography>
+
+                        {currentImage && imageFailed && (
+                            <Button
+                                size="small"
+                                variant="outlined"
+                                startIcon={<RefreshIcon />}
+                                onClick={handleRetry}
+                                sx={{
+                                    textTransform: 'none',
+                                    minHeight: 40,
+                                }}
+                            >
+                                {t('Retry')}
+                            </Button>
+                        )}
+                    </Box>
+                ) : (
+                    <GalleryPhoto
+                        key={`${currentImage}-${useOriginal}-${retryCount}`}
                         src={displayImage}
                         srcSet={imageSrcSet}
-                        sizes={
-                            imageSrcSet
-                                ? IMAGE_SIZES
-                                : undefined
+                        title={title}
+                        index={currentIndex}
+                        onError={() =>
+                            handleImageError(currentImage)
                         }
-                        width={480}
-                        height={320}
-                        alt={
-                            displayImage === PLACEHOLDER
-                                ? ""
-                                : `${title} - ${currentIndex + 1}`
-                        }
-                        loading="lazy"
-                        decoding="async"
-                        onError={handleImageError}
-                        sx={{
-                            display: "block",
-                            width: "100%",
-                            height: "100%",
-                            objectFit: "cover"
-                        }}
+                        onOpen={handleOpen}
                     />
-                </Box>
+                )}
 
                 {hasMultipleImages && (
                     <>
                         <IconButton
                             size="small"
                             onClick={handlePrevious}
-                            aria-label="Previous photo"
+                            aria-label={t('Previous photo')}
                             sx={{
-                                position: "absolute",
+                                position: 'absolute',
                                 left: 8,
-                                top: "50%",
-                                transform: "translateY(-50%)",
-                                bgcolor: "rgba(0,0,0,0.55)",
-                                color: "white",
-                                "&:hover": {
-                                    bgcolor: "rgba(0,0,0,0.75)"
-                                }
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                bgcolor: 'rgba(0,0,0,0.55)',
+                                color: 'white',
+                                zIndex: 2,
+                                '&:hover': {
+                                    bgcolor: 'rgba(0,0,0,0.75)',
+                                },
                             }}
                         >
                             <ChevronLeftIcon />
@@ -320,17 +304,18 @@ const MarketplaceImage = ({
                         <IconButton
                             size="small"
                             onClick={handleNext}
-                            aria-label="Next photo"
+                            aria-label={t('Next photo')}
                             sx={{
-                                position: "absolute",
+                                position: 'absolute',
                                 right: 8,
-                                top: "50%",
-                                transform: "translateY(-50%)",
-                                bgcolor: "rgba(0,0,0,0.55)",
-                                color: "white",
-                                "&:hover": {
-                                    bgcolor: "rgba(0,0,0,0.75)"
-                                }
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                bgcolor: 'rgba(0,0,0,0.55)',
+                                color: 'white',
+                                zIndex: 2,
+                                '&:hover': {
+                                    bgcolor: 'rgba(0,0,0,0.75)',
+                                },
                             }}
                         >
                             <ChevronRightIcon />
@@ -338,21 +323,22 @@ const MarketplaceImage = ({
 
                         <Box
                             sx={{
-                                position: "absolute",
+                                position: 'absolute',
                                 bottom: 8,
                                 right: 8,
                                 px: 1.2,
                                 py: 0.4,
                                 borderRadius: 2,
-                                bgcolor: "rgba(0,0,0,0.65)",
-                                pointerEvents: "none"
+                                bgcolor: 'rgba(0,0,0,0.65)',
+                                pointerEvents: 'none',
+                                zIndex: 2,
                             }}
                         >
                             <Typography
                                 variant="caption"
                                 sx={{
-                                    color: "white",
-                                    fontWeight: 700
+                                    color: 'white',
+                                    fontWeight: 700,
                                 }}
                             >
                                 {currentIndex + 1} / {imageCount}
@@ -370,6 +356,89 @@ const MarketplaceImage = ({
                 onClose={handleClose}
             />
         </>
+    );
+};
+
+const GalleryPhoto = ({
+    src,
+    srcSet,
+    title,
+    index,
+    onError,
+    onOpen,
+}) => {
+    const { t } = useTranslation();
+    const [loaded, setLoaded] = useState(false);
+    const [started, setStarted] = useState(false);
+
+    return (
+        <Box
+            onClick={onOpen}
+            role="button"
+            tabIndex={0}
+            onKeyDown={event => {
+                if (
+                    event.key === 'Enter' ||
+                    event.key === ' '
+                ) {
+                    event.preventDefault();
+                    onOpen();
+                }
+            }}
+            aria-label={`${t('Preview')} ${title} ${index + 1}`}
+            sx={{
+                width: '100%',
+                height: '100%',
+                position: 'relative',
+                cursor: 'pointer',
+                '&:focus-visible': {
+                    outline: '2px solid',
+                    outlineColor: 'primary.main',
+                    outlineOffset: '-2px',
+                },
+            }}
+        >
+            <Box
+                component="img"
+                src={src}
+                srcSet={srcSet}
+                sizes={srcSet ? IMAGE_SIZES : undefined}
+                width={480}
+                height={320}
+                alt={`${title} - ${index + 1}`}
+                loading="lazy"
+                decoding="async"
+                onLoadStart={() => setStarted(true)}
+                onLoad={() => {
+                    setStarted(true);
+                    setLoaded(true);
+                }}
+                onError={onError}
+                sx={{
+                    display: 'block',
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                }}
+            />
+
+            {started && !loaded && (
+                <Box
+                    role="status"
+                    sx={{
+                        position: 'absolute',
+                        inset: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        bgcolor: 'action.hover',
+                        pointerEvents: 'none',
+                    }}
+                >
+                    <CircularProgress size={28} />
+                </Box>
+            )}
+        </Box>
     );
 };
 

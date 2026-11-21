@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 import {
     Avatar,
@@ -7,6 +7,7 @@ import {
     Card,
     CardContent,
     CardMedia,
+    CircularProgress,
     Chip,
     Dialog,
     DialogActions,
@@ -31,6 +32,7 @@ import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import AddPhotoAlternateOutlinedIcon from '@mui/icons-material/AddPhotoAlternateOutlined';
 import BrokenImageOutlinedIcon from '@mui/icons-material/BrokenImageOutlined';
+import RefreshIcon from '@mui/icons-material/Refresh';
 
 import { useDispatch, useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
@@ -114,97 +116,122 @@ const OptimizedPostImage = ({
 }) => {
     const { t } = useTranslation();
 
-    const [useOriginal, setUseOriginal] =
-        useState(false);
+    const [useOriginal, setUseOriginal] = useState(false);
+    const [imageFailed, setImageFailed] = useState(false);
+    const [imageLoaded, setImageLoaded] = useState(false);
+    const [retryCount, setRetryCount] = useState(0);
 
-    const [imageFailed, setImageFailed] =
-        useState(false);
-
-    if (!source) {
-        return null;
-    }
+    if (!source) return null;
 
     const optimizedSource = preview
-        ? getResponsiveImage(
-              source,
-              PREVIEW_IMAGE_WIDTH
-          )
-        : getFeedImage(
-              source,
-              POST_IMAGE_WIDTH
-          );
+        ? getResponsiveImage(source, PREVIEW_IMAGE_WIDTH)
+        : getFeedImage(source, POST_IMAGE_WIDTH);
 
-    const imageSource = useOriginal
-        ? source
-        : optimizedSource;
-
-    const srcSet =
-        !preview && !useOriginal
-            ? getFeedImageSrcSet(source)
-            : undefined;
+    const imageSource = useOriginal ? source : optimizedSource;
+    const srcSet = !preview && !useOriginal
+        ? getFeedImageSrcSet(source)
+        : undefined;
 
     const handleImageError = () => {
-        if (
-            !useOriginal &&
-            (optimizedSource !== source || srcSet)
-        ) {
+        setImageLoaded(false);
+        if (!useOriginal && (optimizedSource !== source || srcSet)) {
             setUseOriginal(true);
             return;
         }
-
         setImageFailed(true);
     };
+
+    const handleRetry = () => {
+        setImageFailed(false);
+        setImageLoaded(false);
+        setUseOriginal(false);
+        setRetryCount(previous => previous + 1);
+    };
+
+    const imageStyles = preview
+        ? PREVIEW_IMAGE_STYLES
+        : POST_IMAGE_STYLES;
 
     if (imageFailed) {
         return (
             <Box
-                role="img"
-                aria-label={t('Image unavailable')}
+                role="group"
+                aria-label={alt || t('Image unavailable')}
                 sx={{
-                    ...(preview
-                        ? PREVIEW_IMAGE_STYLES
-                        : POST_IMAGE_STYLES),
+                    ...imageStyles,
+                    minHeight: preview ? 150 : { xs: 180, sm: 220 },
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    aspectRatio: '4 / 3',
                     color: 'text.secondary',
                     gap: 1,
+                    p: 2,
                 }}
             >
-                <BrokenImageOutlinedIcon
-                    fontSize="large"
-                />
-
-                <Typography variant="body2">
+                <BrokenImageOutlinedIcon fontSize="large" />
+                <Typography variant="body2" textAlign="center">
                     {t('Image unavailable')}
                 </Typography>
+                <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<RefreshIcon />}
+                    onClick={handleRetry}
+                >
+                    {t('Retry')}
+                </Button>
             </Box>
         );
     }
 
     return (
-        <CardMedia
-            key={useOriginal ? 'original' : 'optimized'}
-            component="img"
-            image={imageSource}
-            srcSet={srcSet}
-            sizes={
-                srcSet
-                    ? COMMUNITY_IMAGE_SIZES
-                    : undefined
-            }
-            alt={alt}
-            loading={preview ? 'eager' : 'lazy'}
-            decoding="async"
-            onError={handleImageError}
-            sx={
-                preview
-                    ? PREVIEW_IMAGE_STYLES
-                    : POST_IMAGE_STYLES
-            }
-        />
+        <Box
+            sx={{
+                ...imageStyles,
+                position: 'relative',
+                overflow: 'hidden',
+                minHeight: preview ? 150 : undefined,
+            }}
+        >
+            {preview && !imageLoaded && (
+                <Box
+                    role="status"
+                    aria-label={t('Loading image...')}
+                    sx={{
+                        position: 'absolute',
+                        inset: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        bgcolor: 'action.hover',
+                    }}
+                >
+                    <CircularProgress size={26} />
+                </Box>
+            )}
+            <CardMedia
+                key={`${retryCount}:${useOriginal ? 'original' : 'optimized'}`}
+                component="img"
+                image={imageSource}
+                srcSet={srcSet}
+                sizes={srcSet ? COMMUNITY_IMAGE_SIZES : undefined}
+                alt={alt}
+                loading={preview ? 'eager' : 'lazy'}
+                decoding="async"
+                onLoad={() => setImageLoaded(true)}
+                onError={handleImageError}
+                sx={{
+                    width: '100%',
+                    height: '100%',
+                    aspectRatio: preview ? undefined : '4 / 3',
+                    maxHeight: preview ? 250 : { xs: 280, sm: 380 },
+                    objectFit: 'cover',
+                    display: 'block',
+                    opacity: preview && !imageLoaded ? 0 : 1,
+                }}
+            />
+        </Box>
     );
 };
 
@@ -386,6 +413,7 @@ const AgriPostCard = ({
 
     const galleryInputRef = useRef(null);
     const cameraInputRef = useRef(null);
+    const imageSelectionIdRef = useRef(0);
 
     const [openComments, setOpenComments] =
         useState(false);
@@ -414,6 +442,10 @@ const AgriPostCard = ({
         category: post.category || 'General',
         image: post.image || '',
     });
+
+    useEffect(() => () => {
+        imageSelectionIdRef.current += 1;
+    }, []);
 
     const userId =
         currentUser?._id ||
@@ -506,6 +538,7 @@ const AgriPostCard = ({
     };
 
     const handleOpenEdit = () => {
+        imageSelectionIdRef.current += 1;
         setEditData({
             title: post.title || '',
             content: post.content || '',
@@ -531,46 +564,41 @@ const AgriPostCard = ({
     };
 
     const handleImageSelect = async event => {
-        const file =
-            event.target.files?.[0];
+        const file = event.target.files?.[0];
+        event.target.value = '';
 
-        if (!file) {
-            return;
-        }
+        if (!file || imageLoading) return;
 
+        const selectionId = ++imageSelectionIdRef.current;
         setImageError('');
         setImageLoading(true);
 
         try {
-            const image =
-                await compressImage(file);
-
-            setEditData(
-                previous => ({
-                    ...previous,
-                    image,
-                })
-            );
+            const image = await compressImage(file);
+            if (selectionId !== imageSelectionIdRef.current) return;
+            setEditData(previous => ({ ...previous, image }));
         } catch (error) {
-            setImageError(
-                error.message ||
-                t('Unable to add image.')
-            );
+            if (selectionId !== imageSelectionIdRef.current) return;
+            setImageError(error.message || t('Unable to add image.'));
         } finally {
-            setImageLoading(false);
-            event.target.value = '';
+            if (selectionId === imageSelectionIdRef.current) {
+                setImageLoading(false);
+            }
         }
     };
 
     const handleRemoveImage = () => {
-        setEditData(
-            previous => ({
-                ...previous,
-                image: '',
-            })
-        );
-
+        imageSelectionIdRef.current += 1;
+        setImageLoading(false);
+        setEditData(previous => ({ ...previous, image: '' }));
         setImageError('');
+    };
+
+    const handleCloseEdit = () => {
+        if (imageLoading) return;
+        imageSelectionIdRef.current += 1;
+        setImageError('');
+        setEditOpen(false);
     };
 
     const handleUpdate = async () => {
@@ -590,8 +618,7 @@ const AgriPostCard = ({
         );
 
         if (result?.success) {
-            setEditOpen(false);
-            setImageError('');
+            handleCloseEdit();
         }
     };
 
@@ -1063,11 +1090,7 @@ const AgriPostCard = ({
 
             <Dialog
                 open={editOpen}
-                onClose={() => {
-                    if (!imageLoading) {
-                        setEditOpen(false);
-                    }
-                }}
+                onClose={handleCloseEdit}
                 fullWidth
                 maxWidth="sm"
             >
@@ -1278,9 +1301,7 @@ const AgriPostCard = ({
                     }}
                 >
                     <Button
-                        onClick={() =>
-                            setEditOpen(false)
-                        }
+                        onClick={handleCloseEdit}
                         disabled={imageLoading}
                     >
                         {t('Cancel')}
