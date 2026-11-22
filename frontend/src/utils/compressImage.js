@@ -8,14 +8,28 @@ const SUPPORTED_TYPES = [
     'image/webp',
 ];
 
+const MAX_IMAGE_SIZE_MB =
+    MAX_FILE_SIZE / (1024 * 1024);
+
+const formatFileSize = bytes => {
+    if (!Number.isFinite(bytes) || bytes < 0) {
+        return '0 MB';
+    }
+
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+};
+
+// Detect the image format using its MIME type,
+// with a filename-extension fallback for devices
+// that do not provide a reliable MIME type.
 const getFileType = file => {
-    const type = (file.type || '').toLowerCase();
+    const type = (file?.type || '').toLowerCase();
 
     if (SUPPORTED_TYPES.includes(type)) {
         return type;
     }
 
-    const extension = (file.name || '')
+    const extension = (file?.name || '')
         .split('.')
         .pop()
         .toLowerCase();
@@ -30,6 +44,49 @@ const getFileType = file => {
     return extensionTypes[extension] || type;
 };
 
+// Validate before attempting image decoding.
+// Exported so forms can use exactly the same rules.
+const validateImageFile = file => {
+    if (
+        !file ||
+        typeof File === 'undefined' ||
+        !(file instanceof File)
+    ) {
+        throw new Error(
+            'Please select a valid image.'
+        );
+    }
+
+    const fileType = getFileType(file);
+
+    if (!SUPPORTED_TYPES.includes(fileType)) {
+        throw new Error(
+            'Unsupported image format. Please select a JPG, PNG or WebP image.'
+        );
+    }
+
+    if (file.size === 0) {
+        throw new Error(
+            'The selected image is empty.'
+        );
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+        const fileName = file.name || 'Selected image';
+
+        throw new Error(
+            `${fileName} is ${formatFileSize(file.size)}. ` +
+            `The maximum allowed image size is ` +
+            `${MAX_IMAGE_SIZE_MB} MB. ` +
+            'Please choose a smaller photo.'
+        );
+    }
+
+    return fileType;
+};
+
+// Decode using createImageBitmap where available.
+// Fall back to HTMLImageElement for older browsers.
 const loadImage = async file => {
     if (typeof createImageBitmap === 'function') {
         try {
@@ -46,34 +103,41 @@ const loadImage = async file => {
 
             bitmap.close();
         } catch (error) {
-            // Fall back to HTMLImageElement.
+            // Some browsers cannot decode particular
+            // images through createImageBitmap.
+            // Try HTMLImageElement instead.
         }
     }
 
     const imageUrl = URL.createObjectURL(file);
 
     try {
-        const image = await new Promise((resolve, reject) => {
-            const img = new Image();
+        const image = await new Promise(
+            (resolve, reject) => {
+                const img = new Image();
 
-            img.onload = () => resolve(img);
+                img.onload = () => resolve(img);
 
-            img.onerror = () => {
-                reject(
-                    new Error(
-                        'Unable to read this image on your device. Try another JPG or PNG photo.'
-                    )
-                );
-            };
+                img.onerror = () => {
+                    reject(
+                        new Error(
+                            'Unable to read this image on your device. ' +
+                            'Try another JPG or PNG photo.'
+                        )
+                    );
+                };
 
-            img.src = imageUrl;
-        });
+                img.src = imageUrl;
+            }
+        );
 
         return {
             image,
             width: image.naturalWidth,
             height: image.naturalHeight,
-            cleanup: () => URL.revokeObjectURL(imageUrl),
+            cleanup: () => {
+                URL.revokeObjectURL(imageUrl);
+            },
         };
     } catch (error) {
         URL.revokeObjectURL(imageUrl);
@@ -81,6 +145,7 @@ const loadImage = async file => {
     }
 };
 
+// Convert the resized canvas to JPEG.
 const canvasToBlob = canvas => {
     return new Promise((resolve, reject) => {
         canvas.toBlob(
@@ -103,32 +168,12 @@ const canvasToBlob = canvas => {
 };
 
 const compressImage = async file => {
-    if (
-        !file ||
-        typeof File === 'undefined' ||
-        !(file instanceof File)
-    ) {
-        throw new Error('Please select a valid image.');
-    }
+    // Validate before decoding or allocating a canvas.
+    const fileType = validateImageFile(file);
 
-    const fileType = getFileType(file);
-
-    if (!SUPPORTED_TYPES.includes(fileType)) {
-        throw new Error(
-            'Unsupported image format. Please select a JPG, PNG or WebP image.'
-        );
-    }
-
-    if (file.size === 0) {
-        throw new Error('The selected image is empty.');
-    }
-
-    if (file.size > MAX_FILE_SIZE) {
-        throw new Error('Image size must not exceed 12MB.');
-    }
-
-    // Small JPEGs do not require browser-side decoding.
-    // This avoids unnecessary failures on some mobile devices.
+    // Small JPEGs can be used directly.
+    // This avoids unnecessary decoding failures
+    // on some mobile devices.
     if (
         fileType === 'image/jpeg' &&
         file.size <= 1024 * 1024
@@ -141,7 +186,12 @@ const compressImage = async file => {
     try {
         const { image, width, height } = loaded;
 
-        if (!width || !height) {
+        if (
+            !Number.isFinite(width) ||
+            !Number.isFinite(height) ||
+            width <= 0 ||
+            height <= 0
+        ) {
             throw new Error(
                 'The selected image has invalid dimensions.'
             );
@@ -151,7 +201,12 @@ const compressImage = async file => {
             width > MAX_IMAGE_DIMENSION ||
             height > MAX_IMAGE_DIMENSION;
 
-        if (!needsResize && fileType === 'image/jpeg') {
+        // JPEG images within the dimension limit
+        // do not need another compression pass.
+        if (
+            !needsResize &&
+            fileType === 'image/jpeg'
+        ) {
             return file;
         }
 
@@ -171,7 +226,8 @@ const compressImage = async file => {
             Math.round(height * scale)
         );
 
-        const canvas = document.createElement('canvas');
+        const canvas =
+            document.createElement('canvas');
 
         canvas.width = outputWidth;
         canvas.height = outputHeight;
@@ -184,7 +240,10 @@ const compressImage = async file => {
             );
         }
 
+        // JPEG does not support transparency.
+        // Use white behind transparent PNG/WebP images.
         context.fillStyle = '#FFFFFF';
+
         context.fillRect(
             0,
             0,
@@ -202,14 +261,15 @@ const compressImage = async file => {
 
         const blob = await canvasToBlob(canvas);
 
-        const originalName = file.name || 'photo';
+        const originalName =
+            file.name || 'photo';
 
         const baseName = originalName.replace(
             /\.[^/.]+$/,
             ''
         );
 
-        return new File(
+        const compressedFile = new File(
             [blob],
             `${baseName}.jpg`,
             {
@@ -217,17 +277,42 @@ const compressImage = async file => {
                 lastModified: Date.now(),
             }
         );
+
+        return compressedFile;
     } catch (error) {
-        if (error.name === 'SecurityError') {
+        if (error?.name === 'SecurityError') {
             throw new Error(
                 'This image could not be processed securely.'
             );
         }
 
+        if (
+            error?.name === 'QuotaExceededError' ||
+            error?.name === 'OutOfMemoryError'
+        ) {
+            throw new Error(
+                'Your device does not have enough memory ' +
+                'to process this photo. ' +
+                'Please try a smaller image.'
+            );
+        }
+
         throw error;
     } finally {
+        // Release decoded image resources.
         loaded.cleanup();
     }
+};
+
+export {
+    MAX_IMAGE_DIMENSION,
+    MAX_FILE_SIZE,
+    MAX_IMAGE_SIZE_MB,
+    JPEG_QUALITY,
+    SUPPORTED_TYPES,
+    getFileType,
+    validateImageFile,
+    formatFileSize,
 };
 
 export default compressImage;

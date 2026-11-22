@@ -5,6 +5,7 @@ import React, {
 } from "react";
 
 import {
+    Alert,
     Box,
     Button,
     Card,
@@ -20,10 +21,15 @@ import {
 import CameraAltIcon from "@mui/icons-material/CameraAlt";
 import AddPhotoAlternateOutlinedIcon from "@mui/icons-material/AddPhotoAlternateOutlined";
 import DeleteIcon from "@mui/icons-material/Delete";
+import BrokenImageOutlinedIcon from "@mui/icons-material/BrokenImageOutlined";
+import RefreshIcon from "@mui/icons-material/Refresh";
 
 import { useTranslation } from "react-i18next";
 
-import compressImage from "../../utils/compressImage";
+import compressImage, {
+    MAX_IMAGE_SIZE_MB,
+    validateImageFile
+} from "../../utils/compressImage";
 
 const categories = [
     "Crop Production",
@@ -42,6 +48,30 @@ const categories = [
     "Technology",
     "General"
 ];
+
+const getImageSource = image => {
+    if (typeof image === "string") {
+        return image;
+    }
+
+    if (
+        image &&
+        typeof image === "object" &&
+        !(
+            typeof Blob !== "undefined" &&
+            image instanceof Blob
+        )
+    ) {
+        return (
+            image.secure_url ||
+            image.url ||
+            image.src ||
+            ""
+        );
+    }
+
+    return "";
+};
 
 const PostComposer = ({
     formData,
@@ -66,13 +96,23 @@ const PostComposer = ({
     const [imagePreview, setImagePreview] =
         useState("");
 
+    const [previewFailed, setPreviewFailed] =
+        useState(false);
+
+    const [previewRetry, setPreviewRetry] =
+        useState(0);
+
+    // Generate previews for local images and
+    // clean up temporary object URLs.
     useEffect(() => {
+        const image = formData.image;
+
         if (
-            typeof File !== "undefined" &&
-            formData.image instanceof File
+            typeof Blob !== "undefined" &&
+            image instanceof Blob
         ) {
             const previewUrl =
-                URL.createObjectURL(formData.image);
+                URL.createObjectURL(image);
 
             setImagePreview(previewUrl);
 
@@ -81,53 +121,93 @@ const PostComposer = ({
             };
         }
 
-        setImagePreview(
-            typeof formData.image === "string"
-                ? formData.image
-                : ""
-        );
+        setImagePreview(getImageSource(image));
+
+        return undefined;
     }, [formData.image]);
 
+    // Reset preview errors when the image changes.
+    useEffect(() => {
+        setPreviewFailed(false);
+        setPreviewRetry(0);
+    }, [imagePreview]);
+
+    // Prevent stale image processing results
+    // from updating an unmounted component.
     useEffect(() => {
         return () => {
             imageSelectionRef.current += 1;
         };
     }, []);
 
-    const handleImageSelect = async (event) => {
+    const handleImageSelect = async event => {
         const file = event.target.files?.[0];
 
         event.target.value = "";
 
-        if (!file) return;
+        if (
+            !file ||
+            imageProcessing ||
+            posting ||
+            loading
+        ) {
+            return;
+        }
 
         const selectionId =
             ++imageSelectionRef.current;
 
         setImageError("");
+
+        // Use the shared validation rules.
+        try {
+            validateImageFile(file);
+        } catch (validationError) {
+            setImageError(
+                t(
+                    validationError.message ||
+                    "Please select a valid image."
+                )
+            );
+
+            return;
+        }
+
         setImageProcessing(true);
 
         try {
-            const compressedFile =
+            const compressedImage =
                 await compressImage(file);
 
             if (
-                selectionId !==
-                imageSelectionRef.current
+                selectionId !== imageSelectionRef.current
             ) {
                 return;
             }
 
+            // compressImage returns a File object.
+            if (
+                typeof File === "undefined" ||
+                !(compressedImage instanceof File)
+            ) {
+                throw new Error(
+                    "Unable to process the selected image."
+                );
+            }
+
+            // Keep the previous image until the
+            // replacement is successfully processed.
             onChange({
                 target: {
                     name: "image",
-                    value: compressedFile
+                    value: compressedImage
                 }
             });
+
+            setImageError("");
         } catch (processingError) {
             if (
-                selectionId !==
-                imageSelectionRef.current
+                selectionId !== imageSelectionRef.current
             ) {
                 return;
             }
@@ -140,8 +220,7 @@ const PostComposer = ({
             );
         } finally {
             if (
-                selectionId ===
-                imageSelectionRef.current
+                selectionId === imageSelectionRef.current
             ) {
                 setImageProcessing(false);
             }
@@ -168,9 +247,12 @@ const PostComposer = ({
                 value: ""
             }
         });
+
+        setPreviewFailed(false);
+        setPreviewRetry(0);
     };
 
-    const handleSubmit = (event) => {
+    const handleSubmit = event => {
         event.preventDefault();
 
         if (
@@ -213,7 +295,9 @@ const PostComposer = ({
                             onChange={onChange}
                             disabled={posting}
                             error={Boolean(error?.title)}
-                            helperText={error?.title || ""}
+                            helperText={
+                                error?.title || ""
+                            }
                         />
 
                         <TextField
@@ -228,7 +312,9 @@ const PostComposer = ({
                             onChange={onChange}
                             disabled={posting}
                             error={Boolean(error?.content)}
-                            helperText={error?.content || ""}
+                            helperText={
+                                error?.content || ""
+                            }
                         />
 
                         <TextField
@@ -240,7 +326,7 @@ const PostComposer = ({
                             onChange={onChange}
                             disabled={posting}
                         >
-                            {categories.map((category) => (
+                            {categories.map(category => (
                                 <MenuItem
                                     key={category}
                                     value={category}
@@ -262,14 +348,28 @@ const PostComposer = ({
                             <Typography
                                 variant="body2"
                                 color="text.secondary"
-                                mb={1.5}
+                                mb={0.5}
                             >
                                 {t(
                                     "Add a photo or capture one with your camera."
                                 )}
                             </Typography>
 
-                            {/* Gallery input: no capture attribute */}
+                            <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                display="block"
+                                mb={1.5}
+                            >
+                                {t(
+                                    "Supported formats: JPG, PNG, WebP. Maximum {{max}} MB per photo.",
+                                    {
+                                        max: MAX_IMAGE_SIZE_MB
+                                    }
+                                )}
+                            </Typography>
+
+                            {/* Gallery selection */}
                             <input
                                 ref={fileInputRef}
                                 type="file"
@@ -278,7 +378,7 @@ const PostComposer = ({
                                 onChange={handleImageSelect}
                             />
 
-                            {/* Camera input: rear camera */}
+                            {/* Rear camera capture */}
                             <input
                                 ref={cameraInputRef}
                                 type="file"
@@ -316,14 +416,17 @@ const PostComposer = ({
                                         imageProcessing
                                     }
                                     fullWidth
+                                    sx={{ minHeight: 44 }}
                                 >
                                     {imageProcessing
-                                        ? t("Processing image...")
+                                        ? t(
+                                            "Processing image..."
+                                        )
                                         : t(
-                                              formData.image
-                                                  ? "Change Photo"
-                                                  : "Choose Photo"
-                                          )}
+                                            formData.image
+                                                ? "Change Photo"
+                                                : "Choose Photo"
+                                        )}
                                 </Button>
 
                                 <Button
@@ -340,50 +443,145 @@ const PostComposer = ({
                                         imageProcessing
                                     }
                                     fullWidth
+                                    sx={{ minHeight: 44 }}
                                 >
                                     {t("Take Photo")}
                                 </Button>
                             </Stack>
 
-                            {imageError && (
-                                <Typography
-                                    variant="body2"
-                                    color="error"
+                            {imageProcessing && (
+                                <Stack
+                                    direction="row"
+                                    spacing={1}
+                                    alignItems="center"
                                     mt={1}
+                                    role="status"
+                                >
+                                    <CircularProgress
+                                        size={16}
+                                    />
+
+                                    <Typography
+                                        variant="body2"
+                                        color="text.secondary"
+                                    >
+                                        {t(
+                                            "Processing image..."
+                                        )}
+                                    </Typography>
+                                </Stack>
+                            )}
+
+                            {imageError && (
+                                <Alert
+                                    severity="error"
                                     role="alert"
+                                    sx={{
+                                        mt: 1.5,
+                                        whiteSpace:
+                                            "pre-line",
+                                        overflowWrap:
+                                            "anywhere"
+                                    }}
                                 >
                                     {imageError}
-                                </Typography>
+                                </Alert>
                             )}
 
                             {imagePreview && (
                                 <Box
                                     sx={{
-                                        position: "relative",
+                                        position:
+                                            "relative",
                                         mt: 2,
                                         width: "100%",
                                         maxWidth: 400,
                                         borderRadius: 2,
-                                        overflow: "hidden"
+                                        overflow: "hidden",
+                                        bgcolor:
+                                            "action.hover"
                                     }}
                                 >
-                                    <Box
-                                        component="img"
-                                        src={imagePreview}
-                                        alt={t("Community post")}
-                                        loading="eager"
-                                        decoding="async"
-                                        sx={{
-                                            display: "block",
-                                            width: "100%",
-                                            maxHeight: 250,
-                                            objectFit: "cover"
-                                        }}
-                                    />
+                                    {!previewFailed ? (
+                                        <Box
+                                            component="img"
+                                            key={`${imagePreview}-${previewRetry}`}
+                                            src={imagePreview}
+                                            alt={t(
+                                                "Community post"
+                                            )}
+                                            loading="eager"
+                                            decoding="async"
+                                            onError={() =>
+                                                setPreviewFailed(
+                                                    true
+                                                )
+                                            }
+                                            sx={{
+                                                display:
+                                                    "block",
+                                                width: "100%",
+                                                maxHeight: 250,
+                                                objectFit:
+                                                    "contain"
+                                            }}
+                                        />
+                                    ) : (
+                                        <Stack
+                                            spacing={1}
+                                            alignItems="center"
+                                            justifyContent="center"
+                                            sx={{
+                                                minHeight: 180,
+                                                p: 3,
+                                                border:
+                                                    "1px solid",
+                                                borderColor:
+                                                    "divider",
+                                                borderRadius: 2
+                                            }}
+                                        >
+                                            <BrokenImageOutlinedIcon
+                                                color="disabled"
+                                                fontSize="large"
+                                            />
+
+                                            <Typography
+                                                variant="body2"
+                                                color="text.secondary"
+                                                textAlign="center"
+                                            >
+                                                {t(
+                                                    "Unable to display image preview."
+                                                )}
+                                            </Typography>
+
+                                            <Button
+                                                size="small"
+                                                startIcon={
+                                                    <RefreshIcon />
+                                                }
+                                                onClick={() => {
+                                                    setPreviewFailed(
+                                                        false
+                                                    );
+
+                                                    setPreviewRetry(
+                                                        previous =>
+                                                            previous + 1
+                                                    );
+                                                }}
+                                            >
+                                                {t("Retry")}
+                                            </Button>
+                                        </Stack>
+                                    )}
 
                                     <IconButton
                                         size="small"
-                                        onClick={handleRemoveImage}
+                                        onClick={
+                                            handleRemoveImage
+                                        }
                                         disabled={
                                             posting ||
                                             loading ||
@@ -393,7 +591,8 @@ const PostComposer = ({
                                             "Remove photo"
                                         )}
                                         sx={{
-                                            position: "absolute",
+                                            position:
+                                                "absolute",
                                             top: 8,
                                             right: 8,
                                             backgroundColor:

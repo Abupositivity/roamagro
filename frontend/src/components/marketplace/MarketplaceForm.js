@@ -1,4 +1,3 @@
-
 import React, {
     useEffect,
     useRef,
@@ -33,7 +32,10 @@ import {
     Controller,
 } from 'react-hook-form';
 
-import compressImage from '../../utils/compressImage';
+import compressImage, {
+    MAX_IMAGE_SIZE_MB,
+    validateImageFile,
+} from '../../utils/compressImage';
 
 import {
     getMarketplaceThumbnail,
@@ -70,6 +72,30 @@ const units = [
 
 const MAX_IMAGES = 3;
 
+const getImageSource = image => {
+    if (typeof image === 'string') {
+        return image;
+    }
+
+    if (
+        image &&
+        typeof image === 'object' &&
+        !(
+            typeof Blob !== 'undefined' &&
+            image instanceof Blob
+        )
+    ) {
+        return (
+            image.secure_url ||
+            image.url ||
+            image.src ||
+            ''
+        );
+    }
+
+    return '';
+};
+
 const getCoordinates = values => {
     const latitude = Number(values?.latitude);
     const longitude = Number(values?.longitude);
@@ -102,19 +128,32 @@ const MarketplacePhotoPreview = ({
 }) => {
     const { t } = useTranslation();
 
-    const [useOriginal, setUseOriginal] = useState(false);
-    const [failed, setFailed] = useState(false);
-    const [loaded, setLoaded] = useState(false);
-    const [retryCount, setRetryCount] = useState(0);
+    const [useOriginal, setUseOriginal] =
+        useState(false);
 
-    const optimizedSource = getMarketplaceThumbnail(
-        source,
-        240
-    );
+    const [failed, setFailed] =
+        useState(false);
+
+    const [loaded, setLoaded] =
+        useState(false);
+
+    const [retryCount, setRetryCount] =
+        useState(0);
+
+    const optimizedSource = source
+        ? getMarketplaceThumbnail(source, 240)
+        : '';
 
     const displaySource = useOriginal
         ? source
         : optimizedSource;
+
+    useEffect(() => {
+        setUseOriginal(false);
+        setFailed(false);
+        setLoaded(false);
+        setRetryCount(0);
+    }, [source]);
 
     const handleError = () => {
         setLoaded(false);
@@ -134,6 +173,7 @@ const MarketplacePhotoPreview = ({
         setUseOriginal(false);
         setFailed(false);
         setLoaded(false);
+
         setRetryCount(previous => previous + 1);
     };
 
@@ -151,7 +191,7 @@ const MarketplacePhotoPreview = ({
                 bgcolor: 'action.hover',
             }}
         >
-            {!failed ? (
+            {!failed && displaySource ? (
                 <>
                     <Box
                         component="img"
@@ -230,7 +270,8 @@ const MarketplacePhotoPreview = ({
                     width: 28,
                     height: 28,
                     zIndex: 2,
-                    backgroundColor: 'rgba(255,255,255,0.92)',
+                    backgroundColor:
+                        'rgba(255,255,255,0.92)',
                     '&:hover': {
                         backgroundColor: 'white',
                     },
@@ -252,6 +293,7 @@ const MarketplaceForm = ({
 
     const fileInputRef = useRef(null);
     const cameraInputRef = useRef(null);
+
     const imageSelectionRef = useRef(0);
     const imagesRef = useRef([]);
 
@@ -261,8 +303,12 @@ const MarketplaceForm = ({
             : []
     );
 
-    const [imagePreviews, setImagePreviews] = useState([]);
-    const [imageError, setImageError] = useState('');
+    const [imagePreviews, setImagePreviews] =
+        useState([]);
+
+    const [imageError, setImageError] =
+        useState('');
+
     const [imageProcessing, setImageProcessing] =
         useState(false);
 
@@ -316,11 +362,14 @@ const MarketplaceForm = ({
             : [];
 
         imagesRef.current = initialImages;
+
         setImages(initialImages);
         setImageProcessing(false);
+
         setCoordinates(
             getCoordinates(initialValues.coordinates)
         );
+
         setImageError('');
         setLocationError('');
         setLocationLoading(false);
@@ -334,34 +383,37 @@ const MarketplaceForm = ({
         }
     }, [initialValues, reset]);
 
+    // Generate previews for local Files and Blobs,
+    // as well as stored image URLs and objects.
     useEffect(() => {
+        const objectUrls = [];
+
         const previews = images.map(image => {
             if (
-                typeof File !== 'undefined' &&
-                image instanceof File
+                typeof Blob !== 'undefined' &&
+                image instanceof Blob
             ) {
-                return URL.createObjectURL(image);
+                const objectUrl =
+                    URL.createObjectURL(image);
+
+                objectUrls.push(objectUrl);
+
+                return objectUrl;
             }
 
-            return typeof image === 'string'
-                ? image
-                : '';
+            return getImageSource(image);
         });
 
         setImagePreviews(previews);
 
         return () => {
-            images.forEach((image, index) => {
-                if (
-                    typeof File !== 'undefined' &&
-                    image instanceof File
-                ) {
-                    URL.revokeObjectURL(previews[index]);
-                }
+            objectUrls.forEach(url => {
+                URL.revokeObjectURL(url);
             });
         };
     }, [images]);
 
+    // Invalidate pending compression on unmount.
     useEffect(() => {
         return () => {
             imageSelectionRef.current += 1;
@@ -384,8 +436,10 @@ const MarketplaceForm = ({
         navigator.geolocation.getCurrentPosition(
             position => {
                 setCoordinates({
-                    latitude: position.coords.latitude,
-                    longitude: position.coords.longitude,
+                    latitude:
+                        position.coords.latitude,
+                    longitude:
+                        position.coords.longitude,
                 });
 
                 setLocationLoading(false);
@@ -419,7 +473,13 @@ const MarketplaceForm = ({
 
         event.target.value = '';
 
-        if (!files.length) return;
+        if (
+            !files.length ||
+            imageProcessing ||
+            loading
+        ) {
+            return;
+        }
 
         setImageError('');
 
@@ -438,14 +498,53 @@ const MarketplaceForm = ({
             remainingSlots
         );
 
+        const errors = [];
+
+        if (files.length > remainingSlots) {
+            errors.push(
+                t(
+                    'You can add only {{count}} more photo(s). Extra photos were not selected.',
+                    {
+                        count: remainingSlots,
+                    }
+                )
+            );
+        }
+
+        // Validate all selected files using the
+        // shared compression utility rules.
+        const validFiles = selectedFiles.filter(file => {
+            try {
+                validateImageFile(file);
+                return true;
+            } catch (validationError) {
+                errors.push(
+                    t(
+                        validationError.message ||
+                        'Please select a valid image.'
+                    )
+                );
+
+                return false;
+            }
+        });
+
+        if (!validFiles.length) {
+            setImageError(errors.join('\n'));
+            return;
+        }
+
         const selectionId =
             ++imageSelectionRef.current;
 
         setImageProcessing(true);
 
         try {
+            // Compress each image independently.
+            // One failure should not discard
+            // successfully processed images.
             const results = await Promise.allSettled(
-                selectedFiles.map(file =>
+                validFiles.map(file =>
                     compressImage(file)
                 )
             );
@@ -456,16 +555,40 @@ const MarketplaceForm = ({
                 return;
             }
 
-            const successfulImages = results
-                .filter(
-                    result =>
-                        result.status === 'fulfilled' &&
-                        Boolean(result.value)
-                )
-                .map(result => result.value);
+            const successfulImages = [];
 
-            const failedCount =
-                results.length - successfulImages.length;
+            results.forEach((result, index) => {
+                const file = validFiles[index];
+
+                if (
+                    result.status === 'fulfilled' &&
+                    typeof File !== 'undefined' &&
+                    result.value instanceof File
+                ) {
+                    successfulImages.push(
+                        result.value
+                    );
+
+                    return;
+                }
+
+                const reason =
+                    result.status === 'rejected'
+                        ? result.reason
+                        : new Error(
+                            'Unable to process the selected image.'
+                        );
+
+                errors.push(
+                    t(
+                        reason?.message ||
+                        'Could not process {{name}}. Please choose another photo.',
+                        {
+                            name: file.name,
+                        }
+                    )
+                );
+            });
 
             if (successfulImages.length > 0) {
                 const updatedImages = [
@@ -477,18 +600,12 @@ const MarketplaceForm = ({
                 setImages(updatedImages);
             }
 
-            if (failedCount > 0) {
-                setImageError(
-                    successfulImages.length > 0
-                        ? t(
-                              'Some photos could not be processed. The other photos were added.'
-                          )
-                        : t(
-                              'Unable to add the selected image.'
-                          )
-                );
-            }
-        } catch (processingError) {
+            setImageError(
+                errors.length > 0
+                    ? errors.join('\n')
+                    : ''
+            );
+        } catch {
             if (
                 selectionId !== imageSelectionRef.current
             ) {
@@ -497,8 +614,7 @@ const MarketplaceForm = ({
 
             setImageError(
                 t(
-                    processingError.message ||
-                        'Unable to add the selected image.'
+                    'Unable to process the selected photos. Please try again.'
                 )
             );
         } finally {
@@ -521,6 +637,7 @@ const MarketplaceForm = ({
             );
 
         imagesRef.current = updatedImages;
+
         setImages(updatedImages);
         setImageError('');
 
@@ -816,13 +933,28 @@ const MarketplaceForm = ({
                         <Typography
                             variant="body2"
                             color="text.secondary"
-                            mb={2}
+                            mb={1}
                         >
                             {t(
                                 'Add up to 3 photos of your product.'
                             )}
                         </Typography>
 
+                        <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            display="block"
+                            mb={2}
+                        >
+                            {t(
+                                'Supported formats: JPG, PNG, WebP. Maximum {{max}} MB per photo.',
+                                {
+                                    max: MAX_IMAGE_SIZE_MB,
+                                }
+                            )}
+                        </Typography>
+
+                        {/* Gallery: multiple photos */}
                         <input
                             ref={fileInputRef}
                             type="file"
@@ -832,6 +964,7 @@ const MarketplaceForm = ({
                             onChange={handleImageSelect}
                         />
 
+                        {/* Camera: one photo at a time */}
                         <input
                             ref={cameraInputRef}
                             type="file"
@@ -907,25 +1040,36 @@ const MarketplaceForm = ({
                         </Typography>
 
                         {imageProcessing && (
-                            <Typography
-                                variant="body2"
-                                color="text.secondary"
+                            <Stack
+                                direction="row"
+                                spacing={1}
+                                alignItems="center"
                                 mt={1}
                                 role="status"
                             >
-                                {t('Processing images...')}
-                            </Typography>
+                                <CircularProgress size={16} />
+
+                                <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                >
+                                    {t('Processing images...')}
+                                </Typography>
+                            </Stack>
                         )}
 
                         {imageError && (
-                            <Typography
-                                variant="body2"
-                                color="error"
-                                mt={1}
+                            <Alert
+                                severity="error"
                                 role="alert"
+                                sx={{
+                                    mt: 2,
+                                    whiteSpace: 'pre-line',
+                                    overflowWrap: 'anywhere',
+                                }}
                             >
                                 {imageError}
-                            </Typography>
+                            </Alert>
                         )}
 
                         {images.length > 0 && (
@@ -942,7 +1086,8 @@ const MarketplaceForm = ({
                                     <MarketplacePhotoPreview
                                         key={`${index}-${imagePreviews[index] || ''}`}
                                         source={
-                                            imagePreviews[index] || ''
+                                            imagePreviews[index] ||
+                                            getImageSource(image)
                                         }
                                         alt={`${t('Product')} ${index + 1}`}
                                         onRemove={() =>

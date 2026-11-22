@@ -3,6 +3,7 @@ import React, {
     useRef,
     useState
 } from "react";
+
 import {
     Alert,
     Box,
@@ -19,13 +20,22 @@ import {
     TextField,
     Typography
 } from "@mui/material";
+
 import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import CameraAltIcon from "@mui/icons-material/CameraAlt";
 import AddPhotoAlternateOutlinedIcon from "@mui/icons-material/AddPhotoAlternateOutlined";
+import BrokenImageOutlinedIcon from "@mui/icons-material/BrokenImageOutlined";
+import RefreshIcon from "@mui/icons-material/Refresh";
+
 import { useDispatch, useSelector } from "react-redux";
 import { useTranslation } from "react-i18next";
+
 import { createAgriTip } from "../../redux/actions/agriFeedActions";
-import compressImage from "../../utils/compressImage";
+
+import compressImage, {
+    MAX_IMAGE_SIZE_MB,
+    validateImageFile
+} from "../../utils/compressImage";
 
 const categories = [
     "Crop Production",
@@ -45,7 +55,11 @@ const categories = [
     "General"
 ];
 
-const priorities = ["Normal", "Important", "Urgent"];
+const priorities = [
+    "Normal",
+    "Important",
+    "Urgent"
+];
 
 const initialFormData = {
     title: "",
@@ -57,6 +71,30 @@ const initialFormData = {
     image: ""
 };
 
+const getImageSource = image => {
+    if (typeof image === "string") {
+        return image;
+    }
+
+    if (
+        image &&
+        typeof image === "object" &&
+        !(
+            typeof Blob !== "undefined" &&
+            image instanceof Blob
+        )
+    ) {
+        return (
+            image.secure_url ||
+            image.url ||
+            image.src ||
+            ""
+        );
+    }
+
+    return "";
+};
+
 const ExtensionTipForm = ({ onPublished }) => {
     const { t } = useTranslation();
     const dispatch = useDispatch();
@@ -66,27 +104,50 @@ const ExtensionTipForm = ({ onPublished }) => {
     const imageSelectionRef = useRef(0);
 
     const { creating, createError } = useSelector(
-        (state) => state.agriFeed
+        state => state.agriFeed
     );
 
     const user = useSelector(
-        (state) => state.auth.user || state.auth.currentUser
+        state =>
+            state.auth.user ||
+            state.auth.currentUser
     );
 
     const isAdmin = user?.role === "admin";
 
-    const [formData, setFormData] = useState(initialFormData);
-    const [successMessage, setSuccessMessage] = useState("");
-    const [imageError, setImageError] = useState("");
-    const [imageProcessing, setImageProcessing] = useState(false);
-    const [imagePreview, setImagePreview] = useState("");
+    const [formData, setFormData] = useState({
+        ...initialFormData
+    });
 
+    const [successMessage, setSuccessMessage] =
+        useState("");
+
+    const [imageError, setImageError] =
+        useState("");
+
+    const [imageProcessing, setImageProcessing] =
+        useState(false);
+
+    const [imagePreview, setImagePreview] =
+        useState("");
+
+    const [previewFailed, setPreviewFailed] =
+        useState(false);
+
+    const [previewRetry, setPreviewRetry] =
+        useState(0);
+
+    // Generate previews for local Files, Blobs,
+    // image URLs, and supported image objects.
     useEffect(() => {
+        const image = formData.image;
+
         if (
-            typeof File !== "undefined" &&
-            formData.image instanceof File
+            typeof Blob !== "undefined" &&
+            image instanceof Blob
         ) {
-            const previewUrl = URL.createObjectURL(formData.image);
+            const previewUrl =
+                URL.createObjectURL(image);
 
             setImagePreview(previewUrl);
 
@@ -95,23 +156,29 @@ const ExtensionTipForm = ({ onPublished }) => {
             };
         }
 
-        setImagePreview(
-            typeof formData.image === "string"
-                ? formData.image
-                : ""
-        );
+        setImagePreview(getImageSource(image));
+
+        return undefined;
     }, [formData.image]);
 
+    // Reset preview errors when the image changes.
+    useEffect(() => {
+        setPreviewFailed(false);
+        setPreviewRetry(0);
+    }, [imagePreview]);
+
+    // Prevent stale image processing results
+    // from updating an unmounted component.
     useEffect(() => {
         return () => {
             imageSelectionRef.current += 1;
         };
     }, []);
 
-    const handleChange = (event) => {
+    const handleChange = event => {
         const { name, value } = event.target;
 
-        setFormData((previous) => ({
+        setFormData(previous => ({
             ...previous,
             [name]:
                 name === "priority" && !isAdmin
@@ -122,32 +189,74 @@ const ExtensionTipForm = ({ onPublished }) => {
         setSuccessMessage("");
     };
 
-    const handleImageChange = async (event) => {
+    const handleImageChange = async event => {
         const file = event.target.files?.[0];
+
         event.target.value = "";
 
-        if (!file) return;
+        if (
+            !file ||
+            imageProcessing ||
+            creating
+        ) {
+            return;
+        }
 
-        const selectionId = ++imageSelectionRef.current;
+        const selectionId =
+            ++imageSelectionRef.current;
 
         setImageError("");
+        setSuccessMessage("");
+
+        // Use the same validation rules as
+        // Marketplace and Post Composer.
+        try {
+            validateImageFile(file);
+        } catch (validationError) {
+            setImageError(
+                t(
+                    validationError.message ||
+                    "Please select a valid image."
+                )
+            );
+
+            return;
+        }
+
         setImageProcessing(true);
 
         try {
-            const compressedFile = await compressImage(file);
+            const compressedImage =
+                await compressImage(file);
 
-            if (selectionId !== imageSelectionRef.current) {
+            if (
+                selectionId !== imageSelectionRef.current
+            ) {
                 return;
             }
 
-            setFormData((previous) => ({
+            // compressImage returns a File object.
+            if (
+                typeof File === "undefined" ||
+                !(compressedImage instanceof File)
+            ) {
+                throw new Error(
+                    "Unable to process the selected image."
+                );
+            }
+
+            // Replace the previous image only after
+            // successful processing.
+            setFormData(previous => ({
                 ...previous,
-                image: compressedFile
+                image: compressedImage
             }));
 
-            setSuccessMessage("");
+            setImageError("");
         } catch (processingError) {
-            if (selectionId !== imageSelectionRef.current) {
+            if (
+                selectionId !== imageSelectionRef.current
+            ) {
                 return;
             }
 
@@ -158,7 +267,9 @@ const ExtensionTipForm = ({ onPublished }) => {
                 )
             );
         } finally {
-            if (selectionId === imageSelectionRef.current) {
+            if (
+                selectionId === imageSelectionRef.current
+            ) {
                 setImageProcessing(false);
             }
         }
@@ -166,8 +277,10 @@ const ExtensionTipForm = ({ onPublished }) => {
 
     const handleRemoveImage = () => {
         imageSelectionRef.current += 1;
+
         setImageProcessing(false);
         setImageError("");
+        setSuccessMessage("");
 
         if (fileInputRef.current) {
             fileInputRef.current.value = "";
@@ -177,17 +290,24 @@ const ExtensionTipForm = ({ onPublished }) => {
             cameraInputRef.current.value = "";
         }
 
-        setFormData((previous) => ({
+        setFormData(previous => ({
             ...previous,
             image: ""
         }));
+
+        setImagePreview("");
+        setPreviewFailed(false);
+        setPreviewRetry(0);
     };
 
-    const handleSubmit = async (event) => {
+    const handleSubmit = async event => {
         event.preventDefault();
+
         setSuccessMessage("");
 
-        if (imageProcessing || creating) return;
+        if (imageProcessing || creating) {
+            return;
+        }
 
         const tipData = {
             ...formData,
@@ -201,13 +321,21 @@ const ExtensionTipForm = ({ onPublished }) => {
                 createAgriTip(tipData)
             );
 
-            if (!result?.success) return;
+            if (!result?.success) {
+                return;
+            }
 
+            // Invalidate pending image selections.
             imageSelectionRef.current += 1;
 
-            setFormData({ ...initialFormData });
+            setFormData({
+                ...initialFormData
+            });
+
             setImageError("");
             setImageProcessing(false);
+            setPreviewFailed(false);
+            setPreviewRetry(0);
 
             if (fileInputRef.current) {
                 fileInputRef.current.value = "";
@@ -218,23 +346,32 @@ const ExtensionTipForm = ({ onPublished }) => {
             }
 
             setSuccessMessage(
-                t("Agricultural tip published successfully.")
+                t(
+                    "Agricultural tip published successfully."
+                )
             );
 
             if (onPublished) {
                 onPublished(result.data);
             }
         } catch {
-            // Redux exposes publication errors through createError.
+            // Redux exposes publication errors
+            // through createError.
         }
     };
 
     return (
-        <Card elevation={2} sx={{ borderRadius: 3 }}>
+        <Card
+            elevation={2}
+            sx={{ borderRadius: 3 }}
+        >
             <CardContent>
                 <Stack spacing={3}>
                     <Box>
-                        <Typography variant="h6" fontWeight={700}>
+                        <Typography
+                            variant="h6"
+                            fontWeight={700}
+                        >
                             {t("Post Agricultural Tip")} 🌱
                         </Typography>
 
@@ -252,7 +389,9 @@ const ExtensionTipForm = ({ onPublished }) => {
                     {successMessage && (
                         <Alert
                             severity="success"
-                            onClose={() => setSuccessMessage("")}
+                            onClose={() =>
+                                setSuccessMessage("")
+                            }
                         >
                             {successMessage}
                         </Alert>
@@ -265,12 +404,22 @@ const ExtensionTipForm = ({ onPublished }) => {
                     )}
 
                     {imageError && (
-                        <Alert severity="error">
+                        <Alert
+                            severity="error"
+                            role="alert"
+                            sx={{
+                                whiteSpace: "pre-line",
+                                overflowWrap: "anywhere"
+                            }}
+                        >
                             {imageError}
                         </Alert>
                     )}
 
-                    <Box component="form" onSubmit={handleSubmit}>
+                    <Box
+                        component="form"
+                        onSubmit={handleSubmit}
+                    >
                         <Stack spacing={2}>
                             <TextField
                                 fullWidth
@@ -279,10 +428,15 @@ const ExtensionTipForm = ({ onPublished }) => {
                                 name="title"
                                 value={formData.title}
                                 onChange={handleChange}
-                                inputProps={{ maxLength: 150 }}
+                                inputProps={{
+                                    maxLength: 150
+                                }}
                             />
 
-                            <FormControl fullWidth required>
+                            <FormControl
+                                fullWidth
+                                required
+                            >
                                 <InputLabel>
                                     {t("Category")}
                                 </InputLabel>
@@ -293,14 +447,16 @@ const ExtensionTipForm = ({ onPublished }) => {
                                     label={t("Category")}
                                     onChange={handleChange}
                                 >
-                                    {categories.map((category) => (
-                                        <MenuItem
-                                            key={category}
-                                            value={category}
-                                        >
-                                            {t(category)}
-                                        </MenuItem>
-                                    ))}
+                                    {categories.map(
+                                        category => (
+                                            <MenuItem
+                                                key={category}
+                                                value={category}
+                                            >
+                                                {t(category)}
+                                            </MenuItem>
+                                        )
+                                    )}
                                 </Select>
                             </FormControl>
 
@@ -330,14 +486,17 @@ const ExtensionTipForm = ({ onPublished }) => {
                                         label={t("Priority")}
                                         onChange={handleChange}
                                     >
-                                        {priorities.map((priority) => (
-                                            <MenuItem
-                                                key={priority}
-                                                value={priority}
-                                            >
-                                                {t(priority)}
-                                            </MenuItem>
-                                        ))}
+                                        {priorities.map(
+                                            priority => (
+                                                <MenuItem
+                                                    key={priority}
+                                                    value={priority}
+                                                >
+                                                    {t(priority)}
+                                                </MenuItem>
+                                            )
+                                        )
+                                    }
                                     </Select>
                                 </FormControl>
                             )}
@@ -353,7 +512,10 @@ const ExtensionTipForm = ({ onPublished }) => {
                                     label={t("Language")}
                                     onChange={handleChange}
                                 >
-                                    {["English", "Hausa"].map((language) => (
+                                    {[
+                                        "English",
+                                        "Hausa"
+                                    ].map(language => (
                                         <MenuItem
                                             key={language}
                                             value={language}
@@ -372,115 +534,253 @@ const ExtensionTipForm = ({ onPublished }) => {
                                 onChange={handleChange}
                             />
 
-                            {imagePreview && (
-                                <Box>
-                                    <CardMedia
-                                        component="img"
-                                        image={imagePreview}
-                                        alt={t(
-                                            "Agricultural tip image preview"
-                                        )}
-                                        loading="lazy"
-                                        sx={{
-                                            width: "100%",
-                                            maxHeight: 260,
-                                            objectFit: "contain",
-                                            borderRadius: 2
-                                        }}
-                                    />
+                            <Box>
+                                <Typography
+                                    variant="subtitle2"
+                                    fontWeight={600}
+                                    mb={0.5}
+                                >
+                                    {t("Tip Photo")}
+                                </Typography>
 
-                                    <Button
-                                        color="error"
-                                        onClick={handleRemoveImage}
-                                        disabled={
-                                            creating ||
-                                            imageProcessing
+                                <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                    display="block"
+                                    mb={1.5}
+                                >
+                                    {t(
+                                        "Supported formats: JPG, PNG, WebP. Maximum {{max}} MB per photo.",
+                                        {
+                                            max: MAX_IMAGE_SIZE_MB
                                         }
-                                    >
-                                        {t("Remove image")}
-                                    </Button>
-                                </Box>
-                            )}
+                                    )}
+                                </Typography>
 
-                            {/* Gallery selection */}
-                            <input
-                                ref={fileInputRef}
-                                type="file"
-                                accept="image/jpeg,image/png,image/webp"
-                                hidden
-                                onChange={handleImageChange}
-                            />
-
-                            {/* Rear camera capture */}
-                            <input
-                                ref={cameraInputRef}
-                                type="file"
-                                accept="image/jpeg,image/png,image/webp"
-                                capture="environment"
-                                hidden
-                                onChange={handleImageChange}
-                            />
-
-                            <Stack
-                                direction={{ xs: "column", sm: "row" }}
-                                spacing={1}
-                            >
-                                <Button
-                                    variant="outlined"
-                                    startIcon={
-                                        imageProcessing ? (
-                                            <CircularProgress
-                                                size={18}
-                                                color="inherit"
+                                {imagePreview && (
+                                    <Box mb={2}>
+                                        {!previewFailed ? (
+                                            <CardMedia
+                                                key={`${imagePreview}-${previewRetry}`}
+                                                component="img"
+                                                image={imagePreview}
+                                                alt={t(
+                                                    "Agricultural tip image preview"
+                                                )}
+                                                loading="eager"
+                                                onError={() =>
+                                                    setPreviewFailed(
+                                                        true
+                                                    )
+                                                }
+                                                sx={{
+                                                    width: "100%",
+                                                    maxHeight: 260,
+                                                    objectFit:
+                                                        "contain",
+                                                    borderRadius: 2,
+                                                    bgcolor:
+                                                        "action.hover"
+                                                }}
                                             />
                                         ) : (
-                                            <AddPhotoAlternateOutlinedIcon />
-                                        )
-                                    }
-                                    onClick={() =>
-                                        fileInputRef.current?.click()
-                                    }
-                                    disabled={
-                                        imageProcessing || creating
-                                    }
-                                    fullWidth
-                                >
-                                    {imageProcessing
-                                        ? t("Processing image...")
-                                        : t(
-                                              formData.image
-                                                  ? "Change Photo"
-                                                  : "Choose Photo"
-                                          )}
-                                </Button>
+                                            <Stack
+                                                spacing={1}
+                                                alignItems="center"
+                                                sx={{
+                                                    p: 3,
+                                                    border:
+                                                        "1px solid",
+                                                    borderColor:
+                                                        "divider",
+                                                    borderRadius: 2
+                                                }}
+                                            >
+                                                <BrokenImageOutlinedIcon
+                                                    color="disabled"
+                                                    fontSize="large"
+                                                />
 
-                                <Button
-                                    variant="outlined"
-                                    startIcon={<CameraAltIcon />}
-                                    onClick={() =>
-                                        cameraInputRef.current?.click()
+                                                <Typography
+                                                    variant="body2"
+                                                    color="text.secondary"
+                                                    textAlign="center"
+                                                >
+                                                    {t(
+                                                        "Unable to display image preview."
+                                                    )}
+                                                </Typography>
+
+                                                <Button
+                                                    size="small"
+                                                    startIcon={
+                                                        <RefreshIcon />
+                                                    }
+                                                    onClick={() => {
+                                                        setPreviewFailed(
+                                                            false
+                                                        );
+
+                                                        setPreviewRetry(
+                                                            previous =>
+                                                                previous + 1
+                                                        );
+                                                    }}
+                                                >
+                                                    {t("Retry")}
+                                                </Button>
+                                            </Stack>
+                                        )}
+
+                                        <Button
+                                            color="error"
+                                            onClick={
+                                                handleRemoveImage
+                                            }
+                                            disabled={
+                                                creating ||
+                                                imageProcessing
+                                            }
+                                            sx={{ mt: 1 }}
+                                        >
+                                            {t("Remove image")}
+                                        </Button>
+                                    </Box>
+                                )}
+
+                                {/* Gallery selection */}
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept="image/jpeg,image/png,image/webp"
+                                    hidden
+                                    onChange={
+                                        handleImageChange
                                     }
-                                    disabled={
-                                        imageProcessing || creating
+                                />
+
+                                {/* Rear camera capture */}
+                                <input
+                                    ref={cameraInputRef}
+                                    type="file"
+                                    accept="image/jpeg,image/png,image/webp"
+                                    capture="environment"
+                                    hidden
+                                    onChange={
+                                        handleImageChange
                                     }
-                                    fullWidth
+                                />
+
+                                <Stack
+                                    direction={{
+                                        xs: "column",
+                                        sm: "row"
+                                    }}
+                                    spacing={1}
                                 >
-                                    {t("Take Photo")}
-                                </Button>
-                            </Stack>
+                                    <Button
+                                        variant="outlined"
+                                        startIcon={
+                                            imageProcessing ? (
+                                                <CircularProgress
+                                                    size={18}
+                                                    color="inherit"
+                                                />
+                                            ) : (
+                                                <AddPhotoAlternateOutlinedIcon />
+                                            )
+                                        }
+                                        onClick={() =>
+                                            fileInputRef.current?.click()
+                                        }
+                                        disabled={
+                                            imageProcessing ||
+                                            creating
+                                        }
+                                        fullWidth
+                                        sx={{
+                                            minHeight: 44
+                                        }}
+                                    >
+                                        {imageProcessing
+                                            ? t(
+                                                "Processing image..."
+                                            )
+                                            : t(
+                                                formData.image
+                                                    ? "Change Photo"
+                                                    : "Choose Photo"
+                                            )}
+                                    </Button>
+
+                                    <Button
+                                        variant="outlined"
+                                        startIcon={
+                                            <CameraAltIcon />
+                                        }
+                                        onClick={() =>
+                                            cameraInputRef.current?.click()
+                                        }
+                                        disabled={
+                                            imageProcessing ||
+                                            creating
+                                        }
+                                        fullWidth
+                                        sx={{
+                                            minHeight: 44
+                                        }}
+                                    >
+                                        {t("Take Photo")}
+                                    </Button>
+                                </Stack>
+
+                                {imageProcessing && (
+                                    <Stack
+                                        direction="row"
+                                        spacing={1}
+                                        alignItems="center"
+                                        mt={1}
+                                        role="status"
+                                    >
+                                        <CircularProgress
+                                            size={16}
+                                        />
+
+                                        <Typography
+                                            variant="body2"
+                                            color="text.secondary"
+                                        >
+                                            {t(
+                                                "Processing image..."
+                                            )}
+                                        </Typography>
+                                    </Stack>
+                                )}
+                            </Box>
 
                             <Box>
                                 <Button
                                     type="submit"
                                     variant="contained"
-                                    startIcon={<SendOutlinedIcon />}
+                                    startIcon={
+                                        creating ? (
+                                            <CircularProgress
+                                                size={18}
+                                                color="inherit"
+                                            />
+                                        ) : (
+                                            <SendOutlinedIcon />
+                                        )
+                                    }
                                     disabled={
                                         creating ||
                                         imageProcessing ||
                                         !formData.title.trim() ||
                                         !formData.content.trim()
                                     }
-                                    sx={{ borderRadius: 2.5 }}
+                                    sx={{
+                                        borderRadius: 2.5
+                                    }}
                                 >
                                     {creating
                                         ? t("Publishing...")
