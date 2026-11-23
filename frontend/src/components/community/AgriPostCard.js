@@ -1398,23 +1398,13 @@ const AgriPostCard = ({
                             </Typography>
 
                             <Typography
-                                variant="body2"
-                                color="text.secondary"
-                                mb={1}
-                            >
-                                {t(
-                                    'Add a new photo or keep the current one.'
-                                )}
-                            </Typography>
-
-                            <Typography
                                 variant="caption"
                                 color="text.secondary"
                                 display="block"
                                 mb={1.5}
                             >
                                 {t(
-                                    'Supported formats: JPG, PNG, WebP. Maximum {{max}} MB per photo.',
+                                    'Maximum {{max}} MB per photo.',
                                     {
                                         max: MAX_IMAGE_SIZE_MB,
                                     }
@@ -1425,7 +1415,7 @@ const AgriPostCard = ({
                             <input
                                 ref={galleryInputRef}
                                 type="file"
-                                accept="image/jpeg,image/png,image/webp"
+                                accept="image/*"
                                 hidden
                                 onChange={handleImageSelect}
                             />
@@ -1434,7 +1424,7 @@ const AgriPostCard = ({
                             <input
                                 ref={cameraInputRef}
                                 type="file"
-                                accept="image/jpeg,image/png,image/webp"
+                                accept="image/*"
                                 capture="environment"
                                 hidden
                                 onChange={handleImageSelect}

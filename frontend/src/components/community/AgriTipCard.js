@@ -1206,7 +1206,7 @@ const AgriTipCard = ({ tip }) => {
                             color="text.secondary"
                         >
                             {t(
-                                'Supported formats: JPG, PNG, WebP. Maximum {{max}} MB per photo.',
+                                'Maximum {{max}} MB per photo.',
                                 {
                                     max: MAX_IMAGE_SIZE_MB,
                                 }
@@ -1217,7 +1217,7 @@ const AgriTipCard = ({ tip }) => {
                         <input
                             ref={galleryInputRef}
                             type="file"
-                            accept="image/jpeg,image/png,image/webp"
+                            accept="image/*"
                             hidden
                             onChange={handleImageChange}
                         />
@@ -1226,7 +1226,7 @@ const AgriTipCard = ({ tip }) => {
                         <input
                             ref={cameraInputRef}
                             type="file"
-                            accept="image/jpeg,image/png,image/webp"
+                            accept="image/*"
                             capture="environment"
                             hidden
                             onChange={handleImageChange}

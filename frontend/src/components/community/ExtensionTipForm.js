@@ -527,7 +527,7 @@ const ExtensionTipForm = ({ onPublished }) => {
                                     fontWeight={600}
                                     mb={0.5}
                                 >
-                                    {t("Optional Tip Photo")}
+                                    {t("Photo (optional)")}
                                 </Typography>
 
                                 <Typography
