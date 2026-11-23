@@ -1,6 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, {
+    useEffect,
+    useRef,
+    useState,
+} from 'react';
 
 import {
+    Alert,
     Avatar,
     Box,
     Button,
@@ -12,14 +17,18 @@ import {
     Dialog,
     DialogActions,
     DialogContent,
+    DialogContentText,
     DialogTitle,
     Divider,
     IconButton,
     Menu,
     MenuItem,
+    Snackbar,
     Stack,
     TextField,
     Typography,
+    useMediaQuery,
+    useTheme,
 } from '@mui/material';
 
 import FavoriteIcon from '@mui/icons-material/Favorite';
@@ -45,6 +54,11 @@ import {
     deleteTopic,
     sharePost,
 } from '../../redux/actions/communityActions';
+
+import compressImage, {
+    MAX_IMAGE_SIZE_MB,
+    validateImageFile,
+} from '../../utils/compressImage';
 
 import {
     getAvatarImage,
@@ -72,9 +86,6 @@ const categories = [
     'Technology',
     'General',
 ];
-
-const MAX_IMAGE_SIZE = 1200;
-const IMAGE_QUALITY = 0.75;
 
 const AUTHOR_AVATAR_SIZE = 132;
 const POST_IMAGE_WIDTH = 800;
@@ -104,239 +115,34 @@ const POST_IMAGE_STYLES = {
 const PREVIEW_IMAGE_STYLES = {
     width: '100%',
     maxHeight: 250,
-    objectFit: 'cover',
+    objectFit: 'contain',
     display: 'block',
     backgroundColor: 'action.hover',
 };
 
-const OptimizedPostImage = ({
-    source,
-    alt,
-    preview = false,
-}) => {
-    const { t } = useTranslation();
+const getImageSource = image => {
+    if (typeof image === 'string') {
+        return image;
+    }
 
-    const [useOriginal, setUseOriginal] = useState(false);
-    const [imageFailed, setImageFailed] = useState(false);
-    const [imageLoaded, setImageLoaded] = useState(false);
-    const [retryCount, setRetryCount] = useState(0);
-
-    if (!source) return null;
-
-    const optimizedSource = preview
-        ? getResponsiveImage(source, PREVIEW_IMAGE_WIDTH)
-        : getFeedImage(source, POST_IMAGE_WIDTH);
-
-    const imageSource = useOriginal ? source : optimizedSource;
-    const srcSet = !preview && !useOriginal
-        ? getFeedImageSrcSet(source)
-        : undefined;
-
-    const handleImageError = () => {
-        setImageLoaded(false);
-        if (!useOriginal && (optimizedSource !== source || srcSet)) {
-            setUseOriginal(true);
-            return;
-        }
-        setImageFailed(true);
-    };
-
-    const handleRetry = () => {
-        setImageFailed(false);
-        setImageLoaded(false);
-        setUseOriginal(false);
-        setRetryCount(previous => previous + 1);
-    };
-
-    const imageStyles = preview
-        ? PREVIEW_IMAGE_STYLES
-        : POST_IMAGE_STYLES;
-
-    if (imageFailed) {
+    if (
+        image &&
+        typeof image === 'object' &&
+        !(
+            typeof Blob !== 'undefined' &&
+            image instanceof Blob
+        )
+    ) {
         return (
-            <Box
-                role="group"
-                aria-label={alt || t('Image unavailable')}
-                sx={{
-                    ...imageStyles,
-                    minHeight: preview ? 150 : { xs: 180, sm: 220 },
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'text.secondary',
-                    gap: 1,
-                    p: 2,
-                }}
-            >
-                <BrokenImageOutlinedIcon fontSize="large" />
-                <Typography variant="body2" textAlign="center">
-                    {t('Image unavailable')}
-                </Typography>
-                <Button
-                    size="small"
-                    variant="outlined"
-                    startIcon={<RefreshIcon />}
-                    onClick={handleRetry}
-                >
-                    {t('Retry')}
-                </Button>
-            </Box>
+            image.secure_url ||
+            image.url ||
+            image.src ||
+            ''
         );
     }
 
-    return (
-        <Box
-            sx={{
-                ...imageStyles,
-                position: 'relative',
-                overflow: 'hidden',
-                minHeight: preview ? 150 : undefined,
-            }}
-        >
-            {preview && !imageLoaded && (
-                <Box
-                    role="status"
-                    aria-label={t('Loading image...')}
-                    sx={{
-                        position: 'absolute',
-                        inset: 0,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        bgcolor: 'action.hover',
-                    }}
-                >
-                    <CircularProgress size={26} />
-                </Box>
-            )}
-            <CardMedia
-                key={`${retryCount}:${useOriginal ? 'original' : 'optimized'}`}
-                component="img"
-                image={imageSource}
-                srcSet={srcSet}
-                sizes={srcSet ? COMMUNITY_IMAGE_SIZES : undefined}
-                alt={alt}
-                loading={preview ? 'eager' : 'lazy'}
-                decoding="async"
-                onLoad={() => setImageLoaded(true)}
-                onError={handleImageError}
-                sx={{
-                    width: '100%',
-                    height: '100%',
-                    aspectRatio: preview ? undefined : '4 / 3',
-                    maxHeight: preview ? 250 : { xs: 280, sm: 380 },
-                    objectFit: 'cover',
-                    display: 'block',
-                    opacity: preview && !imageLoaded ? 0 : 1,
-                }}
-            />
-        </Box>
-    );
+    return '';
 };
-
-const compressImage = file =>
-    new Promise((resolve, reject) => {
-        if (!file?.type?.startsWith('image/')) {
-            reject(
-                new Error(
-                    'Please select an image file.'
-                )
-            );
-            return;
-        }
-
-        const reader = new FileReader();
-
-        reader.onload = event => {
-            const image = new Image();
-
-            image.onload = () => {
-                let width = image.width;
-                let height = image.height;
-
-                if (
-                    width > MAX_IMAGE_SIZE ||
-                    height > MAX_IMAGE_SIZE
-                ) {
-                    if (width > height) {
-                        height =
-                            (height / width) *
-                            MAX_IMAGE_SIZE;
-
-                        width = MAX_IMAGE_SIZE;
-                    } else {
-                        width =
-                            (width / height) *
-                            MAX_IMAGE_SIZE;
-
-                        height = MAX_IMAGE_SIZE;
-                    }
-                }
-
-                const canvas =
-                    document.createElement('canvas');
-
-                canvas.width = Math.round(width);
-                canvas.height = Math.round(height);
-
-                const context =
-                    canvas.getContext('2d');
-
-                if (!context) {
-                    reject(
-                        new Error(
-                            'Unable to process image.'
-                        )
-                    );
-                    return;
-                }
-
-                context.drawImage(
-                    image,
-                    0,
-                    0,
-                    canvas.width,
-                    canvas.height
-                );
-
-                try {
-                    resolve(
-                        canvas.toDataURL(
-                            'image/jpeg',
-                            IMAGE_QUALITY
-                        )
-                    );
-                } catch {
-                    reject(
-                        new Error(
-                            'Unable to compress image.'
-                        )
-                    );
-                }
-            };
-
-            image.onerror = () => {
-                reject(
-                    new Error(
-                        'Unable to process image.'
-                    )
-                );
-            };
-
-            image.src = event.target.result;
-        };
-
-        reader.onerror = () => {
-            reject(
-                new Error(
-                    'Unable to read image.'
-                )
-            );
-        };
-
-        reader.readAsDataURL(file);
-    });
 
 const getInitial = name => {
     if (!name) return 'F';
@@ -375,13 +181,9 @@ const formatDate = date => {
     );
 
     if (difference === 0) return 'Today';
-
     if (difference === 1) return 'Yesterday';
 
-    if (
-        difference > 1 &&
-        difference < 7
-    ) {
+    if (difference > 1 && difference < 7) {
         return `${difference} days ago`;
     }
 
@@ -399,16 +201,218 @@ const formatDate = date => {
     );
 };
 
+const OptimizedPostImage = ({
+    source,
+    alt,
+    preview = false,
+}) => {
+    const { t } = useTranslation();
+
+    const [useOriginal, setUseOriginal] =
+        useState(false);
+
+    const [imageFailed, setImageFailed] =
+        useState(false);
+
+    const [imageLoaded, setImageLoaded] =
+        useState(false);
+
+    const [retryCount, setRetryCount] =
+        useState(0);
+
+    const optimizedSource = source
+        ? preview
+            ? getResponsiveImage(
+                source,
+                PREVIEW_IMAGE_WIDTH
+            )
+            : getFeedImage(
+                source,
+                POST_IMAGE_WIDTH
+            )
+        : '';
+
+    const imageSource = useOriginal
+        ? source
+        : optimizedSource;
+
+    const srcSet =
+        source && !preview && !useOriginal
+            ? getFeedImageSrcSet(source)
+            : undefined;
+
+    const handleImageError = () => {
+        setImageLoaded(false);
+
+        if (
+            !useOriginal &&
+            (
+                optimizedSource !== source ||
+                srcSet
+            )
+        ) {
+            setUseOriginal(true);
+            return;
+        }
+
+        setImageFailed(true);
+    };
+
+    const handleRetry = () => {
+        setImageFailed(false);
+        setImageLoaded(false);
+        setUseOriginal(false);
+        setRetryCount(previous => previous + 1);
+    };
+
+    const imageStyles = preview
+        ? PREVIEW_IMAGE_STYLES
+        : POST_IMAGE_STYLES;
+
+    if (!source) return null;
+
+    if (imageFailed) {
+        return (
+            <Box
+                role="group"
+                aria-label={
+                    alt ||
+                    t('Image unavailable')
+                }
+                sx={{
+                    ...imageStyles,
+                    minHeight: preview
+                        ? 150
+                        : {
+                            xs: 180,
+                            sm: 220,
+                        },
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'text.secondary',
+                    gap: 1,
+                    p: 2,
+                }}
+            >
+                <BrokenImageOutlinedIcon
+                    fontSize="large"
+                />
+
+                <Typography
+                    variant="body2"
+                    textAlign="center"
+                >
+                    {t('Image unavailable')}
+                </Typography>
+
+                <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<RefreshIcon />}
+                    onClick={handleRetry}
+                >
+                    {t('Retry')}
+                </Button>
+            </Box>
+        );
+    }
+
+    return (
+        <Box
+            sx={{
+                ...imageStyles,
+                position: 'relative',
+                overflow: 'hidden',
+                minHeight: preview
+                    ? 150
+                    : undefined,
+            }}
+        >
+            {preview && !imageLoaded && (
+                <Box
+                    role="status"
+                    aria-label={t(
+                        'Loading image...'
+                    )}
+                    sx={{
+                        position: 'absolute',
+                        inset: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        bgcolor: 'action.hover',
+                    }}
+                >
+                    <CircularProgress size={26} />
+                </Box>
+            )}
+
+            <CardMedia
+                key={`${retryCount}:${useOriginal ? 'original' : 'optimized'}`}
+                component="img"
+                image={imageSource}
+                srcSet={srcSet}
+                sizes={
+                    srcSet
+                        ? COMMUNITY_IMAGE_SIZES
+                        : undefined
+                }
+                alt={alt}
+                loading={
+                    preview
+                        ? 'eager'
+                        : 'lazy'
+                }
+                decoding="async"
+                onLoad={() =>
+                    setImageLoaded(true)
+                }
+                onError={handleImageError}
+                sx={{
+                    width: '100%',
+                    height: '100%',
+                    aspectRatio: preview
+                        ? undefined
+                        : '4 / 3',
+                    maxHeight: preview
+                        ? 250
+                        : {
+                            xs: 280,
+                            sm: 380,
+                        },
+                    objectFit: preview
+                        ? 'contain'
+                        : 'cover',
+                    display: 'block',
+                    opacity:
+                        preview && !imageLoaded
+                            ? 0
+                            : 1,
+                }}
+            />
+        </Box>
+    );
+};
+
 const AgriPostCard = ({
     post,
     onOpenProfile,
 }) => {
     const { t } = useTranslation();
-
     const dispatch = useDispatch();
 
+    const theme = useTheme();
+
+    const fullScreen = useMediaQuery(
+        theme.breakpoints.down('sm')
+    );
+
     const currentUser = useSelector(
-        state => state.auth?.user
+        state =>
+            state.auth?.user ||
+            state.auth?.currentUser
     );
 
     const galleryInputRef = useRef(null);
@@ -424,8 +428,20 @@ const AgriPostCard = ({
     const [editOpen, setEditOpen] =
         useState(false);
 
+    const [deleteOpen, setDeleteOpen] =
+        useState(false);
+
     const [deleteLoading, setDeleteLoading] =
         useState(false);
+
+    const [deleteError, setDeleteError] =
+        useState('');
+
+    const [editSaving, setEditSaving] =
+        useState(false);
+
+    const [editError, setEditError] =
+        useState('');
 
     const [shareLoading, setShareLoading] =
         useState(false);
@@ -436,16 +452,61 @@ const AgriPostCard = ({
     const [imageError, setImageError] =
         useState('');
 
-    const [editData, setEditData] = useState({
-        title: post.title || '',
-        content: post.content || '',
-        category: post.category || 'General',
-        image: post.image || '',
-    });
+    const [imagePreview, setImagePreview] =
+        useState('');
 
-    useEffect(() => () => {
-        imageSelectionIdRef.current += 1;
+    const [copyLinkOpen, setCopyLinkOpen] =
+        useState(false);
+
+    const [shareUrl, setShareUrl] =
+        useState('');
+
+    const [notification, setNotification] =
+        useState({
+            open: false,
+            message: '',
+            severity: 'success',
+        });
+
+    const [editData, setEditData] =
+        useState({
+            title: post.title || '',
+            content: post.content || '',
+            category:
+                post.category ||
+                'General',
+            image: post.image || '',
+        });
+
+    useEffect(() => {
+        return () => {
+            imageSelectionIdRef.current += 1;
+        };
     }, []);
+
+    useEffect(() => {
+        const image = editData.image;
+
+        if (
+            typeof Blob !== 'undefined' &&
+            image instanceof Blob
+        ) {
+            const previewUrl =
+                URL.createObjectURL(image);
+
+            setImagePreview(previewUrl);
+
+            return () => {
+                URL.revokeObjectURL(previewUrl);
+            };
+        }
+
+        setImagePreview(
+            getImageSource(image)
+        );
+
+        return undefined;
+    }, [editData.image]);
 
     const userId =
         currentUser?._id ||
@@ -463,22 +524,20 @@ const AgriPostCard = ({
             postUserId.toString()
     );
 
-    const isOwnProfile = Boolean(
-        userId &&
-        postUserId &&
-        userId.toString() ===
-            postUserId.toString()
-    );
+    const isOwnProfile = isOwner;
 
     const liked = Boolean(
-        post.likes?.some(
-            like =>
-                (
-                    like?._id ||
-                    like
-                ).toString() ===
+        post.likes?.some(like => {
+            const likeId =
+                like?._id ||
+                like?.id ||
+                like;
+
+            return (
+                likeId?.toString() ===
                 userId?.toString()
-        )
+            );
+        })
     );
 
     const likeCount =
@@ -498,6 +557,27 @@ const AgriPostCard = ({
         post.user?.profilePhoto,
         AUTHOR_AVATAR_SIZE
     );
+
+    const showNotification = (
+        message,
+        severity = 'success'
+    ) => {
+        setNotification({
+            open: true,
+            message,
+            severity,
+        });
+    };
+
+    const resetFileInputs = () => {
+        if (galleryInputRef.current) {
+            galleryInputRef.current.value = '';
+        }
+
+        if (cameraInputRef.current) {
+            cameraInputRef.current.value = '';
+        }
+    };
 
     const handleOpenProfile = () => {
         if (
@@ -520,7 +600,7 @@ const AgriPostCard = ({
     };
 
     const handleAddComment = content => {
-        dispatch(
+        return dispatch(
             addComment(
                 post._id,
                 content
@@ -529,7 +609,7 @@ const AgriPostCard = ({
     };
 
     const handleDeleteComment = commentId => {
-        dispatch(
+        return dispatch(
             deleteComment(
                 post._id,
                 commentId
@@ -539,6 +619,9 @@ const AgriPostCard = ({
 
     const handleOpenEdit = () => {
         imageSelectionIdRef.current += 1;
+
+        setImageLoading(false);
+
         setEditData({
             title: post.title || '',
             content: post.content || '',
@@ -548,40 +631,100 @@ const AgriPostCard = ({
             image: post.image || '',
         });
 
+        setEditError('');
         setImageError('');
         setMenuAnchor(null);
         setEditOpen(true);
     };
 
     const handleEditChange = event => {
-        setEditData(
-            previous => ({
-                ...previous,
-                [event.target.name]:
-                    event.target.value,
-            })
-        );
+        const { name, value } =
+            event.target;
+
+        setEditData(previous => ({
+            ...previous,
+            [name]: value,
+        }));
     };
 
     const handleImageSelect = async event => {
-        const file = event.target.files?.[0];
+        const file =
+            event.target.files?.[0];
+
         event.target.value = '';
 
-        if (!file || imageLoading) return;
+        if (
+            !file ||
+            imageLoading ||
+            editSaving
+        ) {
+            return;
+        }
 
-        const selectionId = ++imageSelectionIdRef.current;
+        const selectionId =
+            ++imageSelectionIdRef.current;
+
         setImageError('');
+
+        try {
+            validateImageFile(file);
+        } catch (error) {
+            setImageError(
+                t(
+                    error?.message ||
+                    'Please select a valid image.'
+                )
+            );
+            return;
+        }
+
         setImageLoading(true);
 
         try {
-            const image = await compressImage(file);
-            if (selectionId !== imageSelectionIdRef.current) return;
-            setEditData(previous => ({ ...previous, image }));
+            const compressedFile =
+                await compressImage(file);
+
+            if (
+                selectionId !==
+                imageSelectionIdRef.current
+            ) {
+                return;
+            }
+
+            if (
+                typeof File === 'undefined' ||
+                !(compressedFile instanceof File)
+            ) {
+                throw new Error(
+                    'Unable to process the selected image.'
+                );
+            }
+
+            setEditData(previous => ({
+                ...previous,
+                image: compressedFile,
+            }));
+
+            setImageError('');
         } catch (error) {
-            if (selectionId !== imageSelectionIdRef.current) return;
-            setImageError(error.message || t('Unable to add image.'));
+            if (
+                selectionId !==
+                imageSelectionIdRef.current
+            ) {
+                return;
+            }
+
+            setImageError(
+                t(
+                    error?.message ||
+                    'Unable to add image.'
+                )
+            );
         } finally {
-            if (selectionId === imageSelectionIdRef.current) {
+            if (
+                selectionId ===
+                imageSelectionIdRef.current
+            ) {
                 setImageLoading(false);
             }
         }
@@ -589,69 +732,130 @@ const AgriPostCard = ({
 
     const handleRemoveImage = () => {
         imageSelectionIdRef.current += 1;
+
         setImageLoading(false);
-        setEditData(previous => ({ ...previous, image: '' }));
         setImageError('');
+
+        resetFileInputs();
+
+        setEditData(previous => ({
+            ...previous,
+            image: '',
+        }));
     };
 
     const handleCloseEdit = () => {
-        if (imageLoading) return;
+        if (editSaving) return;
+
         imageSelectionIdRef.current += 1;
+
+        setImageLoading(false);
         setImageError('');
+        setEditError('');
         setEditOpen(false);
+
+        resetFileInputs();
     };
 
     const handleUpdate = async () => {
         if (
+            editSaving ||
+            imageLoading ||
             !editData.title.trim() ||
-            !editData.content.trim() ||
-            imageLoading
+            !editData.content.trim()
         ) {
             return;
         }
 
-        const result = await dispatch(
-            updateTopic(
-                post._id,
-                editData
-            )
-        );
+        setEditSaving(true);
+        setEditError('');
 
-        if (result?.success) {
-            handleCloseEdit();
+        try {
+            const result = await dispatch(
+                updateTopic(
+                    post._id,
+                    editData
+                )
+            );
+
+            if (!result?.success) {
+                setEditError(
+                    result?.error ||
+                    t('Unable to update post.')
+                );
+                return;
+            }
+
+            imageSelectionIdRef.current += 1;
+            setEditOpen(false);
+
+            showNotification(
+                t('Post updated successfully.')
+            );
+        } catch (error) {
+            setEditError(
+                error?.message ||
+                t('Unable to update post.')
+            );
+        } finally {
+            setEditSaving(false);
         }
     };
 
-    const handleDelete = async () => {
+    const handleDelete = () => {
         setMenuAnchor(null);
+        setDeleteError('');
+        setDeleteOpen(true);
+    };
 
-        const confirmed = window.confirm(
-            t(
-                'Are you sure you want to delete this post?'
-            )
-        );
+    const handleCloseDelete = () => {
+        if (deleteLoading) return;
 
-        if (!confirmed) {
+        setDeleteOpen(false);
+        setDeleteError('');
+    };
+
+    const handleConfirmDelete = async () => {
+        if (
+            deleteLoading ||
+            !isOwner
+        ) {
             return;
         }
 
         setDeleteLoading(true);
+        setDeleteError('');
 
-        await dispatch(
-            deleteTopic(post._id)
-        );
+        try {
+            const result = await dispatch(
+                deleteTopic(post._id)
+            );
 
-        setDeleteLoading(false);
+            if (!result?.success) {
+                setDeleteError(
+                    result?.error ||
+                    t('Unable to delete post.')
+                );
+                return;
+            }
+
+            setDeleteOpen(false);
+        } catch (error) {
+            setDeleteError(
+                error?.message ||
+                t('Unable to delete post.')
+            );
+        } finally {
+            setDeleteLoading(false);
+        }
     };
 
     const handleShare = async () => {
-        if (shareLoading) {
-            return;
-        }
+        if (shareLoading) return;
 
         setShareLoading(true);
 
-        const shareUrl =
+        const url =
             `${window.location.origin}/community?post=${post._id}`;
 
         try {
@@ -663,30 +867,50 @@ const AgriPostCard = ({
                     text:
                         post.content ||
                         '',
-                    url: shareUrl,
+                    url,
                 });
 
-                await dispatch(
-                    sharePost(post._id)
-                );
-            } else if (navigator.clipboard) {
-                await navigator.clipboard.writeText(
-                    shareUrl
-                );
-
-                await dispatch(
+                const result = await dispatch(
                     sharePost(post._id)
                 );
 
-                window.alert(
-                    t('Post link copied.')
-                );
-            } else {
-                window.prompt(
-                    t('Copy this post link:'),
-                    shareUrl
-                );
+                if (result?.success === false) {
+                    showNotification(
+                        result.error ||
+                        t('Unable to record share.'),
+                        'error'
+                    );
+                }
+
+                return;
             }
+
+            if (navigator.clipboard) {
+                await navigator.clipboard.writeText(
+                    url
+                );
+
+                const result = await dispatch(
+                    sharePost(post._id)
+                );
+
+                if (result?.success === false) {
+                    showNotification(
+                        result.error ||
+                        t('Unable to record share.'),
+                        'error'
+                    );
+                } else {
+                    showNotification(
+                        t('Post link copied.')
+                    );
+                }
+
+                return;
+            }
+
+            setShareUrl(url);
+            setCopyLinkOpen(true);
         } catch (error) {
             if (
                 error?.name ===
@@ -695,29 +919,31 @@ const AgriPostCard = ({
                 return;
             }
 
-            try {
-                if (navigator.clipboard) {
-                    await navigator.clipboard.writeText(
-                        shareUrl
-                    );
-
-                    await dispatch(
-                        sharePost(post._id)
-                    );
-
-                    window.alert(
-                        t('Post link copied.')
-                    );
-                }
-            } catch {
-                window.alert(
-                    t(
-                        'Unable to share this post.'
-                    )
-                );
-            }
+            setShareUrl(url);
+            setCopyLinkOpen(true);
         } finally {
             setShareLoading(false);
+        }
+    };
+
+    const handleCopyLink = async () => {
+        try {
+            await navigator.clipboard.writeText(
+                shareUrl
+            );
+
+            setCopyLinkOpen(false);
+
+            showNotification(
+                t('Post link copied.')
+            );
+        } catch {
+            showNotification(
+                t(
+                    'Unable to copy link. Please copy it manually.'
+                ),
+                'error'
+            );
         }
     };
 
@@ -753,7 +979,10 @@ const AgriPostCard = ({
                         alignItems="center"
                     >
                         <Avatar
-                            src={authorPhoto || undefined}
+                            src={
+                                authorPhoto ||
+                                undefined
+                            }
                             alt={authorName}
                             onClick={handleOpenProfile}
                             slotProps={{
@@ -779,9 +1008,9 @@ const AgriPostCard = ({
                                     postUserId &&
                                     !isOwnProfile
                                         ? {
-                                              boxShadow:
-                                                  '0 0 0 3px rgba(0,191,99,0.18)',
-                                          }
+                                            boxShadow:
+                                                '0 0 0 3px rgba(0,191,99,0.18)',
+                                        }
                                         : {},
                             }}
                         >
@@ -816,9 +1045,9 @@ const AgriPostCard = ({
                                         postUserId &&
                                         !isOwnProfile
                                             ? {
-                                                  color:
-                                                      'primary.main',
-                                              }
+                                                color:
+                                                    'primary.main',
+                                            }
                                             : {},
                                 }}
                             >
@@ -865,9 +1094,7 @@ const AgriPostCard = ({
                                 aria-label={t(
                                     'Post options'
                                 )}
-                                sx={{
-                                    ml: -0.5,
-                                }}
+                                sx={{ ml: -0.5 }}
                             >
                                 <MoreVertIcon />
                             </IconButton>
@@ -907,10 +1134,10 @@ const AgriPostCard = ({
                         </Typography>
                     </Box>
 
-                    {post.image && (
+                    {getImageSource(post.image) && (
                         <OptimizedPostImage
-                            key={post.image}
-                            source={post.image}
+                            key={getImageSource(post.image)}
+                            source={getImageSource(post.image)}
                             alt={
                                 post.title ||
                                 t('Community post image')
@@ -1011,7 +1238,14 @@ const AgriPostCard = ({
                             onClick={handleShare}
                             disabled={shareLoading}
                             startIcon={
-                                <ShareIcon />
+                                shareLoading
+                                    ? (
+                                        <CircularProgress
+                                            size={18}
+                                            color="inherit"
+                                        />
+                                    )
+                                    : <ShareIcon />
                             }
                             sx={{
                                 minWidth: 0,
@@ -1053,6 +1287,7 @@ const AgriPostCard = ({
                 </CardContent>
             </Card>
 
+            {/* Post options */}
             <Menu
                 anchorEl={menuAnchor}
                 open={Boolean(menuAnchor)}
@@ -1082,15 +1317,15 @@ const AgriPostCard = ({
                         sx={{ mr: 1.5 }}
                     />
 
-                    {deleteLoading
-                        ? t('Deleting...')
-                        : t('Delete Post')}
+                    {t('Delete Post')}
                 </MenuItem>
             </Menu>
 
+            {/* Edit post */}
             <Dialog
                 open={editOpen}
                 onClose={handleCloseEdit}
+                fullScreen={fullScreen}
                 fullWidth
                 maxWidth="sm"
             >
@@ -1103,12 +1338,19 @@ const AgriPostCard = ({
                         spacing={2}
                         sx={{ mt: 1 }}
                     >
+                        {editError && (
+                            <Alert severity="error">
+                                {editError}
+                            </Alert>
+                        )}
+
                         <TextField
                             fullWidth
                             label={t('Title')}
                             name="title"
                             value={editData.title}
                             onChange={handleEditChange}
+                            disabled={editSaving}
                             autoFocus
                         />
 
@@ -1122,6 +1364,7 @@ const AgriPostCard = ({
                             name="content"
                             value={editData.content}
                             onChange={handleEditChange}
+                            disabled={editSaving}
                         />
 
                         <TextField
@@ -1131,6 +1374,7 @@ const AgriPostCard = ({
                             name="category"
                             value={editData.category}
                             onChange={handleEditChange}
+                            disabled={editSaving}
                         >
                             {categories.map(
                                 category => (
@@ -1156,25 +1400,41 @@ const AgriPostCard = ({
                             <Typography
                                 variant="body2"
                                 color="text.secondary"
-                                mb={1.5}
+                                mb={1}
                             >
                                 {t(
                                     'Add a new photo or keep the current one.'
                                 )}
                             </Typography>
 
+                            <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                display="block"
+                                mb={1.5}
+                            >
+                                {t(
+                                    'Supported formats: JPG, PNG, WebP. Maximum {{max}} MB per photo.',
+                                    {
+                                        max: MAX_IMAGE_SIZE_MB,
+                                    }
+                                )}
+                            </Typography>
+
+                            {/* Gallery input */}
                             <input
                                 ref={galleryInputRef}
                                 type="file"
-                                accept="image/*"
+                                accept="image/jpeg,image/png,image/webp"
                                 hidden
                                 onChange={handleImageSelect}
                             />
 
+                            {/* Camera input */}
                             <input
                                 ref={cameraInputRef}
                                 type="file"
-                                accept="image/*"
+                                accept="image/jpeg,image/png,image/webp"
                                 capture="environment"
                                 hidden
                                 onChange={handleImageSelect}
@@ -1190,30 +1450,45 @@ const AgriPostCard = ({
                                 <Button
                                     variant="outlined"
                                     startIcon={
-                                        <AddPhotoAlternateOutlinedIcon />
+                                        imageLoading
+                                            ? (
+                                                <CircularProgress
+                                                    size={18}
+                                                    color="inherit"
+                                                />
+                                            )
+                                            : (
+                                                <AddPhotoAlternateOutlinedIcon />
+                                            )
                                     }
                                     onClick={() =>
                                         galleryInputRef.current?.click()
                                     }
-                                    disabled={imageLoading}
+                                    disabled={
+                                        imageLoading ||
+                                        editSaving
+                                    }
                                     sx={{
                                         flex: 1,
                                         minHeight: 44,
                                         textTransform: 'none',
                                     }}
                                 >
-                                    {t('Choose Photo')}
+                                    {imageLoading
+                                        ? t('Processing...')
+                                        : t('Choose Photo')}
                                 </Button>
 
                                 <Button
                                     variant="outlined"
-                                    startIcon={
-                                        <CameraAltIcon />
-                                    }
+                                    startIcon={<CameraAltIcon />}
                                     onClick={() =>
                                         cameraInputRef.current?.click()
                                     }
-                                    disabled={imageLoading}
+                                    disabled={
+                                        imageLoading ||
+                                        editSaving
+                                    }
                                     sx={{
                                         flex: 1,
                                         minHeight: 44,
@@ -1224,28 +1499,16 @@ const AgriPostCard = ({
                                 </Button>
                             </Stack>
 
-                            {imageLoading && (
-                                <Typography
-                                    variant="body2"
-                                    color="text.secondary"
-                                    mt={1}
-                                    role="status"
-                                >
-                                    {t('Processing...')}
-                                </Typography>
-                            )}
-
                             {imageError && (
-                                <Typography
-                                    variant="body2"
-                                    color="error"
-                                    mt={1}
+                                <Alert
+                                    severity="error"
+                                    sx={{ mt: 1.5 }}
                                 >
                                     {imageError}
-                                </Typography>
+                                </Alert>
                             )}
 
-                            {editData.image && (
+                            {imagePreview && (
                                 <Box
                                     sx={{
                                         position: 'relative',
@@ -1257,8 +1520,8 @@ const AgriPostCard = ({
                                     }}
                                 >
                                     <OptimizedPostImage
-                                        key={editData.image}
-                                        source={editData.image}
+                                        key={imagePreview}
+                                        source={imagePreview}
                                         alt={t(
                                             'Community post'
                                         )}
@@ -1268,7 +1531,10 @@ const AgriPostCard = ({
                                     <IconButton
                                         size="small"
                                         onClick={handleRemoveImage}
-                                        disabled={imageLoading}
+                                        disabled={
+                                            imageLoading ||
+                                            editSaving
+                                        }
                                         aria-label={t(
                                             'Remove photo'
                                         )}
@@ -1298,11 +1564,12 @@ const AgriPostCard = ({
                     sx={{
                         px: 3,
                         pb: 2,
+                        gap: 1,
                     }}
                 >
                     <Button
                         onClick={handleCloseEdit}
-                        disabled={imageLoading}
+                        disabled={editSaving}
                     >
                         {t('Cancel')}
                     </Button>
@@ -1311,16 +1578,117 @@ const AgriPostCard = ({
                         variant="contained"
                         onClick={handleUpdate}
                         disabled={
+                            editSaving ||
+                            imageLoading ||
                             !editData.title.trim() ||
-                            !editData.content.trim() ||
-                            imageLoading
+                            !editData.content.trim()
+                        }
+                        startIcon={
+                            editSaving
+                                ? (
+                                    <CircularProgress
+                                        size={18}
+                                        color="inherit"
+                                    />
+                                )
+                                : null
                         }
                     >
-                        {t('Save Changes')}
+                        {editSaving
+                            ? t('Saving...')
+                            : t('Save Changes')}
                     </Button>
                 </DialogActions>
             </Dialog>
 
+            {/* Responsive delete confirmation */}
+            <Dialog
+                open={deleteOpen}
+                onClose={handleCloseDelete}
+                fullWidth
+                maxWidth="xs"
+                aria-labelledby="delete-community-post-title"
+                aria-describedby="delete-community-post-description"
+                PaperProps={{
+                    sx: {
+                        borderRadius: 3,
+                        m: 2,
+                        width: 'calc(100% - 32px)',
+                    },
+                }}
+            >
+                <DialogTitle
+                    id="delete-community-post-title"
+                    sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1,
+                        pb: 1,
+                    }}
+                >
+                    <DeleteOutlineIcon color="error" />
+
+                    {t('Delete Post?')}
+                </DialogTitle>
+
+                <DialogContent>
+                    <DialogContentText
+                        id="delete-community-post-description"
+                    >
+                        {t(
+                            'Are you sure you want to delete this post? This action cannot be undone.'
+                        )}
+                    </DialogContentText>
+
+                    {deleteError && (
+                        <Alert
+                            severity="error"
+                            sx={{ mt: 2 }}
+                        >
+                            {deleteError}
+                        </Alert>
+                    )}
+                </DialogContent>
+
+                <DialogActions
+                    sx={{
+                        px: 3,
+                        pb: 2,
+                        gap: 1,
+                    }}
+                >
+                    <Button
+                        onClick={handleCloseDelete}
+                        disabled={deleteLoading}
+                        color="inherit"
+                    >
+                        {t('Cancel')}
+                    </Button>
+
+                    <Button
+                        onClick={handleConfirmDelete}
+                        disabled={deleteLoading}
+                        variant="contained"
+                        color="error"
+                        startIcon={
+                            deleteLoading
+                                ? (
+                                    <CircularProgress
+                                        size={18}
+                                        color="inherit"
+                                    />
+                                )
+                                : <DeleteOutlineIcon />
+                        }
+                    >
+                        {deleteLoading
+                            ? t('Deleting...')
+                            : t('Delete Post')}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Comments */}
             <CommentDialog
                 open={openComments}
                 onClose={() =>
@@ -1330,6 +1698,90 @@ const AgriPostCard = ({
                 onAddComment={handleAddComment}
                 onDeleteComment={handleDeleteComment}
             />
+
+            {/* Share-link fallback */}
+            <Dialog
+                open={copyLinkOpen}
+                onClose={() =>
+                    setCopyLinkOpen(false)
+                }
+                fullWidth
+                maxWidth="xs"
+            >
+                <DialogTitle>
+                    {t('Share Post')}
+                </DialogTitle>
+
+                <DialogContent>
+                    <DialogContentText>
+                        {t(
+                            'Copy this link to share the post.'
+                        )}
+                    </DialogContentText>
+
+                    <TextField
+                        label={t('Post Link')}
+                        value={shareUrl}
+                        fullWidth
+                        margin="normal"
+                        InputProps={{
+                            readOnly: true,
+                        }}
+                        onFocus={event =>
+                            event.target.select()
+                        }
+                    />
+                </DialogContent>
+
+                <DialogActions>
+                    <Button
+                        onClick={() =>
+                            setCopyLinkOpen(false)
+                        }
+                    >
+                        {t('Close')}
+                    </Button>
+
+                    <Button
+                        variant="contained"
+                        onClick={handleCopyLink}
+                    >
+                        {t('Copy Link')}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* In-app notifications */}
+            <Snackbar
+                open={notification.open}
+                autoHideDuration={4000}
+                onClose={() =>
+                    setNotification(previous => ({
+                        ...previous,
+                        open: false,
+                    }))
+                }
+                anchorOrigin={{
+                    vertical: 'bottom',
+                    horizontal: 'center',
+                }}
+            >
+                <Alert
+                    severity={notification.severity}
+                    variant="filled"
+                    onClose={() =>
+                        setNotification(previous => ({
+                            ...previous,
+                            open: false,
+                        }))
+                    }
+                    sx={{
+                        width: '100%',
+                    }}
+                >
+                    {notification.message}
+                </Alert>
+            </Snackbar>
         </>
     );
 };

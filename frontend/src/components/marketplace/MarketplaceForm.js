@@ -23,7 +23,6 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import MyLocationIcon from '@mui/icons-material/MyLocation';
 import LocationOffIcon from '@mui/icons-material/LocationOff';
 import BrokenImageOutlinedIcon from '@mui/icons-material/BrokenImageOutlined';
-import RefreshIcon from '@mui/icons-material/Refresh';
 
 import { useTranslation } from 'react-i18next';
 
@@ -137,9 +136,6 @@ const MarketplacePhotoPreview = ({
     const [loaded, setLoaded] =
         useState(false);
 
-    const [retryCount, setRetryCount] =
-        useState(0);
-
     const optimizedSource = source
         ? getMarketplaceThumbnail(source, 240)
         : '';
@@ -152,12 +148,13 @@ const MarketplacePhotoPreview = ({
         setUseOriginal(false);
         setFailed(false);
         setLoaded(false);
-        setRetryCount(0);
     }, [source]);
 
     const handleError = () => {
         setLoaded(false);
 
+        // If the optimized thumbnail fails,
+        // try the original image once.
         if (
             !useOriginal &&
             optimizedSource !== source
@@ -167,14 +164,6 @@ const MarketplacePhotoPreview = ({
         }
 
         setFailed(true);
-    };
-
-    const handleRetry = () => {
-        setUseOriginal(false);
-        setFailed(false);
-        setLoaded(false);
-
-        setRetryCount(previous => previous + 1);
     };
 
     return (
@@ -195,7 +184,6 @@ const MarketplacePhotoPreview = ({
                 <>
                     <Box
                         component="img"
-                        key={`${displaySource}-${retryCount}`}
                         src={displaySource}
                         alt={alt}
                         loading="eager"
@@ -243,18 +231,16 @@ const MarketplacePhotoPreview = ({
                         fontSize="small"
                     />
 
-                    <Button
-                        size="small"
-                        startIcon={<RefreshIcon />}
-                        onClick={handleRetry}
+                    <Typography
+                        variant="caption"
+                        textAlign="center"
                         sx={{
-                            minWidth: 0,
-                            p: 0.25,
-                            fontSize: '0.7rem',
+                            fontSize: '0.65rem',
+                            lineHeight: 1.2,
                         }}
                     >
-                        {t('Retry')}
-                    </Button>
+                        {t('Preview unavailable')}
+                    </Typography>
                 </Stack>
             )}
 
@@ -511,8 +497,7 @@ const MarketplaceForm = ({
             );
         }
 
-        // Validate all selected files using the
-        // shared compression utility rules.
+        // Validate using the shared utility.
         const validFiles = selectedFiles.filter(file => {
             try {
                 validateImageFile(file);
@@ -540,9 +525,8 @@ const MarketplaceForm = ({
         setImageProcessing(true);
 
         try {
-            // Compress each image independently.
-            // One failure should not discard
-            // successfully processed images.
+            // Process independently so one failure
+            // does not discard successful images.
             const results = await Promise.allSettled(
                 validFiles.map(file =>
                     compressImage(file)
@@ -947,7 +931,7 @@ const MarketplaceForm = ({
                             mb={2}
                         >
                             {t(
-                                'Supported formats: JPG, PNG, WebP. Maximum {{max}} MB per photo.',
+                                'Maximum {{max}} MB per photo.',
                                 {
                                     max: MAX_IMAGE_SIZE_MB,
                                 }
@@ -958,7 +942,7 @@ const MarketplaceForm = ({
                         <input
                             ref={fileInputRef}
                             type="file"
-                            accept="image/jpeg,image/png,image/webp"
+                            accept="image/*"
                             multiple
                             hidden
                             onChange={handleImageSelect}
@@ -968,7 +952,7 @@ const MarketplaceForm = ({
                         <input
                             ref={cameraInputRef}
                             type="file"
-                            accept="image/jpeg,image/png,image/webp"
+                            accept="image/*"
                             capture="environment"
                             hidden
                             onChange={handleImageSelect}
@@ -1061,7 +1045,6 @@ const MarketplaceForm = ({
                         {imageError && (
                             <Alert
                                 severity="error"
-                                role="alert"
                                 sx={{
                                     mt: 2,
                                     whiteSpace: 'pre-line',

@@ -25,7 +25,6 @@ import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import CameraAltIcon from "@mui/icons-material/CameraAlt";
 import AddPhotoAlternateOutlinedIcon from "@mui/icons-material/AddPhotoAlternateOutlined";
 import BrokenImageOutlinedIcon from "@mui/icons-material/BrokenImageOutlined";
-import RefreshIcon from "@mui/icons-material/Refresh";
 
 import { useDispatch, useSelector } from "react-redux";
 import { useTranslation } from "react-i18next";
@@ -134,13 +133,12 @@ const ExtensionTipForm = ({ onPublished }) => {
     const [previewFailed, setPreviewFailed] =
         useState(false);
 
-    const [previewRetry, setPreviewRetry] =
-        useState(0);
-
     // Generate previews for local Files, Blobs,
     // image URLs, and supported image objects.
     useEffect(() => {
         const image = formData.image;
+
+        setPreviewFailed(false);
 
         if (
             typeof Blob !== "undefined" &&
@@ -160,12 +158,6 @@ const ExtensionTipForm = ({ onPublished }) => {
 
         return undefined;
     }, [formData.image]);
-
-    // Reset preview errors when the image changes.
-    useEffect(() => {
-        setPreviewFailed(false);
-        setPreviewRetry(0);
-    }, [imagePreview]);
 
     // Prevent stale image processing results
     // from updating an unmounted component.
@@ -235,7 +227,6 @@ const ExtensionTipForm = ({ onPublished }) => {
                 return;
             }
 
-            // compressImage returns a File object.
             if (
                 typeof File === "undefined" ||
                 !(compressedImage instanceof File)
@@ -297,7 +288,6 @@ const ExtensionTipForm = ({ onPublished }) => {
 
         setImagePreview("");
         setPreviewFailed(false);
-        setPreviewRetry(0);
     };
 
     const handleSubmit = async event => {
@@ -335,7 +325,6 @@ const ExtensionTipForm = ({ onPublished }) => {
             setImageError("");
             setImageProcessing(false);
             setPreviewFailed(false);
-            setPreviewRetry(0);
 
             if (fileInputRef.current) {
                 fileInputRef.current.value = "";
@@ -406,7 +395,6 @@ const ExtensionTipForm = ({ onPublished }) => {
                     {imageError && (
                         <Alert
                             severity="error"
-                            role="alert"
                             sx={{
                                 whiteSpace: "pre-line",
                                 overflowWrap: "anywhere"
@@ -495,8 +483,7 @@ const ExtensionTipForm = ({ onPublished }) => {
                                                     {t(priority)}
                                                 </MenuItem>
                                             )
-                                        )
-                                    }
+                                        )}
                                     </Select>
                                 </FormControl>
                             )}
@@ -540,7 +527,7 @@ const ExtensionTipForm = ({ onPublished }) => {
                                     fontWeight={600}
                                     mb={0.5}
                                 >
-                                    {t("Tip Photo")}
+                                    {t("Optional Tip Photo")}
                                 </Typography>
 
                                 <Typography
@@ -550,7 +537,7 @@ const ExtensionTipForm = ({ onPublished }) => {
                                     mb={1.5}
                                 >
                                     {t(
-                                        "Supported formats: JPG, PNG, WebP. Maximum {{max}} MB per photo.",
+                                        "Maximum {{max}} MB per photo.",
                                         {
                                             max: MAX_IMAGE_SIZE_MB
                                         }
@@ -561,7 +548,6 @@ const ExtensionTipForm = ({ onPublished }) => {
                                     <Box mb={2}>
                                         {!previewFailed ? (
                                             <CardMedia
-                                                key={`${imagePreview}-${previewRetry}`}
                                                 component="img"
                                                 image={imagePreview}
                                                 alt={t(
@@ -610,25 +596,6 @@ const ExtensionTipForm = ({ onPublished }) => {
                                                         "Unable to display image preview."
                                                     )}
                                                 </Typography>
-
-                                                <Button
-                                                    size="small"
-                                                    startIcon={
-                                                        <RefreshIcon />
-                                                    }
-                                                    onClick={() => {
-                                                        setPreviewFailed(
-                                                            false
-                                                        );
-
-                                                        setPreviewRetry(
-                                                            previous =>
-                                                                previous + 1
-                                                        );
-                                                    }}
-                                                >
-                                                    {t("Retry")}
-                                                </Button>
                                             </Stack>
                                         )}
 
@@ -652,7 +619,7 @@ const ExtensionTipForm = ({ onPublished }) => {
                                 <input
                                     ref={fileInputRef}
                                     type="file"
-                                    accept="image/jpeg,image/png,image/webp"
+                                    accept="image/*"
                                     hidden
                                     onChange={
                                         handleImageChange
@@ -663,7 +630,7 @@ const ExtensionTipForm = ({ onPublished }) => {
                                 <input
                                     ref={cameraInputRef}
                                     type="file"
-                                    accept="image/jpeg,image/png,image/webp"
+                                    accept="image/*"
                                     capture="environment"
                                     hidden
                                     onChange={

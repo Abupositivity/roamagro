@@ -3,14 +3,9 @@ import React from 'react';
 import {
     Box,
     CircularProgress,
-    Typography,
 } from '@mui/material';
 
-import { useTranslation } from 'react-i18next';
-
 const PageLoader = () => {
-    const { t } = useTranslation();
-
     return (
         <Box
             role="status"
@@ -31,14 +26,6 @@ const PageLoader = () => {
                 thickness={4}
                 aria-hidden="true"
             />
-
-            <Typography
-                variant="body2"
-                color="text.secondary"
-                textAlign="center"
-            >
-                {t('Loading page...')}
-            </Typography>
         </Box>
     );
 };

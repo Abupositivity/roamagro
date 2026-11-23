@@ -1113,7 +1113,30 @@ const resources = {
             "Next photo": "Hoto na gaba",
             "Processing images...": "Ana sarrafa hotuna...",
             "photos added": "hotuna da aka ƙara",
-            "Some photos could not be processed. The other photos were added.": "Ba a iya sarrafa wasu hotuna ba. An ƙara sauran hotunan."
+            "Optional Tip Photo": "Hoton Shawara Idan Akwai",
+            "Supported formats: JPG, PNG, WebP. Maximum {{max}} MB per photo.": "Nau'ikan hotuna da ake karɓa: JPG, PNG, WebP. Matsakaicin girman kowane hoto shi ne MB {{max}}.",
+            "Maximum {{max}} MB per photo.": "Matsakaicin girman kowane hoto shi ne MB {{max}}.",
+            "You can add only {{count}} more photo(s). Extra photos were not selected.": "Za ka iya ƙara hotuna guda {{count}} kawai. Ba a zaɓi sauran hotunan ba.",
+            "Agricultural tip image preview": "Samfotin hoton shawarar noma",            
+            "Some photos could not be processed. The other photos were added.": "Ba a iya sarrafa wasu hotuna ba. An ƙara sauran hotunan.",
+
+            // Sarrafa hotuna
+            "Processing image...": "Ana sarrafa hoto...",
+            "Unable to process the selected image.": "Ba a iya sarrafa hoton da aka zaɓa ba.",
+            "Unable to process the selected photos. Please try again.": "Ba a iya sarrafa hotunan da aka zaɓa ba. Da fatan a sake gwadawa.",
+            "Could not process {{name}}. Please choose another photo.": "Ba a iya sarrafa {{name}} ba. Da fatan a zaɓi wani hoto.",
+            "Unable to display image preview.": "Ba a iya nuna samfotin hoton ba.",
+
+            // Tabbatar da ingancin hotuna
+            "Please select a valid image.": "Da fatan a zaɓi hoto mai inganci.",
+            "Unsupported image format. Please select a JPG, PNG or WebP image.": "Ba a karɓar wannan nau'in hoto. Da fatan a zaɓi hoto na JPG, PNG ko WebP.",
+            "The selected image is empty.": "Hoton da aka zaɓa ba shi da bayanai.",
+            "The selected image has invalid dimensions.": "Girman hoton da aka zaɓa bai dace ba.",
+            "Unable to read this image on your device. Try another JPG or PNG photo.": "Na'urarka ba ta iya buɗe wannan hoto ba. Da fatan a gwada wani hoto na JPG ko PNG.",
+            "Unable to compress the selected image.": "Ba a iya rage girman hoton da aka zaɓa ba.",
+            "Unable to process this image on your device.": "Na'urarka ba ta iya sarrafa wannan hoto ba.",
+            "This image could not be processed securely.": "Ba a iya sarrafa wannan hoto cikin aminci ba.",
+            "Your device does not have enough memory to process this photo. Please try a smaller image.": "Na'urarka ba ta da isasshen ƙwaƙwalwar ajiya don sarrafa wannan hoto. Da fatan a gwada ƙaramin hoto."
         }
     }
 };

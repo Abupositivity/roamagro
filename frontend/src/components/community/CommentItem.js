@@ -10,8 +10,10 @@ import {
 
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 
+import { useTranslation } from 'react-i18next';
+
 import {
-    getAvatarImage
+    getAvatarImage,
 } from '../../utils/cloudinaryImage';
 
 const COMMENT_AVATAR_SIZE = 120;
@@ -21,23 +23,50 @@ const CommentItem = ({
     canDelete = false,
     onDelete,
 }) => {
+    const { t } = useTranslation();
+
     const authorName =
         comment.user?.name ||
-        'Farmer';
+        t('Farmer');
 
     const profilePhoto = getAvatarImage(
         comment.user?.profilePhoto,
         COMMENT_AVATAR_SIZE
     );
 
+    const createdAt = comment.createdAt
+        ? new Date(comment.createdAt)
+        : null;
+
+    const formattedDate =
+        createdAt &&
+        !Number.isNaN(createdAt.getTime())
+            ? createdAt.toLocaleString()
+            : '';
+
+    const handleDelete = () => {
+        if (
+            !canDelete ||
+            !comment._id ||
+            typeof onDelete !== 'function'
+        ) {
+            return;
+        }
+
+        // Confirmation is handled by CommentDialog.
+        onDelete(comment._id);
+    };
+
     return (
         <Stack
             direction="row"
-            spacing={2}
+            spacing={1.5}
+            alignItems="flex-start"
             sx={{
                 py: 2,
                 borderBottom: '1px solid',
                 borderColor: 'divider',
+                minWidth: 0,
             }}
         >
             <Avatar
@@ -55,13 +84,28 @@ const CommentItem = ({
                     width: 40,
                     height: 40,
                     flexShrink: 0,
+                    fontWeight: 600,
                 }}
             >
-                {authorName.charAt(0).toUpperCase()}
+                {authorName
+                    .trim()
+                    .charAt(0)
+                    .toUpperCase() || 'F'}
             </Avatar>
 
-            <Box flex={1}>
-                <Typography fontWeight={600}>
+            <Box
+                sx={{
+                    flex: 1,
+                    minWidth: 0,
+                }}
+            >
+                <Typography
+                    fontWeight={600}
+                    variant="body2"
+                    sx={{
+                        wordBreak: 'break-word',
+                    }}
+                >
                     {authorName}
                 </Typography>
 
@@ -69,33 +113,48 @@ const CommentItem = ({
                     variant="body2"
                     sx={{
                         mt: 0.5,
+                        whiteSpace: 'pre-wrap',
+                        overflowWrap: 'anywhere',
+                        lineHeight: 1.6,
                     }}
                 >
                     {comment.content}
                 </Typography>
 
-                <Typography
-                    variant="caption"
-                    color="text.secondary"
-                >
-                    {new Date(
-                        comment.createdAt
-                    ).toLocaleString()}
-                </Typography>
+                {formattedDate && (
+                    <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{
+                            display: 'block',
+                            mt: 0.75,
+                        }}
+                    >
+                        {formattedDate}
+                    </Typography>
+                )}
             </Box>
 
             {canDelete && (
                 <IconButton
                     color="error"
                     size="small"
-                    onClick={() =>
-                        onDelete(
-                            comment._id
-                        )
+                    onClick={handleDelete}
+                    disabled={
+                        !comment._id ||
+                        typeof onDelete !== 'function'
                     }
-                    aria-label="Delete comment"
+                    aria-label={t('Delete comment')}
+                    title={t('Delete comment')}
+                    sx={{
+                        flexShrink: 0,
+                        width: 40,
+                        height: 40,
+                    }}
                 >
-                    <DeleteOutlineIcon />
+                    <DeleteOutlineIcon
+                        fontSize="small"
+                    />
                 </IconButton>
             )}
         </Stack>

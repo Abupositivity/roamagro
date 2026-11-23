@@ -22,7 +22,6 @@ import CameraAltIcon from "@mui/icons-material/CameraAlt";
 import AddPhotoAlternateOutlinedIcon from "@mui/icons-material/AddPhotoAlternateOutlined";
 import DeleteIcon from "@mui/icons-material/Delete";
 import BrokenImageOutlinedIcon from "@mui/icons-material/BrokenImageOutlined";
-import RefreshIcon from "@mui/icons-material/Refresh";
 
 import { useTranslation } from "react-i18next";
 
@@ -99,13 +98,12 @@ const PostComposer = ({
     const [previewFailed, setPreviewFailed] =
         useState(false);
 
-    const [previewRetry, setPreviewRetry] =
-        useState(0);
-
     // Generate previews for local images and
     // clean up temporary object URLs.
     useEffect(() => {
         const image = formData.image;
+
+        setPreviewFailed(false);
 
         if (
             typeof Blob !== "undefined" &&
@@ -125,12 +123,6 @@ const PostComposer = ({
 
         return undefined;
     }, [formData.image]);
-
-    // Reset preview errors when the image changes.
-    useEffect(() => {
-        setPreviewFailed(false);
-        setPreviewRetry(0);
-    }, [imagePreview]);
 
     // Prevent stale image processing results
     // from updating an unmounted component.
@@ -159,7 +151,6 @@ const PostComposer = ({
 
         setImageError("");
 
-        // Use the shared validation rules.
         try {
             validateImageFile(file);
         } catch (validationError) {
@@ -185,7 +176,6 @@ const PostComposer = ({
                 return;
             }
 
-            // compressImage returns a File object.
             if (
                 typeof File === "undefined" ||
                 !(compressedImage instanceof File)
@@ -195,8 +185,8 @@ const PostComposer = ({
                 );
             }
 
-            // Keep the previous image until the
-            // replacement is successfully processed.
+            // Preserve the previous image until
+            // replacement processing succeeds.
             onChange({
                 target: {
                     name: "image",
@@ -248,8 +238,8 @@ const PostComposer = ({
             }
         });
 
+        setImagePreview("");
         setPreviewFailed(false);
-        setPreviewRetry(0);
     };
 
     const handleSubmit = event => {
@@ -346,23 +336,13 @@ const PostComposer = ({
                             </Typography>
 
                             <Typography
-                                variant="body2"
-                                color="text.secondary"
-                                mb={0.5}
-                            >
-                                {t(
-                                    "Add a photo or capture one with your camera."
-                                )}
-                            </Typography>
-
-                            <Typography
                                 variant="caption"
                                 color="text.secondary"
                                 display="block"
                                 mb={1.5}
                             >
                                 {t(
-                                    "Supported formats: JPG, PNG, WebP. Maximum {{max}} MB per photo.",
+                                    "Maximum {{max}} MB per photo.",
                                     {
                                         max: MAX_IMAGE_SIZE_MB
                                     }
@@ -373,7 +353,7 @@ const PostComposer = ({
                             <input
                                 ref={fileInputRef}
                                 type="file"
-                                accept="image/jpeg,image/png,image/webp"
+                                accept="image/*"
                                 hidden
                                 onChange={handleImageSelect}
                             />
@@ -382,7 +362,7 @@ const PostComposer = ({
                             <input
                                 ref={cameraInputRef}
                                 type="file"
-                                accept="image/jpeg,image/png,image/webp"
+                                accept="image/*"
                                 capture="environment"
                                 hidden
                                 onChange={handleImageSelect}
@@ -475,13 +455,10 @@ const PostComposer = ({
                             {imageError && (
                                 <Alert
                                     severity="error"
-                                    role="alert"
                                     sx={{
                                         mt: 1.5,
-                                        whiteSpace:
-                                            "pre-line",
-                                        overflowWrap:
-                                            "anywhere"
+                                        whiteSpace: "pre-line",
+                                        overflowWrap: "anywhere"
                                     }}
                                 >
                                     {imageError}
@@ -491,21 +468,18 @@ const PostComposer = ({
                             {imagePreview && (
                                 <Box
                                     sx={{
-                                        position:
-                                            "relative",
+                                        position: "relative",
                                         mt: 2,
                                         width: "100%",
                                         maxWidth: 400,
                                         borderRadius: 2,
                                         overflow: "hidden",
-                                        bgcolor:
-                                            "action.hover"
+                                        bgcolor: "action.hover"
                                     }}
                                 >
                                     {!previewFailed ? (
                                         <Box
                                             component="img"
-                                            key={`${imagePreview}-${previewRetry}`}
                                             src={imagePreview}
                                             alt={t(
                                                 "Community post"
@@ -513,17 +487,13 @@ const PostComposer = ({
                                             loading="eager"
                                             decoding="async"
                                             onError={() =>
-                                                setPreviewFailed(
-                                                    true
-                                                )
+                                                setPreviewFailed(true)
                                             }
                                             sx={{
-                                                display:
-                                                    "block",
+                                                display: "block",
                                                 width: "100%",
                                                 maxHeight: 250,
-                                                objectFit:
-                                                    "contain"
+                                                objectFit: "contain"
                                             }}
                                         />
                                     ) : (
@@ -534,10 +504,8 @@ const PostComposer = ({
                                             sx={{
                                                 minHeight: 180,
                                                 p: 3,
-                                                border:
-                                                    "1px solid",
-                                                borderColor:
-                                                    "divider",
+                                                border: "1px solid",
+                                                borderColor: "divider",
                                                 borderRadius: 2
                                             }}
                                         >
@@ -555,33 +523,12 @@ const PostComposer = ({
                                                     "Unable to display image preview."
                                                 )}
                                             </Typography>
-
-                                            <Button
-                                                size="small"
-                                                startIcon={
-                                                    <RefreshIcon />
-                                                }
-                                                onClick={() => {
-                                                    setPreviewFailed(
-                                                        false
-                                                    );
-
-                                                    setPreviewRetry(
-                                                        previous =>
-                                                            previous + 1
-                                                    );
-                                                }}
-                                            >
-                                                {t("Retry")}
-                                            </Button>
                                         </Stack>
                                     )}
 
                                     <IconButton
                                         size="small"
-                                        onClick={
-                                            handleRemoveImage
-                                        }
+                                        onClick={handleRemoveImage}
                                         disabled={
                                             posting ||
                                             loading ||
@@ -591,15 +538,13 @@ const PostComposer = ({
                                             "Remove photo"
                                         )}
                                         sx={{
-                                            position:
-                                                "absolute",
+                                            position: "absolute",
                                             top: 8,
                                             right: 8,
                                             backgroundColor:
                                                 "rgba(255,255,255,0.9)",
                                             "&:hover": {
-                                                backgroundColor:
-                                                    "white"
+                                                backgroundColor: "white"
                                             }
                                         }}
                                     >

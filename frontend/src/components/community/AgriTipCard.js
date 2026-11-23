@@ -17,6 +17,7 @@ import {
     Dialog,
     DialogActions,
     DialogContent,
+    DialogContentText,
     DialogTitle,
     Divider,
     IconButton,
@@ -25,6 +26,8 @@ import {
     Stack,
     TextField,
     Typography,
+    useMediaQuery,
+    useTheme,
 } from '@mui/material';
 
 import AgricultureIcon from '@mui/icons-material/Agriculture';
@@ -38,6 +41,7 @@ import MoreVertIcon from '@mui/icons-material/MoreVert';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import CameraAltIcon from '@mui/icons-material/CameraAlt';
+import AddPhotoAlternateOutlinedIcon from '@mui/icons-material/AddPhotoAlternateOutlined';
 import SendOutlinedIcon from '@mui/icons-material/SendOutlined';
 import ImageNotSupportedOutlinedIcon from '@mui/icons-material/ImageNotSupportedOutlined';
 
@@ -58,7 +62,10 @@ import {
     unshareAgriTip,
 } from '../../redux/actions/agriFeedActions';
 
-import compressImage from '../../utils/compressImage';
+import compressImage, {
+    MAX_IMAGE_SIZE_MB,
+    validateImageFile,
+} from '../../utils/compressImage';
 
 import {
     getAvatarImage,
@@ -67,7 +74,7 @@ import {
     getResponsiveImage,
 } from '../../utils/cloudinaryImage';
 
-const getId = (value) =>
+const getId = value =>
     value?._id?.toString() ||
     value?.id?.toString() ||
     value?.toString();
@@ -79,6 +86,48 @@ const FEED_IMAGE_SIZES = [
     '800px',
 ].join(', ');
 
+const categories = [
+    'Crop Production',
+    'Livestock',
+    'Poultry',
+    'Soil Health',
+    'Pest Control',
+    'Diseases',
+    'Climate',
+    'Weather',
+    'Market Prices',
+    'Government Support',
+    'Mechanization',
+    'Agribusiness',
+    'Finance',
+    'Technology',
+    'General',
+];
+
+const getImageSource = image => {
+    if (typeof image === 'string') {
+        return image;
+    }
+
+    if (
+        image &&
+        typeof image === 'object' &&
+        !(
+            typeof Blob !== 'undefined' &&
+            image instanceof Blob
+        )
+    ) {
+        return (
+            image.secure_url ||
+            image.url ||
+            image.src ||
+            ''
+        );
+    }
+
+    return '';
+};
+
 const OptimizedTipImage = ({
     source,
     alt,
@@ -86,15 +135,11 @@ const OptimizedTipImage = ({
 }) => {
     const { t } = useTranslation();
 
-    const [
-        useOriginal,
-        setUseOriginal,
-    ] = useState(false);
+    const [useOriginal, setUseOriginal] =
+        useState(false);
 
-    const [
-        imageFailed,
-        setImageFailed,
-    ] = useState(false);
+    const [imageFailed, setImageFailed] =
+        useState(false);
 
     const optimizedImage = preview
         ? getResponsiveImage(source, 800)
@@ -197,11 +242,19 @@ const AgriTipCard = ({ tip }) => {
     const { t } = useTranslation();
     const dispatch = useDispatch();
 
-    const currentUser = useSelector(
-        (state) => state.auth?.user
+    const theme = useTheme();
+    const fullScreen = useMediaQuery(
+        theme.breakpoints.down('sm')
     );
 
-    const fileInputRef = useRef(null);
+    const currentUser = useSelector(
+        state =>
+            state.auth?.user ||
+            state.auth?.currentUser
+    );
+
+    const galleryInputRef = useRef(null);
+    const cameraInputRef = useRef(null);
     const imageSelectionRef = useRef(0);
 
     const [menuAnchor, setMenuAnchor] =
@@ -212,6 +265,15 @@ const AgriTipCard = ({ tip }) => {
 
     const [commentsOpen, setCommentsOpen] =
         useState(false);
+
+    const [confirmation, setConfirmation] =
+        useState(null);
+
+    const [confirmLoading, setConfirmLoading] =
+        useState(false);
+
+    const [confirmError, setConfirmError] =
+        useState('');
 
     const [commentText, setCommentText] =
         useState('');
@@ -252,12 +314,14 @@ const AgriTipCard = ({ tip }) => {
     });
 
     useEffect(() => {
+        const image = editData.image;
+
         if (
-            typeof File !== 'undefined' &&
-            editData.image instanceof File
+            typeof Blob !== 'undefined' &&
+            image instanceof Blob
         ) {
             const previewUrl =
-                URL.createObjectURL(editData.image);
+                URL.createObjectURL(image);
 
             setImagePreview(previewUrl);
 
@@ -267,10 +331,10 @@ const AgriTipCard = ({ tip }) => {
         }
 
         setImagePreview(
-            typeof editData.image === 'string'
-                ? editData.image
-                : ''
+            getImageSource(image)
         );
+
+        return undefined;
     }, [editData.image]);
 
     useEffect(() => {
@@ -280,7 +344,6 @@ const AgriTipCard = ({ tip }) => {
     }, []);
 
     const userId = getId(currentUser);
-
     const creatorId = getId(tip.createdBy);
 
     const isAdmin =
@@ -301,11 +364,11 @@ const AgriTipCard = ({ tip }) => {
     );
 
     const liked = (tip.likes || []).some(
-        (like) => getId(like) === userId
+        like => getId(like) === userId
     );
 
     const shared = (tip.sharedBy || []).some(
-        (id) => getId(id) === userId
+        id => getId(id) === userId
     );
 
     const priorityColor = () => {
@@ -320,17 +383,46 @@ const AgriTipCard = ({ tip }) => {
         return 'success';
     };
 
-    const handleImageChange = async (event) => {
+    const resetFileInputs = () => {
+        if (galleryInputRef.current) {
+            galleryInputRef.current.value = '';
+        }
+
+        if (cameraInputRef.current) {
+            cameraInputRef.current.value = '';
+        }
+    };
+
+    const handleImageChange = async event => {
         const file = event.target.files?.[0];
 
         event.target.value = '';
 
-        if (!file) return;
+        if (
+            !file ||
+            imageProcessing ||
+            saving
+        ) {
+            return;
+        }
 
         const selectionId =
             ++imageSelectionRef.current;
 
         setImageError('');
+
+        try {
+            validateImageFile(file);
+        } catch (error) {
+            setImageError(
+                t(
+                    error?.message ||
+                    'Please select a valid image.'
+                )
+            );
+            return;
+        }
+
         setImageProcessing(true);
 
         try {
@@ -344,10 +436,21 @@ const AgriTipCard = ({ tip }) => {
                 return;
             }
 
-            setEditData((previous) => ({
+            if (
+                typeof File === 'undefined' ||
+                !(compressedFile instanceof File)
+            ) {
+                throw new Error(
+                    'Unable to process the selected image.'
+                );
+            }
+
+            setEditData(previous => ({
                 ...previous,
                 image: compressedFile,
             }));
+
+            setImageError('');
         } catch (error) {
             if (
                 selectionId !==
@@ -358,7 +461,7 @@ const AgriTipCard = ({ tip }) => {
 
             setImageError(
                 t(
-                    error.message ||
+                    error?.message ||
                     'Unable to process this image.'
                 )
             );
@@ -378,11 +481,9 @@ const AgriTipCard = ({ tip }) => {
         setImageProcessing(false);
         setImageError('');
 
-        if (fileInputRef.current) {
-            fileInputRef.current.value = '';
-        }
+        resetFileInputs();
 
-        setEditData((previous) => ({
+        setEditData(previous => ({
             ...previous,
             image: '',
         }));
@@ -420,18 +521,23 @@ const AgriTipCard = ({ tip }) => {
         setImageError('');
         setEditError('');
 
-        if (fileInputRef.current) {
-            fileInputRef.current.value = '';
-        }
+        resetFileInputs();
 
-        setEditData((previous) => ({
+        setEditData(previous => ({
             ...previous,
             image: tip.image || '',
         }));
     };
 
     const handleUpdate = async () => {
-        if (saving || imageProcessing) return;
+        if (
+            saving ||
+            imageProcessing ||
+            !editData.title.trim() ||
+            !editData.content.trim()
+        ) {
+            return;
+        }
 
         setSaving(true);
         setEditError('');
@@ -451,12 +557,10 @@ const AgriTipCard = ({ tip }) => {
                     result?.message ||
                     t('Unable to update tip.')
                 );
-
                 return;
             }
 
             imageSelectionRef.current += 1;
-
             setEditOpen(false);
         } catch (error) {
             setEditError(
@@ -468,20 +572,80 @@ const AgriTipCard = ({ tip }) => {
         }
     };
 
-    const handleDelete = async () => {
+    // Open a responsive confirmation dialog.
+    const requestConfirmation = (
+        type,
+        commentId = null
+    ) => {
         setMenuAnchor(null);
+        setConfirmError('');
 
+        setConfirmation({
+            type,
+            commentId,
+        });
+    };
+
+    const closeConfirmation = () => {
+        if (confirmLoading) return;
+
+        setConfirmation(null);
+        setConfirmError('');
+    };
+
+    const handleConfirmAction = async () => {
         if (
-            !window.confirm(
-                t('Delete this agricultural tip?')
-            )
+            !confirmation ||
+            confirmLoading
         ) {
             return;
         }
 
-        await dispatch(
-            deleteAgriTip(tip._id)
-        );
+        const { type, commentId } = confirmation;
+
+        setConfirmLoading(true);
+        setConfirmError('');
+
+        try {
+            let result;
+
+            if (type === 'deleteTip') {
+                result = await dispatch(
+                    deleteAgriTip(tip._id)
+                );
+            } else if (type === 'deleteComment') {
+                result = await dispatch(
+                    deleteAgriTipComment(
+                        tip._id,
+                        commentId
+                    )
+                );
+            } else if (type === 'unshare') {
+                result = await dispatch(
+                    unshareAgriTip(tip._id)
+                );
+            } else {
+                return;
+            }
+
+            if (!result?.success) {
+                setConfirmError(
+                    result?.message ||
+                    t('Unable to complete this action.')
+                );
+                return;
+            }
+
+            setConfirmation(null);
+            setConfirmError('');
+        } catch (error) {
+            setConfirmError(
+                error?.message ||
+                t('Unable to complete this action.')
+            );
+        } finally {
+            setConfirmLoading(false);
+        }
     };
 
     const handleLike = () => {
@@ -493,108 +657,105 @@ const AgriTipCard = ({ tip }) => {
     const handleAddComment = async () => {
         const content = commentText.trim();
 
-        if (!content) return;
-
-        setCommenting(true);
-        setCommentError('');
-
-        const result = await dispatch(
-            addAgriTipComment(
-                tip._id,
-                content
-            )
-        );
-
-        setCommenting(false);
-
-        if (!result.success) {
-            setCommentError(
-                result.message ||
-                t('Unable to add comment.')
-            );
-
-            return;
-        }
-
-        setCommentText('');
-    };
-
-    const handleDeleteComment = async (
-        commentId
-    ) => {
         if (
-            !window.confirm(
-                t('Delete this comment?')
-            )
+            !content ||
+            commenting
         ) {
             return;
         }
 
-        const result = await dispatch(
-            deleteAgriTipComment(
-                tip._id,
-                commentId
-            )
-        );
+        setCommenting(true);
+        setCommentError('');
 
-        if (!result.success) {
-            setCommentError(
-                result.message ||
-                t('Unable to delete comment.')
+        try {
+            const result = await dispatch(
+                addAgriTipComment(
+                    tip._id,
+                    content
+                )
             );
+
+            if (!result?.success) {
+                setCommentError(
+                    result?.message ||
+                    t('Unable to add comment.')
+                );
+                return;
+            }
+
+            setCommentText('');
+        } catch (error) {
+            setCommentError(
+                error?.message ||
+                t('Unable to add comment.')
+            );
+        } finally {
+            setCommenting(false);
         }
     };
 
     const handleShare = async () => {
+        if (sharing) return;
+
         if (shared) {
-            if (
-                !window.confirm(
-                    t(
-                        'Remove this agricultural tip from the Community?'
-                    )
-                )
-            ) {
-                return;
-            }
-
-            setSharing(true);
-
-            const result = await dispatch(
-                unshareAgriTip(tip._id)
-            );
-
-            setSharing(false);
-
-            if (!result.success) {
-                setCommentError(
-                    result.message ||
-                    t(
-                        'Unable to remove this tip from the Community.'
-                    )
-                );
-            }
-
+            requestConfirmation('unshare');
             return;
         }
 
         setSharing(true);
         setCommentError('');
 
-        const result = await dispatch(
-            shareAgriTip(tip._id)
-        );
+        try {
+            const result = await dispatch(
+                shareAgriTip(tip._id)
+            );
 
-        setSharing(false);
-
-        if (!result.success) {
+            if (!result?.success) {
+                setCommentError(
+                    result?.message ||
+                    t(
+                        'Unable to share this tip to the Community.'
+                    )
+                );
+            }
+        } catch (error) {
             setCommentError(
-                result.message ||
+                error?.message ||
                 t(
                     'Unable to share this tip to the Community.'
                 )
             );
+        } finally {
+            setSharing(false);
         }
     };
+
+    const confirmationDetails = {
+        deleteTip: {
+            title: t('Delete agricultural tip?'),
+            message: t(
+                'Are you sure you want to delete this agricultural tip? This action cannot be undone.'
+            ),
+            button: t('Delete Tip'),
+        },
+        deleteComment: {
+            title: t('Delete comment?'),
+            message: t(
+                'Are you sure you want to delete this comment? This action cannot be undone.'
+            ),
+            button: t('Delete Comment'),
+        },
+        unshare: {
+            title: t('Remove shared tip?'),
+            message: t(
+                'Remove this agricultural tip from the Community?'
+            ),
+            button: t('Remove Share'),
+        },
+    };
+
+    const activeConfirmation =
+        confirmationDetails[confirmation?.type];
 
     return (
         <>
@@ -606,8 +767,8 @@ const AgriTipCard = ({ tip }) => {
             >
                 {tip.image && (
                     <OptimizedTipImage
-                        key={tip.image}
-                        source={tip.image}
+                        key={getImageSource(tip.image)}
+                        source={getImageSource(tip.image)}
                         alt={
                             tip.title ||
                             t('Agricultural tip image')
@@ -626,6 +787,9 @@ const AgriTipCard = ({ tip }) => {
                         <Typography
                             variant="h6"
                             fontWeight={700}
+                            sx={{
+                                overflowWrap: 'anywhere',
+                            }}
                         >
                             {tip.title}
                         </Typography>
@@ -646,7 +810,7 @@ const AgriTipCard = ({ tip }) => {
                                     aria-label={t(
                                         'Tip options'
                                     )}
-                                    onClick={(event) =>
+                                    onClick={event =>
                                         setMenuAnchor(
                                             event.currentTarget
                                         )
@@ -671,16 +835,20 @@ const AgriTipCard = ({ tip }) => {
                                 fontSize="small"
                                 sx={{ mr: 1 }}
                             />
-
                             {t('Edit')}
                         </MenuItem>
 
-                        <MenuItem onClick={handleDelete}>
+                        <MenuItem
+                            onClick={() =>
+                                requestConfirmation(
+                                    'deleteTip'
+                                )
+                            }
+                        >
                             <DeleteOutlineIcon
                                 fontSize="small"
                                 sx={{ mr: 1 }}
                             />
-
                             {t('Delete')}
                         </MenuItem>
                     </Menu>
@@ -719,6 +887,7 @@ const AgriTipCard = ({ tip }) => {
                         variant="body1"
                         sx={{
                             whiteSpace: 'pre-line',
+                            overflowWrap: 'anywhere',
                         }}
                     >
                         {tip.content}
@@ -771,12 +940,19 @@ const AgriTipCard = ({ tip }) => {
                         direction="row"
                         justifyContent="space-around"
                         alignItems="center"
+                        flexWrap="wrap"
+                        useFlexGap
+                        spacing={1}
                     >
                         <Button
                             startIcon={
                                 liked
-                                    ? <FavoriteIcon color="error" />
-                                    : <FavoriteBorderIcon />
+                                    ? (
+                                        <FavoriteIcon color="error" />
+                                    )
+                                    : (
+                                        <FavoriteBorderIcon />
+                                    )
                             }
                             onClick={handleLike}
                             color={
@@ -784,6 +960,7 @@ const AgriTipCard = ({ tip }) => {
                                     ? 'error'
                                     : 'inherit'
                             }
+                            size="small"
                         >
                             {t('Like')} ({tip.likes?.length || 0})
                         </Button>
@@ -792,16 +969,27 @@ const AgriTipCard = ({ tip }) => {
                             startIcon={
                                 <ChatBubbleOutlineIcon />
                             }
-                            onClick={() =>
-                                setCommentsOpen(true)
-                            }
+                            onClick={() => {
+                                setCommentError('');
+                                setCommentsOpen(true);
+                            }}
                             color="inherit"
+                            size="small"
                         >
                             {t('Comment')} ({tip.comments?.length || 0})
                         </Button>
 
                         <Button
-                            startIcon={<ShareIcon />}
+                            startIcon={
+                                sharing
+                                    ? (
+                                        <CircularProgress
+                                            size={16}
+                                            color="inherit"
+                                        />
+                                    )
+                                    : <ShareIcon />
+                            }
                             onClick={handleShare}
                             disabled={sharing}
                             color={
@@ -809,6 +997,7 @@ const AgriTipCard = ({ tip }) => {
                                     ? 'success'
                                     : 'inherit'
                             }
+                            size="small"
                         >
                             {sharing
                                 ? t('Updating...')
@@ -821,9 +1010,11 @@ const AgriTipCard = ({ tip }) => {
                 </CardContent>
             </Card>
 
+            {/* Edit agricultural tip */}
             <Dialog
                 open={editOpen}
                 onClose={handleCloseEdit}
+                fullScreen={fullScreen}
                 fullWidth
                 maxWidth="sm"
             >
@@ -843,7 +1034,12 @@ const AgriTipCard = ({ tip }) => {
                         )}
 
                         {imageError && (
-                            <Alert severity="error">
+                            <Alert
+                                severity="error"
+                                sx={{
+                                    overflowWrap: 'anywhere',
+                                }}
+                            >
                                 {imageError}
                             </Alert>
                         )}
@@ -854,37 +1050,47 @@ const AgriTipCard = ({ tip }) => {
                             inputProps={{
                                 maxLength: 150,
                             }}
-                            onChange={(event) =>
-                                setEditData({
-                                    ...editData,
+                            onChange={event =>
+                                setEditData(previous => ({
+                                    ...previous,
                                     title: event.target.value,
-                                })
+                                }))
                             }
                             fullWidth
                             required
                         />
 
                         <TextField
+                            select
                             label={t('Category')}
                             value={editData.category}
-                            onChange={(event) =>
-                                setEditData({
-                                    ...editData,
+                            onChange={event =>
+                                setEditData(previous => ({
+                                    ...previous,
                                     category: event.target.value,
-                                })
+                                }))
                             }
                             fullWidth
                             required
-                        />
+                        >
+                            {categories.map(category => (
+                                <MenuItem
+                                    key={category}
+                                    value={category}
+                                >
+                                    {t(category)}
+                                </MenuItem>
+                            ))}
+                        </TextField>
 
                         <TextField
                             label={t('Content')}
                             value={editData.content}
-                            onChange={(event) =>
-                                setEditData({
-                                    ...editData,
+                            onChange={event =>
+                                setEditData(previous => ({
+                                    ...previous,
                                     content: event.target.value,
-                                })
+                                }))
                             }
                             multiline
                             minRows={5}
@@ -899,11 +1105,11 @@ const AgriTipCard = ({ tip }) => {
                                     ? editData.priority
                                     : tip.priority || 'Normal'
                             }
-                            onChange={(event) =>
-                                setEditData({
-                                    ...editData,
+                            onChange={event =>
+                                setEditData(previous => ({
+                                    ...previous,
                                     priority: event.target.value,
-                                })
+                                }))
                             }
                             select
                             fullWidth
@@ -913,7 +1119,7 @@ const AgriTipCard = ({ tip }) => {
                                 'Normal',
                                 'Important',
                                 'Urgent',
-                            ].map((priority) => (
+                            ].map(priority => (
                                 <MenuItem
                                     key={priority}
                                     value={priority}
@@ -926,11 +1132,11 @@ const AgriTipCard = ({ tip }) => {
                         <TextField
                             label={t('Language')}
                             value={editData.language}
-                            onChange={(event) =>
-                                setEditData({
-                                    ...editData,
+                            onChange={event =>
+                                setEditData(previous => ({
+                                    ...previous,
                                     language: event.target.value,
-                                })
+                                }))
                             }
                             select
                             fullWidth
@@ -938,7 +1144,7 @@ const AgriTipCard = ({ tip }) => {
                             {[
                                 'English',
                                 'Hausa',
-                            ].map((language) => (
+                            ].map(language => (
                                 <MenuItem
                                     key={language}
                                     value={language}
@@ -951,11 +1157,11 @@ const AgriTipCard = ({ tip }) => {
                         <TextField
                             label={t('Region')}
                             value={editData.region}
-                            onChange={(event) =>
-                                setEditData({
-                                    ...editData,
+                            onChange={event =>
+                                setEditData(previous => ({
+                                    ...previous,
                                     region: event.target.value,
-                                })
+                                }))
                             }
                             fullWidth
                         />
@@ -963,11 +1169,11 @@ const AgriTipCard = ({ tip }) => {
                         <TextField
                             label={t('Source')}
                             value={editData.source}
-                            onChange={(event) =>
-                                setEditData({
-                                    ...editData,
+                            onChange={event =>
+                                setEditData(previous => ({
+                                    ...previous,
                                     source: event.target.value,
-                                })
+                                }))
                             }
                             fullWidth
                         />
@@ -984,15 +1190,41 @@ const AgriTipCard = ({ tip }) => {
                                 <Button
                                     color="error"
                                     onClick={handleRemoveImage}
-                                    disabled={saving}
+                                    disabled={
+                                        saving ||
+                                        imageProcessing
+                                    }
+                                    sx={{ mt: 1 }}
                                 >
                                     {t('Remove image')}
                                 </Button>
                             </Box>
                         )}
 
+                        <Typography
+                            variant="caption"
+                            color="text.secondary"
+                        >
+                            {t(
+                                'Supported formats: JPG, PNG, WebP. Maximum {{max}} MB per photo.',
+                                {
+                                    max: MAX_IMAGE_SIZE_MB,
+                                }
+                            )}
+                        </Typography>
+
+                        {/* Gallery selection */}
                         <input
-                            ref={fileInputRef}
+                            ref={galleryInputRef}
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            hidden
+                            onChange={handleImageChange}
+                        />
+
+                        {/* Rear camera capture */}
+                        <input
+                            ref={cameraInputRef}
                             type="file"
                             accept="image/jpeg,image/png,image/webp"
                             capture="environment"
@@ -1000,38 +1232,89 @@ const AgriTipCard = ({ tip }) => {
                             onChange={handleImageChange}
                         />
 
-                        <Button
-                            variant="outlined"
-                            startIcon={
-                                imageProcessing
-                                    ? (
-                                        <CircularProgress
-                                            size={18}
-                                            color="inherit"
-                                        />
-                                    )
-                                    : <CameraAltIcon />
-                            }
-                            onClick={() =>
-                                fileInputRef.current?.click()
-                            }
-                            disabled={
-                                saving ||
-                                imageProcessing
-                            }
+                        <Stack
+                            direction={{
+                                xs: 'column',
+                                sm: 'row',
+                            }}
+                            spacing={1}
                         >
-                            {imageProcessing
-                                ? t('Processing image...')
-                                : t(
-                                    editData.image
-                                        ? 'Change image'
-                                        : 'Add photo or take a picture'
-                                )}
-                        </Button>
+                            <Button
+                                variant="outlined"
+                                startIcon={
+                                    imageProcessing
+                                        ? (
+                                            <CircularProgress
+                                                size={18}
+                                                color="inherit"
+                                            />
+                                        )
+                                        : (
+                                            <AddPhotoAlternateOutlinedIcon />
+                                        )
+                                }
+                                onClick={() =>
+                                    galleryInputRef.current?.click()
+                                }
+                                disabled={
+                                    saving ||
+                                    imageProcessing
+                                }
+                                fullWidth
+                                sx={{ minHeight: 44 }}
+                            >
+                                {imageProcessing
+                                    ? t('Processing image...')
+                                    : t(
+                                        editData.image
+                                            ? 'Change Photo'
+                                            : 'Choose Photo'
+                                    )}
+                            </Button>
+
+                            <Button
+                                variant="outlined"
+                                startIcon={<CameraAltIcon />}
+                                onClick={() =>
+                                    cameraInputRef.current?.click()
+                                }
+                                disabled={
+                                    saving ||
+                                    imageProcessing
+                                }
+                                fullWidth
+                                sx={{ minHeight: 44 }}
+                            >
+                                {t('Take Photo')}
+                            </Button>
+                        </Stack>
+
+                        {imageProcessing && (
+                            <Stack
+                                direction="row"
+                                spacing={1}
+                                alignItems="center"
+                                role="status"
+                            >
+                                <CircularProgress size={16} />
+
+                                <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                >
+                                    {t('Processing image...')}
+                                </Typography>
+                            </Stack>
+                        )}
                     </Stack>
                 </DialogContent>
 
-                <DialogActions>
+                <DialogActions
+                    sx={{
+                        p: 2,
+                        gap: 1,
+                    }}
+                >
                     <Button
                         onClick={handleCloseEdit}
                         disabled={saving}
@@ -1048,6 +1331,16 @@ const AgriTipCard = ({ tip }) => {
                             !editData.title.trim() ||
                             !editData.content.trim()
                         }
+                        startIcon={
+                            saving
+                                ? (
+                                    <CircularProgress
+                                        size={16}
+                                        color="inherit"
+                                    />
+                                )
+                                : null
+                        }
                     >
                         {saving
                             ? t('Saving...')
@@ -1056,9 +1349,13 @@ const AgriTipCard = ({ tip }) => {
                 </DialogActions>
             </Dialog>
 
+            {/* Comments */}
             <Dialog
                 open={commentsOpen}
-                onClose={() => setCommentsOpen(false)}
+                onClose={() =>
+                    setCommentsOpen(false)
+                }
+                fullScreen={fullScreen}
                 fullWidth
                 maxWidth="sm"
             >
@@ -1079,7 +1376,7 @@ const AgriTipCard = ({ tip }) => {
 
                         {commentsOpen && (
                             tip.comments?.length
-                                ? tip.comments.map((comment) => {
+                                ? tip.comments.map(comment => {
                                     const commentUserId =
                                         getId(comment.user);
 
@@ -1122,10 +1419,11 @@ const AgriTipCard = ({ tip }) => {
                                                     {comment.user?.name?.charAt(0) || '?'}
                                                 </Avatar>
 
-                                                <Box flex={1}>
-                                                    <Typography
-                                                        fontWeight={600}
-                                                    >
+                                                <Box
+                                                    flex={1}
+                                                    minWidth={0}
+                                                >
+                                                    <Typography fontWeight={600}>
                                                         {comment.user?.name ||
                                                             t('User')}
                                                     </Typography>
@@ -1133,6 +1431,7 @@ const AgriTipCard = ({ tip }) => {
                                                     <Typography
                                                         sx={{
                                                             whiteSpace: 'pre-line',
+                                                            overflowWrap: 'anywhere',
                                                         }}
                                                     >
                                                         {comment.content}
@@ -1157,21 +1456,20 @@ const AgriTipCard = ({ tip }) => {
                                                         )}
                                                         size="small"
                                                         onClick={() =>
-                                                            handleDeleteComment(
+                                                            requestConfirmation(
+                                                                'deleteComment',
                                                                 comment._id
                                                             )
                                                         }
                                                     >
-                                                        <DeleteOutlineIcon fontSize="small" />
+                                                        <DeleteOutlineIcon
+                                                            fontSize="small"
+                                                        />
                                                     </IconButton>
                                                 )}
                                             </Stack>
 
-                                            <Divider
-                                                sx={{
-                                                    mt: 1.5,
-                                                }}
-                                            />
+                                            <Divider sx={{ mt: 1.5 }} />
                                         </Box>
                                     );
                                 })
@@ -1187,7 +1485,7 @@ const AgriTipCard = ({ tip }) => {
                         <TextField
                             label={t('Write a comment')}
                             value={commentText}
-                            onChange={(event) =>
+                            onChange={event =>
                                 setCommentText(
                                     event.target.value
                                 )
@@ -1200,7 +1498,14 @@ const AgriTipCard = ({ tip }) => {
                         <Button
                             variant="contained"
                             startIcon={
-                                <SendOutlinedIcon />
+                                commenting
+                                    ? (
+                                        <CircularProgress
+                                            size={18}
+                                            color="inherit"
+                                        />
+                                    )
+                                    : <SendOutlinedIcon />
                             }
                             onClick={handleAddComment}
                             disabled={
@@ -1222,6 +1527,93 @@ const AgriTipCard = ({ tip }) => {
                         }
                     >
                         {t('Close')}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Responsive confirmation dialog */}
+            <Dialog
+                open={Boolean(confirmation)}
+                onClose={closeConfirmation}
+                fullWidth
+                maxWidth="xs"
+                aria-labelledby="agri-tip-confirm-title"
+                aria-describedby="agri-tip-confirm-description"
+                PaperProps={{
+                    sx: {
+                        borderRadius: 3,
+                        m: 2,
+                        width: 'calc(100% - 32px)',
+                    },
+                }}
+            >
+                <DialogTitle
+                    id="agri-tip-confirm-title"
+                    sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1,
+                        pb: 1,
+                    }}
+                >
+                    <DeleteOutlineIcon color="error" />
+
+                    {activeConfirmation?.title}
+                </DialogTitle>
+
+                <DialogContent>
+                    <DialogContentText
+                        id="agri-tip-confirm-description"
+                    >
+                        {activeConfirmation?.message}
+                    </DialogContentText>
+
+                    {confirmError && (
+                        <Alert
+                            severity="error"
+                            sx={{ mt: 2 }}
+                        >
+                            {confirmError}
+                        </Alert>
+                    )}
+                </DialogContent>
+
+                <DialogActions
+                    sx={{
+                        px: 3,
+                        pb: 2,
+                        gap: 1,
+                    }}
+                >
+                    <Button
+                        onClick={closeConfirmation}
+                        disabled={confirmLoading}
+                        color="inherit"
+                    >
+                        {t('Cancel')}
+                    </Button>
+
+                    <Button
+                        onClick={handleConfirmAction}
+                        disabled={confirmLoading}
+                        variant="contained"
+                        color="error"
+                        startIcon={
+                            confirmLoading
+                                ? (
+                                    <CircularProgress
+                                        size={18}
+                                        color="inherit"
+                                    />
+                                )
+                                : (
+                                    <DeleteOutlineIcon />
+                                )
+                        }
+                    >
+                        {confirmLoading
+                            ? t('Processing...')
+                            : activeConfirmation?.button}
                     </Button>
                 </DialogActions>
             </Dialog>
