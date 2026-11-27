@@ -4,25 +4,43 @@ const asyncHandler=require('../middleware/asyncHandler');
 const AppError=require('../utils/AppError');
 
 exports.getNotifications=asyncHandler(async(req,res)=>{
-    const notifications=await Notification.find({
-        recipient:req.user._id
-    })
-        .select(
-            'sender type title message link read createdAt'
-        )
-        .populate(
-            'sender',
-            'name profilePhoto'
-        )
-        .sort({
-            createdAt:-1
+    const recipient=req.user._id;
+
+    const [
+        notifications,
+        unreadCount
+    ]=await Promise.all([
+        Notification.find({
+            recipient
         })
-        .limit(50)
-        .lean();
+            .select(
+                'sender type title message link read createdAt'
+            )
+            .populate(
+                'sender',
+                'name profilePhoto'
+            )
+            .sort({
+                createdAt:-1
+            })
+            .limit(50)
+            .lean(),
+
+        Notification.countDocuments({
+            recipient,
+            read:false
+        })
+    ]);
+
+    res.set(
+        'Cache-Control',
+        'private, no-store'
+    );
 
     res.status(200).json({
         success:true,
         count:notifications.length,
+        unreadCount,
         data:notifications
     });
 });
@@ -35,7 +53,7 @@ exports.getUnreadCount=asyncHandler(async(req,res)=>{
 
     res.set(
         'Cache-Control',
-        'private, max-age=5'
+        'private, no-store'
     );
 
     res.status(200).json({

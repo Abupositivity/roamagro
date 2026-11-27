@@ -1119,8 +1119,16 @@ const resources = {
             "You can add only {{count}} more photo(s). Extra photos were not selected.": "Za ka iya ƙara hotuna guda {{count}} kawai. Ba a zaɓi sauran hotunan ba.",
             "Agricultural tip image preview": "Samfotin hoton shawarar noma",            
             "Some photos could not be processed. The other photos were added.": "Ba a iya sarrafa wasu hotuna ba. An ƙara sauran hotunan.",
+            "Unable to update like.": "An kasa sabunta matsayin so.",
+            "Unable to publish agricultural tip. Please try again.": "An kasa wallafa shawarar noma. Da fatan za a sake gwadawa.",
 
-            // Sarrafa hotuna
+            "Agricultural tip archived successfully.": "An adana shawarar noma a matsayin wadda aka cire daga jama'a.",
+            "Published tips cannot be moved back to Draft. Archive the tip instead.": "Ba za a iya mayar da shawarar noma da aka wallafa zuwa daftari ba. A cire ta daga jama'a maimakon haka.",
+            "This agricultural tip is no longer available for editing.": "Ba a iya gyara wannan shawarar noma a yanzu.",
+            "Invalid status. Use the archive operation to archive an agricultural tip.": "Matsayin bai dace ba. Yi amfani da hanyar cire shawarar noma daga jama'a.",
+            "Unable to archive agricultural tip.": "An kasa cire shawarar noma daga jama'a.",
+
+// Sarrafa hotuna
             "Processing image...": "Ana sarrafa hoto...",
             "Unable to process the selected image.": "Ba a iya sarrafa hoton da aka zaɓa ba.",
             "Unable to process the selected photos. Please try again.": "Ba a iya sarrafa hotunan da aka zaɓa ba. Da fatan a sake gwadawa.",

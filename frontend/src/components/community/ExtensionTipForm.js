@@ -101,6 +101,7 @@ const ExtensionTipForm = ({ onPublished }) => {
     const fileInputRef = useRef(null);
     const cameraInputRef = useRef(null);
     const imageSelectionRef = useRef(0);
+    const submissionLockRef = useRef(false);
 
     const { creating, createError } = useSelector(
         state => state.agriFeed
@@ -121,6 +122,12 @@ const ExtensionTipForm = ({ onPublished }) => {
     const [successMessage, setSuccessMessage] =
         useState("");
 
+    const [submitting, setSubmitting] =
+        useState(false);
+
+    const [submissionError, setSubmissionError] =
+        useState("");
+
     const [imageError, setImageError] =
         useState("");
 
@@ -132,6 +139,11 @@ const ExtensionTipForm = ({ onPublished }) => {
 
     const [previewFailed, setPreviewFailed] =
         useState(false);
+
+    const publishing = creating || submitting;
+
+    const publicationError =
+        submissionError || createError;
 
     // Generate previews for local Files, Blobs,
     // image URLs, and supported image objects.
@@ -168,6 +180,13 @@ const ExtensionTipForm = ({ onPublished }) => {
     }, []);
 
     const handleChange = event => {
+        if (
+            submissionLockRef.current ||
+            publishing
+        ) {
+            return;
+        }
+
         const { name, value } = event.target;
 
         setFormData(previous => ({
@@ -189,7 +208,8 @@ const ExtensionTipForm = ({ onPublished }) => {
         if (
             !file ||
             imageProcessing ||
-            creating
+            publishing ||
+            submissionLockRef.current
         ) {
             return;
         }
@@ -267,6 +287,13 @@ const ExtensionTipForm = ({ onPublished }) => {
     };
 
     const handleRemoveImage = () => {
+        if (
+            publishing ||
+            submissionLockRef.current
+        ) {
+            return;
+        }
+
         imageSelectionRef.current += 1;
 
         setImageProcessing(false);
@@ -293,11 +320,21 @@ const ExtensionTipForm = ({ onPublished }) => {
     const handleSubmit = async event => {
         event.preventDefault();
 
-        setSuccessMessage("");
-
-        if (imageProcessing || creating) {
+        if (
+            submissionLockRef.current ||
+            publishing ||
+            imageProcessing ||
+            !formData.title.trim() ||
+            !formData.content.trim()
+        ) {
             return;
         }
+
+        submissionLockRef.current = true;
+
+        setSubmitting(true);
+        setSuccessMessage("");
+        setSubmissionError("");
 
         const tipData = {
             ...formData,
@@ -306,12 +343,19 @@ const ExtensionTipForm = ({ onPublished }) => {
                 : "Normal"
         };
 
+        let result;
+
         try {
-            const result = await dispatch(
+            result = await dispatch(
                 createAgriTip(tipData)
             );
 
             if (!result?.success) {
+                setSubmissionError(
+                    result?.message ||
+                    "Unable to publish agricultural tip. Please try again."
+                );
+
                 return;
             }
 
@@ -339,13 +383,28 @@ const ExtensionTipForm = ({ onPublished }) => {
                     "Agricultural tip published successfully."
                 )
             );
+        } catch (error) {
+            setSubmissionError(
+                error?.message ||
+                "Unable to publish agricultural tip. Please try again."
+            );
 
-            if (onPublished) {
-                onPublished(result.data);
+            return;
+        } finally {
+            submissionLockRef.current = false;
+            setSubmitting(false);
+        }
+
+        // Publication has succeeded.
+        // A refresh failure must not be treated
+        // as a publication failure.
+        if (onPublished) {
+            try {
+                await onPublished(result.data);
+            } catch {
+                // Dashboard refresh errors are handled
+                // separately from publication errors.
             }
-        } catch {
-            // Redux exposes publication errors
-            // through createError.
         }
     };
 
@@ -386,9 +445,15 @@ const ExtensionTipForm = ({ onPublished }) => {
                         </Alert>
                     )}
 
-                    {createError && (
-                        <Alert severity="error">
-                            {createError}
+                    {publicationError && !publishing && (
+                        <Alert
+                            severity="error"
+                            sx={{
+                                whiteSpace: "pre-line",
+                                overflowWrap: "anywhere"
+                            }}
+                        >
+                            {t(publicationError)}
                         </Alert>
                     )}
 
@@ -416,6 +481,7 @@ const ExtensionTipForm = ({ onPublished }) => {
                                 name="title"
                                 value={formData.title}
                                 onChange={handleChange}
+                                disabled={publishing}
                                 inputProps={{
                                     maxLength: 150
                                 }}
@@ -424,6 +490,7 @@ const ExtensionTipForm = ({ onPublished }) => {
                             <FormControl
                                 fullWidth
                                 required
+                                disabled={publishing}
                             >
                                 <InputLabel>
                                     {t("Category")}
@@ -457,13 +524,17 @@ const ExtensionTipForm = ({ onPublished }) => {
                                 name="content"
                                 value={formData.content}
                                 onChange={handleChange}
+                                disabled={publishing}
                                 placeholder={t(
                                     "Write your agricultural advice here..."
                                 )}
                             />
 
                             {isAdmin && (
-                                <FormControl fullWidth>
+                                <FormControl
+                                    fullWidth
+                                    disabled={publishing}
+                                >
                                     <InputLabel>
                                         {t("Priority")}
                                     </InputLabel>
@@ -488,7 +559,10 @@ const ExtensionTipForm = ({ onPublished }) => {
                                 </FormControl>
                             )}
 
-                            <FormControl fullWidth>
+                            <FormControl
+                                fullWidth
+                                disabled={publishing}
+                            >
                                 <InputLabel>
                                     {t("Language")}
                                 </InputLabel>
@@ -519,6 +593,7 @@ const ExtensionTipForm = ({ onPublished }) => {
                                 name="region"
                                 value={formData.region}
                                 onChange={handleChange}
+                                disabled={publishing}
                             />
 
                             <Box>
@@ -605,7 +680,7 @@ const ExtensionTipForm = ({ onPublished }) => {
                                                 handleRemoveImage
                                             }
                                             disabled={
-                                                creating ||
+                                                publishing ||
                                                 imageProcessing
                                             }
                                             sx={{ mt: 1 }}
@@ -662,7 +737,7 @@ const ExtensionTipForm = ({ onPublished }) => {
                                         }
                                         disabled={
                                             imageProcessing ||
-                                            creating
+                                            publishing
                                         }
                                         fullWidth
                                         sx={{
@@ -690,7 +765,7 @@ const ExtensionTipForm = ({ onPublished }) => {
                                         }
                                         disabled={
                                             imageProcessing ||
-                                            creating
+                                            publishing
                                         }
                                         fullWidth
                                         sx={{
@@ -730,7 +805,7 @@ const ExtensionTipForm = ({ onPublished }) => {
                                     type="submit"
                                     variant="contained"
                                     startIcon={
-                                        creating ? (
+                                        publishing ? (
                                             <CircularProgress
                                                 size={18}
                                                 color="inherit"
@@ -740,7 +815,7 @@ const ExtensionTipForm = ({ onPublished }) => {
                                         )
                                     }
                                     disabled={
-                                        creating ||
+                                        publishing ||
                                         imageProcessing ||
                                         !formData.title.trim() ||
                                         !formData.content.trim()
@@ -749,7 +824,7 @@ const ExtensionTipForm = ({ onPublished }) => {
                                         borderRadius: 2.5
                                     }}
                                 >
-                                    {creating
+                                    {publishing
                                         ? t("Publishing...")
                                         : t("Publish Tip")}
                                 </Button>

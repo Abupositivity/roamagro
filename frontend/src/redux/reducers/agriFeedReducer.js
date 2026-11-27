@@ -48,6 +48,7 @@ const initialState = {
     total: 0,
     totalPages: 0,
     hasMore: false,
+    mine: false,
 };
 
 const replaceTip = (
@@ -95,6 +96,7 @@ const agriFeedReducer = (
                 total = 0,
                 totalPages = 0,
                 hasMore = false,
+                mine = false,
             } = action.payload || {};
 
             const append =
@@ -138,6 +140,7 @@ const agriFeedReducer = (
                 total,
                 totalPages,
                 hasMore,
+                mine: mine === true,
             };
         }
 
@@ -145,16 +148,13 @@ const agriFeedReducer = (
             const silent =
                 action.meta?.silent === true;
 
-            const append =
-                action.meta?.append === true;
-
             return {
                 ...state,
                 loading: false,
                 loadingMore: false,
                 refreshing: false,
                 error:
-                    silent || append
+                    silent
                         ? state.error
                         : action.payload,
             };
@@ -224,21 +224,82 @@ const agriFeedReducer = (
                 deleteError: null,
             };
 
-        case DELETE_AGRI_FEED_SUCCESS:
+        case DELETE_AGRI_FEED_SUCCESS: {
+            const archivedTip =
+                action.payload;
+
+            const archivedTipId =
+                archivedTip?._id;
+
+            const existingTip =
+                state.tips.find(
+                    (tip) =>
+                        tip._id ===
+                        archivedTipId
+                );
+
+            if (!existingTip) {
+                return {
+                    ...state,
+                    deleting: false,
+                    deleteError: null,
+                };
+            }
+
+            // Retain archived agricultural tips
+            // in the owner's My Tips view.
+            if (state.mine) {
+                return {
+                    ...state,
+                    deleting: false,
+                    tips: state.tips.map(
+                        (tip) =>
+                            tip._id ===
+                            archivedTipId
+                                ? {
+                                    ...tip,
+                                    ...archivedTip,
+                                    status: 'Archived',
+                                    sharedBy: [],
+                                    shares: 0,
+                                }
+                                : tip
+                    ),
+                    deleteError: null,
+                };
+            }
+
+            // Remove archived agricultural tips
+            // from the public All Tips view.
+            const tips =
+                state.tips.filter(
+                    (tip) =>
+                        tip._id !==
+                        archivedTipId
+                );
+
+            const total =
+                Math.max(
+                    state.total - 1,
+                    0
+                );
+
+            const totalPages =
+                Math.ceil(
+                    total / state.limit
+                );
+
             return {
                 ...state,
                 deleting: false,
-                tips: state.tips.filter(
-                    (tip) =>
-                        tip._id !==
-                        action.payload
-                ),
-                total: Math.max(
-                    state.total - 1,
-                    0
-                ),
+                tips,
+                total,
+                totalPages,
+                hasMore:
+                    state.page < totalPages,
                 deleteError: null,
             };
+        }
 
         case DELETE_AGRI_FEED_FAIL:
             return {

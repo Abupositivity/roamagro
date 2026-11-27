@@ -1,5 +1,6 @@
 import React, {
     useEffect,
+    useRef,
     useState,
 } from 'react';
 
@@ -20,6 +21,8 @@ import AgriTipCard from './AgriTipCard';
 
 const FeaturedTips = ({
     refreshKey = 0,
+    archivedTipIds = [],
+    onArchived,
 }) => {
     const { t } = useTranslation();
 
@@ -43,11 +46,17 @@ const FeaturedTips = ({
         setError,
     ] = useState(null);
 
+    const hasLoadedRef = useRef(false);
+
+    // Reuse an active featured tips request.
+    const fetchRequestRef = useRef(null);
+
     useEffect(() => {
         let active = true;
 
         const loadFeaturedTips = async () => {
-            const silent = refreshKey > 0;
+            const silent =
+                hasLoadedRef.current;
 
             if (silent) {
                 setRefreshing(true);
@@ -56,29 +65,56 @@ const FeaturedTips = ({
             }
 
             try {
-                const res = await api.get(
-                    '/feed/featured'
-                );
+                // Avoid overlapping requests
+                // to the same endpoint.
+                if (!fetchRequestRef.current) {
+                    const request = api.get(
+                        '/feed/featured'
+                    );
+
+                    fetchRequestRef.current =
+                        request;
+                }
+
+                const request =
+                    fetchRequestRef.current;
+
+                let res;
+
+                try {
+                    res = await request;
+                } finally {
+                    if (
+                        fetchRequestRef.current ===
+                        request
+                    ) {
+                        fetchRequestRef.current =
+                            null;
+                    }
+                }
 
                 if (!active) return;
 
                 setTips(res.data.data || []);
                 setError(null);
+
+                hasLoadedRef.current = true;
             } catch (error) {
                 if (!active) return;
 
                 const message =
                     error.response?.data?.message ||
-                    t('Unable to load featured tips.');
+                    error.message ||
+                    'Unable to load featured tips.';
 
-                if (!silent || tips.length === 0) {
+                if (!silent) {
                     setError(message);
                 }
             } finally {
-                if (!active) return;
-
-                setLoading(false);
-                setRefreshing(false);
+                if (active) {
+                    setLoading(false);
+                    setRefreshing(false);
+                }
             }
         };
 
@@ -87,9 +123,15 @@ const FeaturedTips = ({
         return () => {
             active = false;
         };
-    }, [refreshKey, t, tips.length]);
+    }, [refreshKey]);
 
-    if (loading && tips.length === 0) {
+    const visibleTips = tips.filter(
+        (tip) =>
+            tip.status === 'Published' &&
+            !archivedTipIds.includes(tip._id)
+    );
+
+    if (loading && visibleTips.length === 0) {
         return (
             <Box
                 display="flex"
@@ -101,18 +143,21 @@ const FeaturedTips = ({
         );
     }
 
-    if (error && tips.length === 0) {
+    if (error && visibleTips.length === 0) {
         return (
             <Alert
                 severity="error"
-                sx={{ mb: 3 }}
+                sx={{
+                    mb: 3,
+                    overflowWrap: 'anywhere',
+                }}
             >
-                {error}
+                {t(error)}
             </Alert>
         );
     }
 
-    if (tips.length === 0) {
+    if (visibleTips.length === 0) {
         return null;
     }
 
@@ -148,10 +193,11 @@ const FeaturedTips = ({
             )}
 
             <Stack spacing={2}>
-                {tips.map((tip) => (
+                {visibleTips.map((tip) => (
                     <AgriTipCard
                         key={tip._id}
                         tip={tip}
+                        onArchived={onArchived}
                     />
                 ))}
             </Stack>

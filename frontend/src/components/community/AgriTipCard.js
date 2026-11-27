@@ -256,6 +256,7 @@ const AgriTipCard = ({ tip }) => {
     const galleryInputRef = useRef(null);
     const cameraInputRef = useRef(null);
     const imageSelectionRef = useRef(0);
+    const requestLockRef = useRef(false);
 
     const [menuAnchor, setMenuAnchor] =
         useState(null);
@@ -298,6 +299,12 @@ const AgriTipCard = ({ tip }) => {
 
     const [commenting, setCommenting] =
         useState(false);
+
+    const [liking, setLiking] =
+        useState(false);
+
+    const [interactionError, setInteractionError] =
+        useState('');
 
     const [sharing, setSharing] =
         useState(false);
@@ -363,6 +370,12 @@ const AgriTipCard = ({ tip }) => {
         )
     );
 
+    const isArchived =
+        tip.status === 'Archived';
+
+    const isPublished =
+        tip.status === 'Published';
+
     const liked = (tip.likes || []).some(
         like => getId(like) === userId
     );
@@ -370,6 +383,13 @@ const AgriTipCard = ({ tip }) => {
     const shared = (tip.sharedBy || []).some(
         id => getId(id) === userId
     );
+
+    const mutationPending =
+        saving ||
+        commenting ||
+        liking ||
+        sharing ||
+        confirmLoading;
 
     const priorityColor = () => {
         if (tip.priority === 'Urgent') {
@@ -420,6 +440,7 @@ const AgriTipCard = ({ tip }) => {
                     'Please select a valid image.'
                 )
             );
+
             return;
         }
 
@@ -490,6 +511,14 @@ const AgriTipCard = ({ tip }) => {
     };
 
     const openEdit = () => {
+        if (
+            requestLockRef.current ||
+            !canManage ||
+            isArchived
+        ) {
+            return;
+        }
+
         imageSelectionRef.current += 1;
 
         setImageProcessing(false);
@@ -512,7 +541,12 @@ const AgriTipCard = ({ tip }) => {
     };
 
     const handleCloseEdit = () => {
-        if (saving) return;
+        if (
+            saving ||
+            requestLockRef.current
+        ) {
+            return;
+        }
 
         imageSelectionRef.current += 1;
 
@@ -531,6 +565,9 @@ const AgriTipCard = ({ tip }) => {
 
     const handleUpdate = async () => {
         if (
+            requestLockRef.current ||
+            !canManage ||
+            isArchived ||
             saving ||
             imageProcessing ||
             !editData.title.trim() ||
@@ -538,6 +575,8 @@ const AgriTipCard = ({ tip }) => {
         ) {
             return;
         }
+
+        requestLockRef.current = true;
 
         setSaving(true);
         setEditError('');
@@ -555,8 +594,9 @@ const AgriTipCard = ({ tip }) => {
             if (!result?.success) {
                 setEditError(
                     result?.message ||
-                    t('Unable to update tip.')
+                    'Unable to update tip.'
                 );
+
                 return;
             }
 
@@ -565,9 +605,10 @@ const AgriTipCard = ({ tip }) => {
         } catch (error) {
             setEditError(
                 error?.message ||
-                t('Unable to update tip.')
+                'Unable to update tip.'
             );
         } finally {
+            requestLockRef.current = false;
             setSaving(false);
         }
     };
@@ -577,6 +618,20 @@ const AgriTipCard = ({ tip }) => {
         type,
         commentId = null
     ) => {
+        if (
+            requestLockRef.current ||
+            (
+                type === 'deleteTip' &&
+                (!canManage || isArchived)
+            ) ||
+            (
+                type === 'unshare' &&
+                !shared
+            )
+        ) {
+            return;
+        }
+
         setMenuAnchor(null);
         setConfirmError('');
 
@@ -587,7 +642,12 @@ const AgriTipCard = ({ tip }) => {
     };
 
     const closeConfirmation = () => {
-        if (confirmLoading) return;
+        if (
+            confirmLoading ||
+            requestLockRef.current
+        ) {
+            return;
+        }
 
         setConfirmation(null);
         setConfirmError('');
@@ -596,12 +656,31 @@ const AgriTipCard = ({ tip }) => {
     const handleConfirmAction = async () => {
         if (
             !confirmation ||
-            confirmLoading
+            confirmLoading ||
+            requestLockRef.current
         ) {
             return;
         }
 
         const { type, commentId } = confirmation;
+
+        if (
+            type === 'deleteTip' &&
+            (!canManage || isArchived)
+        ) {
+            setConfirmation(null);
+            return;
+        }
+
+        if (
+            type === 'unshare' &&
+            !shared
+        ) {
+            setConfirmation(null);
+            return;
+        }
+
+        requestLockRef.current = true;
 
         setConfirmLoading(true);
         setConfirmError('');
@@ -631,8 +710,9 @@ const AgriTipCard = ({ tip }) => {
             if (!result?.success) {
                 setConfirmError(
                     result?.message ||
-                    t('Unable to complete this action.')
+                    'Unable to complete this action.'
                 );
+
                 return;
             }
 
@@ -641,28 +721,63 @@ const AgriTipCard = ({ tip }) => {
         } catch (error) {
             setConfirmError(
                 error?.message ||
-                t('Unable to complete this action.')
+                'Unable to complete this action.'
             );
         } finally {
+            requestLockRef.current = false;
             setConfirmLoading(false);
         }
     };
 
-    const handleLike = () => {
-        dispatch(
-            likeAgriTip(tip._id)
-        );
+    const handleLike = async () => {
+        if (
+            !isPublished ||
+            requestLockRef.current ||
+            liking
+        ) {
+            return;
+        }
+
+        requestLockRef.current = true;
+
+        setLiking(true);
+        setInteractionError('');
+
+        try {
+            const result = await dispatch(
+                likeAgriTip(tip._id)
+            );
+
+            if (!result?.success) {
+                setInteractionError(
+                    result?.message ||
+                    'Unable to update like.'
+                );
+            }
+        } catch (error) {
+            setInteractionError(
+                error?.message ||
+                'Unable to update like.'
+            );
+        } finally {
+            requestLockRef.current = false;
+            setLiking(false);
+        }
     };
 
     const handleAddComment = async () => {
         const content = commentText.trim();
 
         if (
+            !isPublished ||
             !content ||
-            commenting
+            commenting ||
+            requestLockRef.current
         ) {
             return;
         }
+
+        requestLockRef.current = true;
 
         setCommenting(true);
         setCommentError('');
@@ -678,8 +793,9 @@ const AgriTipCard = ({ tip }) => {
             if (!result?.success) {
                 setCommentError(
                     result?.message ||
-                    t('Unable to add comment.')
+                    'Unable to add comment.'
                 );
+
                 return;
             }
 
@@ -687,23 +803,45 @@ const AgriTipCard = ({ tip }) => {
         } catch (error) {
             setCommentError(
                 error?.message ||
-                t('Unable to add comment.')
+                'Unable to add comment.'
             );
         } finally {
+            requestLockRef.current = false;
             setCommenting(false);
         }
     };
 
+    const handleCloseComments = () => {
+        if (
+            commenting ||
+            confirmLoading ||
+            requestLockRef.current
+        ) {
+            return;
+        }
+
+        setCommentsOpen(false);
+    };
+
     const handleShare = async () => {
-        if (sharing) return;
+        if (
+            (!isPublished && !shared) ||
+            sharing ||
+            requestLockRef.current
+        ) {
+            return;
+        }
+
+        setInteractionError('');
 
         if (shared) {
             requestConfirmation('unshare');
             return;
         }
 
+        requestLockRef.current = true;
+
         setSharing(true);
-        setCommentError('');
 
         try {
             const result = await dispatch(
@@ -711,32 +849,29 @@ const AgriTipCard = ({ tip }) => {
             );
 
             if (!result?.success) {
-                setCommentError(
+                setInteractionError(
                     result?.message ||
-                    t(
-                        'Unable to share this tip to the Community.'
-                    )
+                    'Unable to share this tip to the Community.'
                 );
             }
         } catch (error) {
-            setCommentError(
+            setInteractionError(
                 error?.message ||
-                t(
-                    'Unable to share this tip to the Community.'
-                )
+                'Unable to share this tip to the Community.'
             );
         } finally {
+            requestLockRef.current = false;
             setSharing(false);
         }
     };
 
     const confirmationDetails = {
         deleteTip: {
-            title: t('Delete agricultural tip?'),
+            title: t('Archive agricultural tip?'),
             message: t(
-                'Are you sure you want to delete this agricultural tip? This action cannot be undone.'
+                'Are you sure you want to archive this agricultural tip? It and its shared Community posts will no longer be publicly available.'
             ),
-            button: t('Delete Tip'),
+            button: t('Archive Tip'),
         },
         deleteComment: {
             title: t('Delete comment?'),
@@ -805,7 +940,7 @@ const AgriTipCard = ({ tip }) => {
                                 size="small"
                             />
 
-                            {canManage && (
+                            {canManage && !isArchived && (
                                 <IconButton
                                     aria-label={t(
                                         'Tip options'
@@ -815,6 +950,7 @@ const AgriTipCard = ({ tip }) => {
                                             event.currentTarget
                                         )
                                     }
+                                    disabled={mutationPending}
                                     size="small"
                                 >
                                     <MoreVertIcon />
@@ -825,7 +961,11 @@ const AgriTipCard = ({ tip }) => {
 
                     <Menu
                         anchorEl={menuAnchor}
-                        open={Boolean(menuAnchor)}
+                        open={
+                            Boolean(menuAnchor) &&
+                            canManage &&
+                            !isArchived
+                        }
                         onClose={() =>
                             setMenuAnchor(null)
                         }
@@ -835,6 +975,7 @@ const AgriTipCard = ({ tip }) => {
                                 fontSize="small"
                                 sx={{ mr: 1 }}
                             />
+
                             {t('Edit')}
                         </MenuItem>
 
@@ -849,7 +990,8 @@ const AgriTipCard = ({ tip }) => {
                                 fontSize="small"
                                 sx={{ mr: 1 }}
                             />
-                            {t('Delete')}
+
+                            {t('Archive')}
                         </MenuItem>
                     </Menu>
 
@@ -881,6 +1023,15 @@ const AgriTipCard = ({ tip }) => {
                             size="small"
                             variant="outlined"
                         />
+
+                        {isArchived && (
+                            <Chip
+                                label={t('Archived')}
+                                size="small"
+                                color="warning"
+                                variant="outlined"
+                            />
+                        )}
                     </Stack>
 
                     <Typography
@@ -946,15 +1097,26 @@ const AgriTipCard = ({ tip }) => {
                     >
                         <Button
                             startIcon={
-                                liked
+                                liking
                                     ? (
-                                        <FavoriteIcon color="error" />
+                                        <CircularProgress
+                                            size={16}
+                                            color="inherit"
+                                        />
                                     )
-                                    : (
-                                        <FavoriteBorderIcon />
-                                    )
+                                    : liked
+                                        ? (
+                                            <FavoriteIcon color="error" />
+                                        )
+                                        : (
+                                            <FavoriteBorderIcon />
+                                        )
                             }
                             onClick={handleLike}
+                            disabled={
+                                mutationPending ||
+                                !isPublished
+                            }
                             color={
                                 liked
                                     ? 'error'
@@ -973,6 +1135,7 @@ const AgriTipCard = ({ tip }) => {
                                 setCommentError('');
                                 setCommentsOpen(true);
                             }}
+                            disabled={mutationPending}
                             color="inherit"
                             size="small"
                         >
@@ -991,7 +1154,10 @@ const AgriTipCard = ({ tip }) => {
                                     : <ShareIcon />
                             }
                             onClick={handleShare}
-                            disabled={sharing}
+                            disabled={
+                                mutationPending ||
+                                (!isPublished && !shared)
+                            }
                             color={
                                 shared
                                     ? 'success'
@@ -1007,6 +1173,21 @@ const AgriTipCard = ({ tip }) => {
                             {' '}({tip.shares || 0})
                         </Button>
                     </Stack>
+
+                    {interactionError && (
+                        <Alert
+                            severity="error"
+                            onClose={() =>
+                                setInteractionError('')
+                            }
+                            sx={{
+                                mt: 2,
+                                overflowWrap: 'anywhere',
+                            }}
+                        >
+                            {t(interactionError)}
+                        </Alert>
+                    )}
                 </CardContent>
             </Card>
 
@@ -1014,6 +1195,7 @@ const AgriTipCard = ({ tip }) => {
             <Dialog
                 open={editOpen}
                 onClose={handleCloseEdit}
+                disableEscapeKeyDown={saving}
                 fullScreen={fullScreen}
                 fullWidth
                 maxWidth="sm"
@@ -1028,8 +1210,13 @@ const AgriTipCard = ({ tip }) => {
                         sx={{ pt: 1 }}
                     >
                         {editError && (
-                            <Alert severity="error">
-                                {editError}
+                            <Alert
+                                severity="error"
+                                sx={{
+                                    overflowWrap: 'anywhere',
+                                }}
+                            >
+                                {t(editError)}
                             </Alert>
                         )}
 
@@ -1056,6 +1243,7 @@ const AgriTipCard = ({ tip }) => {
                                     title: event.target.value,
                                 }))
                             }
+                            disabled={saving}
                             fullWidth
                             required
                         />
@@ -1070,6 +1258,7 @@ const AgriTipCard = ({ tip }) => {
                                     category: event.target.value,
                                 }))
                             }
+                            disabled={saving}
                             fullWidth
                             required
                         >
@@ -1092,6 +1281,7 @@ const AgriTipCard = ({ tip }) => {
                                     content: event.target.value,
                                 }))
                             }
+                            disabled={saving}
                             multiline
                             minRows={5}
                             fullWidth
@@ -1113,7 +1303,7 @@ const AgriTipCard = ({ tip }) => {
                             }
                             select
                             fullWidth
-                            disabled={!isAdmin}
+                            disabled={saving || !isAdmin}
                         >
                             {[
                                 'Normal',
@@ -1138,6 +1328,7 @@ const AgriTipCard = ({ tip }) => {
                                     language: event.target.value,
                                 }))
                             }
+                            disabled={saving}
                             select
                             fullWidth
                         >
@@ -1163,6 +1354,7 @@ const AgriTipCard = ({ tip }) => {
                                     region: event.target.value,
                                 }))
                             }
+                            disabled={saving}
                             fullWidth
                         />
 
@@ -1175,6 +1367,7 @@ const AgriTipCard = ({ tip }) => {
                                     source: event.target.value,
                                 }))
                             }
+                            disabled={saving}
                             fullWidth
                         />
 
@@ -1326,7 +1519,9 @@ const AgriTipCard = ({ tip }) => {
                         onClick={handleUpdate}
                         variant="contained"
                         disabled={
-                            saving ||
+                            mutationPending ||
+                            isArchived ||
+                            !canManage ||
                             imageProcessing ||
                             !editData.title.trim() ||
                             !editData.content.trim()
@@ -1352,8 +1547,9 @@ const AgriTipCard = ({ tip }) => {
             {/* Comments */}
             <Dialog
                 open={commentsOpen}
-                onClose={() =>
-                    setCommentsOpen(false)
+                onClose={handleCloseComments}
+                disableEscapeKeyDown={
+                    commenting || confirmLoading
                 }
                 fullScreen={fullScreen}
                 fullWidth
@@ -1369,8 +1565,13 @@ const AgriTipCard = ({ tip }) => {
                         sx={{ pt: 1 }}
                     >
                         {commentError && (
-                            <Alert severity="error">
-                                {commentError}
+                            <Alert
+                                severity="error"
+                                sx={{
+                                    overflowWrap: 'anywhere',
+                                }}
+                            >
+                                {t(commentError)}
                             </Alert>
                         )}
 
@@ -1455,6 +1656,7 @@ const AgriTipCard = ({ tip }) => {
                                                             'Delete comment'
                                                         )}
                                                         size="small"
+                                                        disabled={mutationPending}
                                                         onClick={() =>
                                                             requestConfirmation(
                                                                 'deleteComment',
@@ -1475,9 +1677,11 @@ const AgriTipCard = ({ tip }) => {
                                 })
                                 : (
                                     <Typography color="text.secondary">
-                                        {t(
-                                            'No comments yet. Be the first to comment.'
-                                        )}
+                                        {isPublished
+                                            ? t(
+                                                'No comments yet. Be the first to comment.'
+                                            )
+                                            : t('No comments yet.')}
                                     </Typography>
                                 )
                         )}
@@ -1489,6 +1693,10 @@ const AgriTipCard = ({ tip }) => {
                                 setCommentText(
                                     event.target.value
                                 )
+                            }
+                            disabled={
+                                commenting ||
+                                !isPublished
                             }
                             multiline
                             minRows={2}
@@ -1509,7 +1717,8 @@ const AgriTipCard = ({ tip }) => {
                             }
                             onClick={handleAddComment}
                             disabled={
-                                commenting ||
+                                mutationPending ||
+                                !isPublished ||
                                 !commentText.trim()
                             }
                         >
@@ -1522,8 +1731,10 @@ const AgriTipCard = ({ tip }) => {
 
                 <DialogActions>
                     <Button
-                        onClick={() =>
-                            setCommentsOpen(false)
+                        onClick={handleCloseComments}
+                        disabled={
+                            commenting ||
+                            confirmLoading
                         }
                     >
                         {t('Close')}
@@ -1535,6 +1746,7 @@ const AgriTipCard = ({ tip }) => {
             <Dialog
                 open={Boolean(confirmation)}
                 onClose={closeConfirmation}
+                disableEscapeKeyDown={confirmLoading}
                 fullWidth
                 maxWidth="xs"
                 aria-labelledby="agri-tip-confirm-title"
@@ -1571,9 +1783,12 @@ const AgriTipCard = ({ tip }) => {
                     {confirmError && (
                         <Alert
                             severity="error"
-                            sx={{ mt: 2 }}
+                            sx={{
+                                mt: 2,
+                                overflowWrap: 'anywhere',
+                            }}
                         >
-                            {confirmError}
+                            {t(confirmError)}
                         </Alert>
                     )}
                 </DialogContent>
@@ -1595,7 +1810,7 @@ const AgriTipCard = ({ tip }) => {
 
                     <Button
                         onClick={handleConfirmAction}
-                        disabled={confirmLoading}
+                        disabled={mutationPending}
                         variant="contained"
                         color="error"
                         startIcon={

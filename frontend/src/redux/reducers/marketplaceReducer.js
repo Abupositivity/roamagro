@@ -28,6 +28,7 @@ const initialState = {
     loadingMore: false,
     success: false,
     error: null,
+    paginationError: null,
 
     page: 1,
     limit: 20,
@@ -51,6 +52,7 @@ const marketplaceReducer = (
                 loadingMore: append,
                 success: false,
                 error: null,
+                paginationError: null,
             };
         }
 
@@ -107,6 +109,7 @@ const marketplaceReducer = (
                 loadingMore: false,
                 success: true,
                 error: null,
+                paginationError: null,
 
                 listings,
 
@@ -205,14 +208,21 @@ const marketplaceReducer = (
                 error: null,
             };
 
-        case FETCH_LISTINGS_FAIL:
+        case FETCH_LISTINGS_FAIL: {
+            const append =
+                action.meta?.append === true;
+
             return {
                 ...state,
                 loading: false,
                 loadingMore: false,
                 success: false,
                 error: action.payload,
+                paginationError: append
+                    ? action.payload
+                    : null,
             };
+        }
 
         case CREATE_LISTING_FAIL:
         case GET_LISTING_FAIL:

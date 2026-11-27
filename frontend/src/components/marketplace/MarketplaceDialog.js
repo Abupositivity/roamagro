@@ -1,6 +1,7 @@
 import React from 'react';
 
 import {
+    Alert,
     Dialog,
     DialogTitle,
     DialogContent,
@@ -13,10 +14,13 @@ import { useTranslation } from 'react-i18next';
 
 import MarketplaceForm from './MarketplaceForm';
 
+const EMPTY_INITIAL_VALUES = {};
+
 const MarketplaceDialog = ({
     open,
     loading = false,
     listing = null,
+    error = '',
     onClose,
     onSubmit,
 }) => {
@@ -28,6 +32,7 @@ const MarketplaceDialog = ({
             fullWidth
             maxWidth="md"
             fullScreen={false}
+            disableEscapeKeyDown={loading}
             onClose={
                 loading
                     ? undefined
@@ -37,8 +42,7 @@ const MarketplaceDialog = ({
             <DialogTitle
                 sx={{
                     display: 'flex',
-                    justifyContent:
-                        'space-between',
+                    justifyContent: 'space-between',
                     alignItems: 'center',
                     pr: 1,
                 }}
@@ -67,10 +71,22 @@ const MarketplaceDialog = ({
                     pb: 3,
                 }}
             >
+                {error && (
+                    <Alert
+                        severity="error"
+                        sx={{
+                            mb: 2,
+                            overflowWrap: 'anywhere',
+                        }}
+                    >
+                        {t(error)}
+                    </Alert>
+                )}
+
                 <MarketplaceForm
                     loading={loading}
                     initialValues={
-                        listing || {}
+                        listing || EMPTY_INITIAL_VALUES
                     }
                     submitLabel={
                         listing

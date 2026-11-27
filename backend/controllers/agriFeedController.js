@@ -4,6 +4,7 @@ const CommunityPost = require('../models/CommunityPost');
 const Notification = require('../models/Notification');
 const asyncHandler = require('../middleware/asyncHandler');
 const AppError = require('../utils/AppError');
+
 const {
     uploadImage,
     deleteImage,
@@ -101,6 +102,7 @@ const validateEnum = (value, field, allowedValues) => {
 
 const validateImage = (value) => {
     if (value === undefined) return undefined;
+
     if (value === null || value === '') return '';
 
     if (
@@ -159,7 +161,7 @@ const validateTipFields = (body, { partial = false } = {}) => {
     const status = validateEnum(
         body.status,
         'Status',
-        ['Draft', 'Published', 'Archived']
+        ['Draft', 'Published']
     );
 
     const image = validateImage(body.image);
@@ -181,23 +183,36 @@ const createNotificationSafely = async (data) => {
     try {
         await Notification.create(data);
     } catch (error) {
-        console.error('Notification creation failed:', error.message);
+        console.error(
+            'Notification creation failed:',
+            error.message
+        );
     }
 };
 
 const populateTip = async (tip) => {
     await tip.populate('createdBy', PUBLIC_USER_FIELDS);
     await tip.populate('comments.user', PUBLIC_USER_FIELDS);
+
     return tip;
 };
 
-const findTipOrThrow = async (id) => {
+const findTipOrThrow = async (id, session = null) => {
     validateObjectId(id, 'agricultural tip ID');
 
-    const tip = await AgriTip.findById(id);
+    const query = AgriTip.findById(id);
+
+    if (session) {
+        query.session(session);
+    }
+
+    const tip = await query;
 
     if (!tip) {
-        throw new AppError('Agricultural tip not found.', 404);
+        throw new AppError(
+            'Agricultural tip not found.',
+            404
+        );
     }
 
     return tip;
@@ -207,13 +222,15 @@ const getPagination = (query) => {
     const parsedPage = Number.parseInt(query.page, 10);
     const parsedLimit = Number.parseInt(query.limit, 10);
 
-    const page = Number.isSafeInteger(parsedPage) && parsedPage > 0
-        ? Math.min(parsedPage, 1000000)
-        : 1;
+    const page =
+        Number.isSafeInteger(parsedPage) && parsedPage > 0
+            ? Math.min(parsedPage, 1000000)
+            : 1;
 
-    const limit = Number.isSafeInteger(parsedLimit) && parsedLimit > 0
-        ? Math.min(parsedLimit, MAX_PAGE_SIZE)
-        : 15;
+    const limit =
+        Number.isSafeInteger(parsedLimit) && parsedLimit > 0
+            ? Math.min(parsedLimit, MAX_PAGE_SIZE)
+            : 15;
 
     return {
         page,
@@ -226,10 +243,15 @@ const deleteImageIfUnused = async (publicId) => {
     if (!publicId) return;
 
     try {
-        const [tipReferences, communityReferences] = await Promise.all([
-            AgriTip.exists({ imagePublicId: publicId }),
-            CommunityPost.exists({ imagePublicId: publicId }),
-        ]);
+        const [tipReferences, communityReferences] =
+            await Promise.all([
+                AgriTip.exists({
+                    imagePublicId: publicId,
+                }),
+                CommunityPost.exists({
+                    imagePublicId: publicId,
+                }),
+            ]);
 
         if (!tipReferences && !communityReferences) {
             await deleteImage(publicId);
@@ -274,12 +296,14 @@ exports.createTip = asyncHandler(async (req, res) => {
         });
     } catch (error) {
         if (imagePublicId) {
-            await deleteImage(imagePublicId).catch((cleanupError) => {
-                console.error(
-                    'Cloudinary cleanup failed:',
-                    cleanupError.message
-                );
-            });
+            await deleteImage(imagePublicId).catch(
+                (cleanupError) => {
+                    console.error(
+                        'Cloudinary cleanup failed:',
+                        cleanupError.message
+                    );
+                }
+            );
         }
 
         throw error;
@@ -315,7 +339,10 @@ exports.getTips = asyncHandler(async (req, res) => {
         query.category = validateString(
             req.query.category,
             'Category',
-            { required: true, max: MAX_CATEGORY_LENGTH }
+            {
+                required: true,
+                max: MAX_CATEGORY_LENGTH,
+            }
         );
     }
 
@@ -331,7 +358,10 @@ exports.getTips = asyncHandler(async (req, res) => {
         query.region = validateString(
             req.query.region,
             'Region',
-            { required: true, max: MAX_REGION_LENGTH }
+            {
+                required: true,
+                max: MAX_REGION_LENGTH,
+            }
         );
     }
 
@@ -347,7 +377,9 @@ exports.getTips = asyncHandler(async (req, res) => {
         const search = validateString(
             req.query.search,
             'Search',
-            { max: MAX_SEARCH_LENGTH }
+            {
+                max: MAX_SEARCH_LENGTH,
+            }
         );
 
         if (search) {
@@ -371,6 +403,7 @@ exports.getTips = asyncHandler(async (req, res) => {
     }
 
     const { page, limit, skip } = getPagination(req.query);
+
     const total = await AgriTip.countDocuments(query);
 
     const tips = await AgriTip.find(query)
@@ -429,12 +462,27 @@ exports.updateTip = asyncHandler(async (req, res) => {
     }
 
     if (tip.status === 'Archived') {
-        throw new AppError('Archived tips cannot be edited.', 400);
+        throw new AppError(
+            'Archived tips cannot be edited.',
+            400
+        );
     }
 
     const fields = validateTipFields(req.body || {}, {
         partial: true,
     });
+
+    // Published tips must use the dedicated archive
+    // operation when being withdrawn from circulation.
+    if (
+        tip.status === 'Published' &&
+        fields.status === 'Draft'
+    ) {
+        throw new AppError(
+            'Published tips cannot be moved back to Draft. Archive the tip instead.',
+            400
+        );
+    }
 
     if (
         fields.image !== undefined &&
@@ -448,6 +496,7 @@ exports.updateTip = asyncHandler(async (req, res) => {
     }
 
     const oldImagePublicId = tip.imagePublicId;
+
     let newImagePublicId = '';
 
     if (req.file) {
@@ -485,10 +534,25 @@ exports.updateTip = asyncHandler(async (req, res) => {
     }
 
     try {
+        // Prevent a concurrent archive operation from
+        // being overwritten by an ordinary edit.
+        tip.$where = {
+            status: { $ne: 'Archived' },
+        };
+
         await tip.save();
     } catch (error) {
         if (newImagePublicId) {
-            await deleteImage(newImagePublicId).catch(() => null);
+            await deleteImage(newImagePublicId).catch(
+                () => null
+            );
+        }
+
+        if (error.name === 'DocumentNotFoundError') {
+            throw new AppError(
+                'This agricultural tip is no longer available for editing.',
+                409
+            );
         }
 
         throw error;
@@ -511,25 +575,75 @@ exports.updateTip = asyncHandler(async (req, res) => {
 });
 
 exports.deleteTip = asyncHandler(async (req, res) => {
-    const tip = await findTipOrThrow(req.params.id);
+    validateObjectId(
+        req.params.id,
+        'agricultural tip ID'
+    );
 
-    if (!canManageTip(req, tip)) {
-        throw new AppError(
-            'You can only manage agricultural tips that you created.',
-            403
-        );
+    const session = await mongoose.startSession();
+
+    let archivedTip;
+
+    try {
+        await session.withTransaction(async () => {
+            const tip = await findTipOrThrow(
+                req.params.id,
+                session
+            );
+
+            if (!canManageTip(req, tip)) {
+                throw new AppError(
+                    'You can only manage agricultural tips that you created.',
+                    403
+                );
+            }
+
+            // Archive the original agricultural tip
+            // and reset its active share information.
+            //
+            // Use an explicit database update so the
+            // tip document participates in the transaction
+            // even when it is already archived.
+            await AgriTip.updateOne(
+                { _id: tip._id },
+                {
+                    $set: {
+                        status: 'Archived',
+                        sharedBy: [],
+                        shares: 0,
+                    },
+                },
+                { session }
+            );
+
+            // Archive every active Community post
+            // linked to this agricultural tip.
+            await CommunityPost.updateMany(
+                {
+                    agriTip: tip._id,
+                    status: 'Active',
+                },
+                {
+                    $set: {
+                        status: 'Archived',
+                    },
+                },
+                { session }
+            );
+
+            archivedTip = {
+                _id: tip._id,
+                status: 'Archived',
+            };
+        });
+    } finally {
+        await session.endSession();
     }
-
-    tip.status = 'Archived';
-    await tip.save();
 
     return res.status(200).json({
         success: true,
-        message: 'Agricultural tip deleted successfully.',
-        data: {
-            _id: tip._id,
-            status: tip.status,
-        },
+        message: 'Agricultural tip archived successfully.',
+        data: archivedTip,
     });
 });
 
@@ -572,6 +686,7 @@ exports.toggleLike = asyncHandler(async (req, res) => {
     }
 
     await tip.save();
+
     await populateTip(tip);
 
     return res.status(200).json({
@@ -633,15 +748,24 @@ exports.addComment = asyncHandler(async (req, res) => {
 exports.deleteComment = asyncHandler(async (req, res) => {
     const tip = await findTipOrThrow(req.params.tipId);
 
-    validateObjectId(req.params.commentId, 'comment ID');
+    validateObjectId(
+        req.params.commentId,
+        'comment ID'
+    );
 
     const comment = tip.comments.id(req.params.commentId);
 
     if (!comment) {
-        throw new AppError('Comment not found.', 404);
+        throw new AppError(
+            'Comment not found.',
+            404
+        );
     }
 
-    if (comment.user.toString() !== req.user._id.toString()) {
+    if (
+        comment.user.toString() !==
+        req.user._id.toString()
+    ) {
         throw new AppError(
             'You can only delete your own comments.',
             403
@@ -649,7 +773,9 @@ exports.deleteComment = asyncHandler(async (req, res) => {
     }
 
     comment.deleteOne();
+
     await tip.save();
+
     await populateTip(tip);
 
     return res.status(200).json({
@@ -660,75 +786,108 @@ exports.deleteComment = asyncHandler(async (req, res) => {
 });
 
 exports.shareTip = asyncHandler(async (req, res) => {
-    const tip = await findTipOrThrow(req.params.id);
+    validateObjectId(
+        req.params.id,
+        'agricultural tip ID'
+    );
 
-    if (tip.status !== 'Published') {
-        throw new AppError(
-            'This agricultural tip is no longer available.',
-            400
-        );
-    }
+    const session = await mongoose.startSession();
 
     const userId = req.user._id.toString();
 
-    const alreadyShared = tip.sharedBy.some(
-        (id) => id.toString() === userId
-    );
-
-    if (alreadyShared) {
-        throw new AppError(
-            'You have already shared this agricultural tip to the Community.',
-            400
-        );
-    }
-
-    const existingCommunityPost = await CommunityPost.findOne({
-        agriTip: tip._id,
-        user: req.user._id,
-        status: 'Active',
-    });
-
-    if (existingCommunityPost) {
-        throw new AppError(
-            'You have already shared this agricultural tip to the Community.',
-            400
-        );
-    }
-
-    const communityPost = await CommunityPost.create({
-        title: tip.title,
-        content: tip.content,
-        category: tip.category,
-        image: tip.image || '',
-        imagePublicId: tip.imagePublicId || '',
-        user: req.user._id,
-        agriTip: tip._id,
-    });
+    let sharedTip;
+    let communityPost;
 
     try {
-        if (!tip.sharedBy.some((id) => id.toString() === userId)) {
-            tip.sharedBy.push(req.user._id);
-        }
+        await session.withTransaction(async () => {
+            const tip = await findTipOrThrow(
+                req.params.id,
+                session
+            );
 
-        tip.shares = tip.sharedBy.length;
-        await tip.save();
-    } catch (error) {
-        await CommunityPost.deleteOne({ _id: communityPost._id });
-        throw error;
+            if (tip.status !== 'Published') {
+                throw new AppError(
+                    'This agricultural tip is no longer available.',
+                    400
+                );
+            }
+
+            const alreadyShared = tip.sharedBy.some(
+                (id) => id.toString() === userId
+            );
+
+            if (alreadyShared) {
+                throw new AppError(
+                    'You have already shared this agricultural tip to the Community.',
+                    400
+                );
+            }
+
+            const existingCommunityPost =
+                await CommunityPost.findOne({
+                    agriTip: tip._id,
+                    user: req.user._id,
+                    status: 'Active',
+                }).session(session);
+
+            if (existingCommunityPost) {
+                throw new AppError(
+                    'You have already shared this agricultural tip to the Community.',
+                    400
+                );
+            }
+
+            // Update the original tip within the same
+            // transaction as Community post creation.
+            // This coordinates concurrent sharing and
+            // archive operations on the same tip.
+            tip.sharedBy.push(req.user._id);
+
+            tip.shares = tip.sharedBy.length;
+
+            await tip.save({ session });
+
+            const createdPosts = await CommunityPost.create(
+                [
+                    {
+                        title: tip.title,
+                        content: tip.content,
+                        category: tip.category,
+                        image: tip.image || '',
+                        imagePublicId: tip.imagePublicId || '',
+                        user: req.user._id,
+                        agriTip: tip._id,
+                    },
+                ],
+                { session }
+            );
+
+            communityPost = createdPosts[0];
+
+            sharedTip = tip;
+        });
+    } finally {
+        await session.endSession();
     }
 
-    await populateTip(tip);
+    // Detach documents from the completed session
+    // before performing population.
+    sharedTip.$session(null);
+    communityPost.$session(null);
+
+    await populateTip(sharedTip);
 
     return res.status(200).json({
         success: true,
         message: 'Agricultural tip shared to the Community.',
-        data: tip,
+        data: sharedTip,
         communityPost,
     });
 });
 
 exports.unshareTip = asyncHandler(async (req, res) => {
     const tip = await findTipOrThrow(req.params.id);
+
     const userId = req.user._id.toString();
 
     const hasShared = tip.sharedBy.some(
@@ -750,6 +909,7 @@ exports.unshareTip = asyncHandler(async (req, res) => {
 
     if (communityPost) {
         communityPost.status = 'Archived';
+
         await communityPost.save();
     }
 
@@ -759,12 +919,56 @@ exports.unshareTip = asyncHandler(async (req, res) => {
 
     tip.shares = tip.sharedBy.length;
 
-    await tip.save();
-    await populateTip(tip);
+    // Avoid restoring stale share information if
+    // the original tip was archived concurrently.
+    const updatedTip = await AgriTip.findOneAndUpdate(
+        {
+            _id: tip._id,
+            status: { $ne: 'Archived' },
+        },
+        [
+            {
+                $set: {
+                    sharedBy: {
+                        $filter: {
+                            input: {
+                                $ifNull: ['$sharedBy', []],
+                            },
+                            as: 'sharedUser',
+                            cond: {
+                                $ne: [
+                                    '$$sharedUser',
+                                    new mongoose.Types.ObjectId(
+                                        userId
+                                    ),
+                                ],
+                            },
+                        },
+                    },
+                },
+            },
+            {
+                $set: {
+                    shares: {
+                        $size: '$sharedBy',
+                    },
+                },
+            },
+        ],
+        {
+            new: true,
+        }
+    );
+
+    const responseTip =
+        updatedTip ||
+        await findTipOrThrow(req.params.id);
+
+    await populateTip(responseTip);
 
     return res.status(200).json({
         success: true,
         message: 'Agricultural tip removed from the Community.',
-        data: tip,
+        data: responseTip,
     });
 });

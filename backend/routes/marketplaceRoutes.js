@@ -1,4 +1,3 @@
-
 const express = require('express');
 const router = express.Router();
 
@@ -16,6 +15,7 @@ const {
 
 const {
     createMarketplaceValidator,
+    getMarketplaceItemsValidator,
     marketplaceIdValidator,
     updateMarketplaceValidator,
 } = require('../validators');
@@ -32,6 +32,8 @@ router.post(
 router.get(
     '/',
     ensureAuthenticated,
+    getMarketplaceItemsValidator,
+    validateRequest,
     getMarketplaceItems
 );
 

@@ -21,6 +21,90 @@ const populateSeller = (query) =>
     query.populate('user', sellerFields);
 
 const MAX_LISTING_IMAGES = 3;
+const DEFAULT_PAGE_LIMIT = 20;
+const MAX_PAGE_LIMIT = 50;
+const MAX_SEARCH_LENGTH = 150;
+const MAX_CATEGORY_LENGTH = 150;
+
+const escapeRegex = (value) =>
+    value.replace(
+        /[.*+?^${}()|[\]\\]/g,
+        '\\$&'
+    );
+
+const parsePagination = (
+    page = '1',
+    limit = String(DEFAULT_PAGE_LIMIT)
+) => {
+    const isValidInteger = (value) =>
+        (
+            typeof value === 'string' ||
+            typeof value === 'number'
+        ) &&
+        /^\d+$/.test(String(value)) &&
+        Number.isSafeInteger(Number(value)) &&
+        Number(value) >= 1;
+
+    if (!isValidInteger(page)) {
+        throw new AppError(
+            'Page must be a positive integer.',
+            400
+        );
+    }
+
+    if (
+        !isValidInteger(limit) ||
+        Number(limit) > MAX_PAGE_LIMIT
+    ) {
+        throw new AppError(
+            'Limit must be an integer between 1 and 50.',
+            400
+        );
+    }
+
+    const currentPage = Number(page);
+    const pageLimit = Number(limit);
+
+    const skip =
+        (currentPage - 1) * pageLimit;
+
+    if (!Number.isSafeInteger(skip)) {
+        throw new AppError(
+            'Requested page exceeds the supported pagination range.',
+            400
+        );
+    }
+
+    return {
+        currentPage,
+        pageLimit,
+        skip,
+    };
+};
+
+const normalizeQueryText = (
+    value,
+    field,
+    maxLength
+) => {
+    if (typeof value !== 'string') {
+        throw new AppError(
+            `${field} must be a valid string.`,
+            400
+        );
+    }
+
+    const normalized = value.trim();
+
+    if (normalized.length > maxLength) {
+        throw new AppError(
+            `${field} cannot exceed ${maxLength} characters.`,
+            400
+        );
+    }
+
+    return normalized;
+};
 
 const isValidCoordinate = (value, min, max) =>
     Number.isFinite(value) &&
@@ -406,7 +490,7 @@ exports.getMarketplaceItems = asyncHandler(
     async (req, res) => {
         const {
             page = 1,
-            limit = 20,
+            limit = DEFAULT_PAGE_LIMIT,
             search = '',
             category = 'All',
             mine = 'false',
@@ -415,14 +499,22 @@ exports.getMarketplaceItems = asyncHandler(
             userLongitude,
         } = req.query;
 
-        const currentPage = Math.max(
-            Number(page) || 1,
-            1
+        const {
+            currentPage,
+            pageLimit,
+            skip,
+        } = parsePagination(page, limit);
+
+        const keyword = normalizeQueryText(
+            search,
+            'Search',
+            MAX_SEARCH_LENGTH
         );
 
-        const pageLimit = Math.min(
-            Math.max(Number(limit) || 20, 1),
-            50
+        const normalizedCategory = normalizeQueryText(
+            category,
+            'Category',
+            MAX_CATEGORY_LENGTH
         );
 
         const latitude = Number(userLatitude);
@@ -438,45 +530,49 @@ exports.getMarketplaceItems = asyncHandler(
 
         const filter = {};
 
-        if (search.trim()) {
-            const keyword = search.trim();
+        if (keyword) {
+            const escapedKeyword =
+                escapeRegex(keyword);
 
             filter.$or = [
                 {
                     title: {
-                        $regex: keyword,
+                        $regex: escapedKeyword,
                         $options: 'i',
                     },
                 },
                 {
                     description: {
-                        $regex: keyword,
+                        $regex: escapedKeyword,
                         $options: 'i',
                     },
                 },
                 {
                     location: {
-                        $regex: keyword,
+                        $regex: escapedKeyword,
                         $options: 'i',
                     },
                 },
                 {
                     category: {
-                        $regex: keyword,
+                        $regex: escapedKeyword,
                         $options: 'i',
                     },
                 },
                 {
                     unit: {
-                        $regex: keyword,
+                        $regex: escapedKeyword,
                         $options: 'i',
                     },
                 },
             ];
         }
 
-        if (category && category !== 'All') {
-            filter.category = category;
+        if (
+            normalizedCategory &&
+            normalizedCategory !== 'All'
+        ) {
+            filter.category = normalizedCategory;
         }
 
         if (availability === 'Available') {
@@ -500,27 +596,28 @@ exports.getMarketplaceItems = asyncHandler(
         let total;
 
         if (hasUserLocation) {
-            const matchingItems = await populateSeller(
-                MarketplaceItem.find(filter)
-            );
+            /**
+             * Retrieve only the fields required
+             * for nearby distance ranking.
+             */
+            const matchingItems =
+                await MarketplaceItem.find(filter)
+                    .select('_id coordinates createdAt')
+                    .lean();
 
             const rankedItems = matchingItems.map(
-                (item) => {
-                    const plainItem = item.toObject();
-
-                    if (hasListingCoordinates(item)) {
-                        plainItem.distanceKm = getDistanceKm(
+                (item) => ({
+                    _id: item._id,
+                    createdAt: item.createdAt,
+                    distanceKm: hasListingCoordinates(item)
+                        ? getDistanceKm(
                             latitude,
                             longitude,
                             item.coordinates.latitude,
                             item.coordinates.longitude
-                        );
-                    } else {
-                        plainItem.distanceKm = null;
-                    }
-
-                    return plainItem;
-                }
+                        )
+                        : null,
+                })
             );
 
             rankedItems.sort((a, b) => {
@@ -561,17 +658,69 @@ exports.getMarketplaceItems = asyncHandler(
 
             total = rankedItems.length;
 
-            const skip =
-                (currentPage - 1) * pageLimit;
-
-            items = rankedItems.slice(
+            const paginatedItems = rankedItems.slice(
                 skip,
                 skip + pageLimit
             );
-        } else {
-            const skip =
-                (currentPage - 1) * pageLimit;
 
+            if (!paginatedItems.length) {
+                items = [];
+            } else {
+                const pageIds = paginatedItems.map(
+                    (item) => item._id
+                );
+
+                /**
+                 * Retrieve complete documents and
+                 * populate sellers only for this page.
+                 *
+                 * Reapply the original filters in case
+                 * a listing changed during ranking.
+                 */
+                const pageItems = await populateSeller(
+                    MarketplaceItem.find({
+                        ...filter,
+                        _id: {
+                            $in: pageIds,
+                        },
+                    })
+                );
+
+                const itemsById = new Map(
+                    pageItems.map(
+                        (item) => [
+                            String(item._id),
+                            item,
+                        ]
+                    )
+                );
+
+                /**
+                 * MongoDB does not guarantee that
+                 * $in results follow the supplied
+                 * ID order.
+                 *
+                 * Restore the original distance ranking.
+                 */
+                items = paginatedItems
+                    .map((rankedItem) => {
+                        const item = itemsById.get(
+                            String(rankedItem._id)
+                        );
+
+                        if (!item) {
+                            return null;
+                        }
+
+                        return {
+                            ...item.toObject(),
+                            distanceKm:
+                                rankedItem.distanceKm,
+                        };
+                    })
+                    .filter(Boolean);
+            }
+        } else {
             [items, total] = await Promise.all([
                 populateSeller(
                     MarketplaceItem.find(filter)

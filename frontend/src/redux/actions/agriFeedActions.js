@@ -270,13 +270,16 @@ export const deleteAgriTip =
                 `/feed/${id}`
             );
 
+            const archivedTip = res.data.data;
+
             dispatch({
                 type: DELETE_AGRI_FEED_SUCCESS,
-                payload: id,
+                payload: archivedTip,
             });
 
             return {
                 success: true,
+                data: archivedTip,
                 message:
                     res.data.message ||
                     'Agricultural tip archived.',
@@ -284,7 +287,7 @@ export const deleteAgriTip =
         } catch (error) {
             const message = getErrorMessage(
                 error,
-                'Unable to delete agricultural tip.'
+                'Unable to archive agricultural tip.'
             );
 
             dispatch({
@@ -298,7 +301,7 @@ export const deleteAgriTip =
             };
         }
     };
-
+    
 const runTipInteraction = async ({
     dispatch,
     requestType,

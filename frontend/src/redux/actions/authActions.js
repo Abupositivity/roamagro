@@ -1,5 +1,9 @@
 import api from '../../services/api';
 
+import {
+    resetNotificationSession
+} from './notificationActions';
+
 import{
     LOGIN_REQUEST,
     LOGIN_SUCCESS,
@@ -78,6 +82,8 @@ export const login=credentials=>async dispatch=>{
             JSON.stringify(user)
         );
 
+        resetNotificationSession();
+
         dispatch({
             type:LOGIN_SUCCESS,
             payload:{
@@ -126,6 +132,8 @@ export const googleLogin=googleToken=>async dispatch=>{
             'user',
             JSON.stringify(user)
         );
+
+        resetNotificationSession();
 
         dispatch({
             type:GOOGLE_LOGIN_SUCCESS,
@@ -331,6 +339,8 @@ export const deleteAccount=()=>async dispatch=>{
         localStorage.removeItem('token');
         localStorage.removeItem('user');
 
+        resetNotificationSession();
+
         dispatch({
             type:LOGOUT
         });
@@ -375,6 +385,8 @@ export const reportUser=(userId,data)=>async()=>{
 export const logout=()=>dispatch=>{
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+
+    resetNotificationSession();
 
     dispatch({
         type:LOGOUT

@@ -19,6 +19,7 @@ import {
     CircularProgress,
     Container,
     FormControlLabel,
+    Snackbar,
     Stack,
     Switch,
     Typography,
@@ -53,6 +54,7 @@ const Marketplace = () => {
         loading,
         loadingMore,
         error,
+        paginationError,
         page,
         hasMore,
     } = useSelector(
@@ -71,6 +73,58 @@ const Marketplace = () => {
         deleteDialogOpen,
         setDeleteDialogOpen,
     ] = useState(false);
+
+    // Operation-specific error states.
+    const [
+        submissionError,
+        setSubmissionError,
+    ] = useState('');
+
+    const [
+        deletionError,
+        setDeletionError,
+    ] = useState('');
+
+    const [
+        availabilityError,
+        setAvailabilityError,
+    ] = useState('');
+
+    // Operation-specific loading states.
+    const [
+        submitting,
+        setSubmitting,
+    ] = useState(false);
+
+    const [
+        deleting,
+        setDeleting,
+    ] = useState(false);
+
+    // Synchronous mutation request protection.
+    const submissionLockRef = useRef(false);
+    const deletionLockRef = useRef(false);
+    const availabilityLockRef = useRef(new Set());
+
+    // Listing fetch request protection.
+    const fetchRequestRef = useRef(null);
+
+    const [
+        fetchingListings,
+        setFetchingListings,
+    ] = useState(false);
+
+    const [
+        filterPending,
+        setFilterPending,
+    ] = useState(true);
+
+    const filterPendingRef = useRef(true);
+
+    const [
+        loadedQueryKey,
+        setLoadedQueryKey,
+    ] = useState(null);
 
     const [search, setSearch] =
         useState('');
@@ -108,23 +162,22 @@ const Marketplace = () => {
         setLocationLoading,
     ] = useState(false);
 
-    const loadMoreRef =
-        useRef(null);
+    const loadMoreRef = useRef(null);
+
+    const normalizedSearch = search.trim();
 
     const buildFetchParams =
         useCallback(
             (requestedPage) => ({
                 page: requestedPage,
                 limit: 20,
-                search: search.trim(),
+                search: normalizedSearch,
                 category:
-                    selectedCategory ===
-                    'All'
+                    selectedCategory === 'All'
                         ? ''
                         : selectedCategory,
                 availability:
-                    availability ===
-                    'All'
+                    availability === 'All'
                         ? ''
                         : availability,
                 mine: showMine,
@@ -138,13 +191,58 @@ const Marketplace = () => {
                     : {}),
             }),
             [
-                search,
+                normalizedSearch,
                 selectedCategory,
                 availability,
                 showMine,
                 userCoordinates,
             ]
         );
+
+    // Identifies the filters associated with
+    // the currently requested listings.
+    const queryKey = JSON.stringify(
+        buildFetchParams(1)
+    );
+
+    const filtersReady =
+        loadedQueryKey === queryKey &&
+        !filterPending;
+
+    // Prevent simultaneous listing fetch requests.
+    const requestListings = useCallback(
+        async (params, append = false) => {
+            if (fetchRequestRef.current) {
+                return {
+                    success: false,
+                    skipped: true,
+                };
+            }
+
+            setFetchingListings(true);
+
+            const request = Promise.resolve().then(
+                () =>
+                    dispatch(
+                        fetchListings(params, append)
+                    )
+            );
+
+            fetchRequestRef.current = request;
+
+            try {
+                return await request;
+            } finally {
+                if (
+                    fetchRequestRef.current === request
+                ) {
+                    fetchRequestRef.current = null;
+                    setFetchingListings(false);
+                }
+            }
+        },
+        [dispatch]
+    );
 
     const handleUseMyLocation = () => {
         if (!navigator.geolocation) {
@@ -169,9 +267,7 @@ const Marketplace = () => {
                         position.coords.longitude,
                 });
 
-                setLocationLoading(
-                    false
-                );
+                setLocationLoading(false);
             },
             () => {
                 setLocationError(
@@ -180,9 +276,7 @@ const Marketplace = () => {
                     )
                 );
 
-                setLocationLoading(
-                    false
-                );
+                setLocationLoading(false);
             },
             {
                 enableHighAccuracy: false,
@@ -197,53 +291,101 @@ const Marketplace = () => {
         setLocationError('');
     };
 
+    // Debounced first-page fetching.
+    // Wait for an existing request before loading
+    // the latest search or filter selection.
     useEffect(() => {
         if (profileUserId) {
             return undefined;
         }
 
+        let cancelled = false;
+
+        filterPendingRef.current = true;
+        setFilterPending(true);
+
         const timer = setTimeout(
-            () => {
-                dispatch(
-                    fetchListings(
-                        buildFetchParams(1),
-                        false
-                    )
-                );
+            async () => {
+                try {
+                    while (
+                        fetchRequestRef.current &&
+                        !cancelled
+                    ) {
+                        await fetchRequestRef.current;
+                    }
+
+                    if (cancelled) {
+                        return;
+                    }
+
+                    const result =
+                        await requestListings(
+                            buildFetchParams(1),
+                            false
+                        );
+
+                    if (
+                        !cancelled &&
+                        result?.success
+                    ) {
+                        setLoadedQueryKey(queryKey);
+                    }
+                } finally {
+                    if (!cancelled) {
+                        filterPendingRef.current = false;
+                        setFilterPending(false);
+                    }
+                }
             },
             350
         );
 
-        return () =>
+        return () => {
+            cancelled = true;
             clearTimeout(timer);
+        };
     }, [
-        dispatch,
-        search,
-        selectedCategory,
-        availability,
-        showMine,
-        profileUserId,
-        userCoordinates,
         buildFetchParams,
+        profileUserId,
+        queryKey,
+        requestListings,
     ]);
 
+    // Refresh only when Marketplace is visible
+    // and no listing fetch is already pending.
     useEffect(() => {
-        const handleRefresh = (
+        const handleRefresh = async (
             event
         ) => {
             if (
                 event.detail?.route !==
-                '/marketplace'
+                    '/marketplace' ||
+                profileUserId ||
+                filterPendingRef.current ||
+                fetchRequestRef.current
             ) {
                 return;
             }
 
-            dispatch(
-                fetchListings(
-                    buildFetchParams(1),
-                    false
-                )
-            );
+            filterPendingRef.current = true;
+            setFilterPending(true);
+
+            try {
+                const result =
+                    await requestListings(
+                        buildFetchParams(1),
+                        false
+                    );
+
+                if (result?.success) {
+                    setLoadedQueryKey(queryKey);
+                } else {
+                    setLoadedQueryKey(null);
+                }
+            } finally {
+                filterPendingRef.current = false;
+                setFilterPending(false);
+            }
         };
 
         window.addEventListener(
@@ -258,42 +400,105 @@ const Marketplace = () => {
             );
         };
     }, [
-        dispatch,
         buildFetchParams,
+        profileUserId,
+        queryKey,
+        requestListings,
     ]);
 
+    // Load additional listings only when the
+    // displayed pagination belongs to the
+    // currently selected filters.
     const handleLoadMore =
-        useCallback(() => {
-            if (
-                loading ||
-                loadingMore ||
-                !hasMore
-            ) {
-                return;
-            }
+        useCallback(
+            async (retry = false) => {
+                if (
+                    profileUserId ||
+                    filterPendingRef.current ||
+                    !filtersReady ||
+                    fetchRequestRef.current ||
+                    fetchingListings ||
+                    loading ||
+                    loadingMore ||
+                    !hasMore ||
+                    (paginationError && !retry)
+                ) {
+                    return;
+                }
 
-            dispatch(
-                fetchListings(
-                    buildFetchParams(
-                        page + 1
-                    ),
+                return requestListings(
+                    buildFetchParams(page + 1),
                     true
-                )
-            );
-        }, [
-            dispatch,
-            buildFetchParams,
-            page,
-            loading,
-            loadingMore,
-            hasMore,
-        ]);
+                );
+            },
+            [
+                buildFetchParams,
+                page,
+                loading,
+                loadingMore,
+                hasMore,
+                paginationError,
+                profileUserId,
+                filtersReady,
+                fetchingListings,
+                requestListings,
+            ]
+        );
 
+    // Explicit retry following a failed
+    // pagination request.
+    const handleRetryPagination = () => {
+        return handleLoadMore(true);
+    };
+
+    // Explicit recovery for a failed
+    // first-page request.
+    const handleRetryListings = async () => {
+        if (
+            profileUserId ||
+            filterPendingRef.current ||
+            fetchRequestRef.current
+        ) {
+            return;
+        }
+
+        filterPendingRef.current = true;
+        setFilterPending(true);
+
+        try {
+            const result =
+                await requestListings(
+                    buildFetchParams(1),
+                    false
+                );
+
+            if (result?.success) {
+                setLoadedQueryKey(queryKey);
+            } else {
+                setLoadedQueryKey(null);
+            }
+        } finally {
+            filterPendingRef.current = false;
+            setFilterPending(false);
+        }
+    };
+
+    // Suspend infinite scrolling after a failed
+    // pagination request or during filter changes.
     useEffect(() => {
         const target =
             loadMoreRef.current;
 
-        if (!target) {
+        if (
+            !target ||
+            profileUserId ||
+            !filtersReady ||
+            fetchingListings ||
+            loading ||
+            loadingMore ||
+            !hasMore ||
+            paginationError
+        ) {
             return;
         }
 
@@ -304,7 +509,7 @@ const Marketplace = () => {
                         entries[0];
 
                     if (
-                        entry.isIntersecting
+                        entry?.isIntersecting
                     ) {
                         handleLoadMore();
                     }
@@ -322,104 +527,287 @@ const Marketplace = () => {
         };
     }, [
         handleLoadMore,
+        profileUserId,
+        filtersReady,
+        fetchingListings,
+        loading,
+        loadingMore,
+        hasMore,
+        paginationError,
     ]);
 
+    // Open the create listing dialog.
     const handleCreate = () => {
+        if (
+            submissionLockRef.current ||
+            deletionLockRef.current ||
+            dialogOpen ||
+            deleteDialogOpen
+        ) {
+            return;
+        }
+
+        setSubmissionError('');
         setSelectedListing(null);
         setDialogOpen(true);
     };
 
+    // Open the edit listing dialog.
     const handleEditListing = (
         listing
     ) => {
+        if (
+            !listing?._id ||
+            submissionLockRef.current ||
+            deletionLockRef.current ||
+            dialogOpen ||
+            deleteDialogOpen
+        ) {
+            return;
+        }
+
+        setSubmissionError('');
         setSelectedListing(listing);
         setDialogOpen(true);
     };
 
+    // Prevent cancellation while a listing
+    // submission is in progress.
     const handleCloseDialog = () => {
-        if (loading) {
+        if (
+            submissionLockRef.current
+        ) {
             return;
         }
 
+        setSubmissionError('');
         setSelectedListing(null);
         setDialogOpen(false);
     };
 
+    // Open the deletion confirmation dialog.
     const handleDeleteListing = (
         listing
     ) => {
+        if (
+            !listing?._id ||
+            submissionLockRef.current ||
+            deletionLockRef.current ||
+            dialogOpen ||
+            deleteDialogOpen
+        ) {
+            return;
+        }
+
+        setDeletionError('');
         setSelectedListing(listing);
         setDeleteDialogOpen(true);
     };
 
+    // Prevent cancellation while deletion
+    // is in progress.
     const handleCloseDeleteDialog =
         () => {
-            if (loading) {
+            if (
+                deletionLockRef.current
+            ) {
                 return;
             }
 
+            setDeletionError('');
             setSelectedListing(null);
             setDeleteDialogOpen(false);
         };
 
+    // Create or update a marketplace listing.
     const handleSubmit = async (
         data
     ) => {
-        let result;
-
-        if (selectedListing) {
-            result = await dispatch(
-                updateListing(
-                    selectedListing._id,
-                    data
-                )
-            );
-        } else {
-            result = await dispatch(
-                createListing(data)
-            );
+        if (
+            submissionLockRef.current ||
+            deletionLockRef.current
+        ) {
+            return {
+                success: false,
+                skipped: true,
+            };
         }
 
-        if (result?.success) {
-            handleCloseDialog();
+        submissionLockRef.current = true;
+
+        setSubmitting(true);
+        setSubmissionError('');
+
+        try {
+            let result;
+
+            if (selectedListing) {
+                result = await dispatch(
+                    updateListing(
+                        selectedListing._id,
+                        data
+                    )
+                );
+            } else {
+                result = await dispatch(
+                    createListing(data)
+                );
+            }
+
+            if (result?.success) {
+                setSubmissionError('');
+                setDialogOpen(false);
+                setSelectedListing(null);
+            } else {
+                setSubmissionError(
+                    result?.error ||
+                        'Unable to save listing. Please try again.'
+                );
+            }
+
+            return result;
+        } catch (requestError) {
+            const message =
+                requestError?.message ||
+                'Unable to save listing. Please try again.';
+
+            setSubmissionError(message);
+
+            return {
+                success: false,
+                error: message,
+            };
+        } finally {
+            submissionLockRef.current = false;
+            setSubmitting(false);
         }
     };
 
+    // Delete a marketplace listing.
     const handleDelete =
         async () => {
-            if (!selectedListing) {
+            if (
+                !selectedListing?._id ||
+                deletionLockRef.current ||
+                submissionLockRef.current
+            ) {
                 return;
             }
 
-            const result =
-                await dispatch(
-                    deleteListing(
-                        selectedListing._id
-                    )
-                );
+            deletionLockRef.current = true;
 
-            if (result?.success) {
-                handleCloseDeleteDialog();
+            setDeleting(true);
+            setDeletionError('');
+
+            try {
+                const result =
+                    await dispatch(
+                        deleteListing(
+                            selectedListing._id
+                        )
+                    );
+
+                if (result?.success) {
+                    setDeletionError('');
+                    setDeleteDialogOpen(false);
+                    setSelectedListing(null);
+                } else {
+                    setDeletionError(
+                        result?.error ||
+                            'Unable to delete listing. Please try again.'
+                    );
+                }
+
+                return result;
+            } catch (requestError) {
+                const message =
+                    requestError?.message ||
+                    'Unable to delete listing. Please try again.';
+
+                setDeletionError(message);
+
+                return {
+                    success: false,
+                    error: message,
+                };
+            } finally {
+                deletionLockRef.current = false;
+                setDeleting(false);
             }
         };
 
+    // Update listing availability with
+    // per-listing duplicate request protection.
     const handleToggleAvailability =
-        (listing) => {
-            dispatch(
-                updateListing(
-                    listing._id,
-                    {
-                        available:
-                            !listing.available,
-                    }
+        async (listing) => {
+            const listingId =
+                listing?._id;
+
+            if (
+                !listingId ||
+                submissionLockRef.current ||
+                deletionLockRef.current ||
+                availabilityLockRef.current.has(
+                    listingId
                 )
+            ) {
+                return;
+            }
+
+            availabilityLockRef.current.add(
+                listingId
             );
+
+            setAvailabilityError('');
+
+            try {
+                const result =
+                    await dispatch(
+                        updateListing(
+                            listingId,
+                            {
+                                available:
+                                    !listing.available,
+                            }
+                        )
+                    );
+
+                if (!result?.success) {
+                    setAvailabilityError(
+                        result?.error ||
+                            'Unable to update listing availability.'
+                    );
+                }
+
+                return result;
+            } catch (requestError) {
+                const message =
+                    requestError?.message ||
+                    'Unable to update listing availability.';
+
+                setAvailabilityError(message);
+
+                return {
+                    success: false,
+                    error: message,
+                };
+            } finally {
+                availabilityLockRef.current.delete(
+                    listingId
+                );
+            }
         };
 
     const handleOpenProfile = (
         userId
     ) => {
-        if (!userId) {
+        if (
+            !userId ||
+            dialogOpen ||
+            deleteDialogOpen ||
+            submissionLockRef.current ||
+            deletionLockRef.current
+        ) {
             return;
         }
 
@@ -437,6 +825,14 @@ const Marketplace = () => {
         () => {
             setProfileUserId(null);
         };
+
+    const visiblePageError =
+        !dialogOpen &&
+        !deleteDialogOpen &&
+        !availabilityError &&
+        !paginationError
+            ? error
+            : null;
 
     if (profileUserId) {
         return (
@@ -525,6 +921,12 @@ const Marketplace = () => {
                     onClick={
                         handleCreate
                     }
+                    disabled={
+                        submitting ||
+                        deleting ||
+                        dialogOpen ||
+                        deleteDialogOpen
+                    }
                 >
                     {t(
                         'Create Listing'
@@ -532,14 +934,34 @@ const Marketplace = () => {
                 </Button>
             </Box>
 
-            {error && (
+            {visiblePageError && (
                 <Alert
                     severity="error"
                     sx={{
                         mb: 3,
+                        overflowWrap: 'anywhere',
                     }}
+                    action={
+                        !filtersReady ? (
+                            <Button
+                                color="inherit"
+                                size="small"
+                                onClick={
+                                    handleRetryListings
+                                }
+                                disabled={
+                                    filterPending ||
+                                    fetchingListings ||
+                                    loading ||
+                                    loadingMore
+                                }
+                            >
+                                {t('Retry')}
+                            </Button>
+                        ) : undefined
+                    }
                 >
-                    {error}
+                    {t(visiblePageError)}
                 </Alert>
             )}
 
@@ -686,8 +1108,7 @@ const Marketplace = () => {
                                 event
                             ) =>
                                 setShowMine(
-                                    event.target
-                                        .checked
+                                    event.target.checked
                                 )
                             }
                         />
@@ -711,11 +1132,19 @@ const Marketplace = () => {
                     listings || []
                 }
                 loading={
-                    loading &&
-                    (!listings ||
-                        listings.length === 0)
+                    (
+                        loading ||
+                        fetchingListings ||
+                        filterPending
+                    ) &&
+                    (
+                        !listings ||
+                        listings.length === 0
+                    )
                 }
-                error={error}
+                error={
+                    visiblePageError
+                }
                 onEdit={
                     handleEditListing
                 }
@@ -764,6 +1193,39 @@ const Marketplace = () => {
                         )}
 
                         {!loadingMore &&
+                            filtersReady &&
+                            paginationError && (
+                                <Alert
+                                    severity="error"
+                                    sx={{
+                                        width: '100%',
+                                        overflowWrap: 'anywhere',
+                                    }}
+                                    action={
+                                        <Button
+                                            color="inherit"
+                                            size="small"
+                                            onClick={
+                                                handleRetryPagination
+                                            }
+                                            disabled={
+                                                loading ||
+                                                loadingMore ||
+                                                fetchingListings ||
+                                                filterPending
+                                            }
+                                        >
+                                            {t('Retry')}
+                                        </Button>
+                                    }
+                                >
+                                    {t(paginationError)}
+                                </Alert>
+                            )}
+
+                        {!loadingMore &&
+                            filtersReady &&
+                            !paginationError &&
                             hasMore && (
                                 <Typography
                                     variant="body2"
@@ -776,6 +1238,8 @@ const Marketplace = () => {
                             )}
 
                         {!loadingMore &&
+                            filtersReady &&
+                            !paginationError &&
                             !hasMore && (
                                 <Typography
                                     variant="body2"
@@ -799,7 +1263,12 @@ const Marketplace = () => {
                 listing={
                     selectedListing
                 }
-                loading={loading}
+                loading={
+                    submitting
+                }
+                error={
+                    submissionError
+                }
                 onSubmit={
                     handleSubmit
                 }
@@ -815,11 +1284,46 @@ const Marketplace = () => {
                 listing={
                     selectedListing
                 }
-                loading={loading}
+                loading={
+                    deleting
+                }
+                error={
+                    deletionError
+                }
                 onConfirm={
                     handleDelete
                 }
             />
+
+            <Snackbar
+                open={
+                    Boolean(availabilityError)
+                }
+                anchorOrigin={{
+                    vertical: 'bottom',
+                    horizontal: 'center',
+                }}
+                onClose={(_, reason) => {
+                    if (
+                        reason !== 'clickaway'
+                    ) {
+                        setAvailabilityError('');
+                    }
+                }}
+            >
+                <Alert
+                    severity="error"
+                    onClose={() =>
+                        setAvailabilityError('')
+                    }
+                    sx={{
+                        width: '100%',
+                        overflowWrap: 'anywhere',
+                    }}
+                >
+                    {t(availabilityError)}
+                </Alert>
+            </Snackbar>
         </Container>
     );
 };

@@ -70,6 +70,7 @@ const units = [
 ];
 
 const MAX_IMAGES = 3;
+const EMPTY_INITIAL_VALUES = {};
 
 const getImageSource = image => {
     if (typeof image === 'string') {
@@ -270,7 +271,7 @@ const MarketplacePhotoPreview = ({
 };
 
 const MarketplaceForm = ({
-    initialValues = {},
+    initialValues = EMPTY_INITIAL_VALUES,
     loading = false,
     submitLabel = 'Create Listing',
     onSubmit,
@@ -312,6 +313,9 @@ const MarketplaceForm = ({
         handleSubmit,
         control,
         reset,
+        formState: {
+            isSubmitting,
+        },
     } = useForm({
         defaultValues: {
             title: '',
@@ -634,7 +638,7 @@ const MarketplaceForm = ({
         }
     };
 
-    const submitForm = data => {
+    const submitForm = async data => {
         if (
             loading ||
             imageProcessing ||
@@ -651,7 +655,7 @@ const MarketplaceForm = ({
             coordinates: coordinates || null,
         };
 
-        onSubmit(cleanedData);
+        return await onSubmit(cleanedData);
     };
 
     const imageLimitReached =
@@ -1093,20 +1097,24 @@ const MarketplaceForm = ({
                         variant="contained"
                         disabled={
                             loading ||
+                            isSubmitting ||
                             locationLoading ||
                             imageProcessing
                         }
                         fullWidth
                         size="large"
+                        startIcon={
+                            loading || isSubmitting ? (
+                                <CircularProgress
+                                    size={20}
+                                    color="inherit"
+                                />
+                            ) : undefined
+                        }
                     >
-                        {loading ? (
-                            <CircularProgress
-                                size={24}
-                                color="inherit"
-                            />
-                        ) : (
-                            t(submitLabel)
-                        )}
+                        {loading || isSubmitting
+                            ? t('Saving...')
+                            : t(submitLabel)}
                     </Button>
                 </Grid>
             </Grid>

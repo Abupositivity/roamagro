@@ -1,4 +1,4 @@
-import{
+import {
     FETCH_NOTIFICATIONS_REQUEST,
     FETCH_NOTIFICATIONS_SUCCESS,
     FETCH_NOTIFICATIONS_FAIL,
@@ -14,217 +14,262 @@ import{
     DELETE_NOTIFICATION_REQUEST,
     DELETE_NOTIFICATION_SUCCESS,
     DELETE_NOTIFICATION_FAIL
-}from'../actions/notificationTypes';
+} from '../actions/notificationTypes';
 
-const initialState={
-    notifications:[],
-    unreadCount:0,
-    loading:false,
-    countLoading:false,
-    actionLoading:false,
-    actionId:null,
-    error:null,
-    actionError:null
+import {
+    LOGIN_SUCCESS,
+    GOOGLE_LOGIN_SUCCESS,
+    LOGOUT
+} from '../actions/types';
+
+const initialState = {
+    notifications: [],
+    unreadCount: 0,
+    loading: false,
+    countLoading: false,
+    actionLoading: false,
+    actionId: null,
+    error: null,
+    actionError: null
 };
 
-const notificationReducer=(state=initialState,action)=>{
-    switch(action.type){
+const notificationReducer = (
+    state = initialState,
+    action
+) => {
+    switch (action.type) {
 
-        case FETCH_NOTIFICATIONS_REQUEST:
-            return{
-                ...state,
-                loading:true,
-                error:null
+        // Reset notification state when the
+        // authenticated session changes.
+        case LOGIN_SUCCESS:
+        case GOOGLE_LOGIN_SUCCESS:
+        case LOGOUT:
+            return {
+                ...initialState,
+                notifications: []
             };
 
-        case FETCH_NOTIFICATIONS_SUCCESS:{
-            const notifications=Array.isArray(action.payload)
-                ?action.payload
-                :[];
+        case FETCH_NOTIFICATIONS_REQUEST:
+            return {
+                ...state,
+                loading: true,
+                error: null
+            };
 
-            return{
+        case FETCH_NOTIFICATIONS_SUCCESS: {
+            const notifications =
+                Array.isArray(action.payload)
+                    ? action.payload
+                    : [];
+
+            const responseUnreadCount =
+                action.meta?.unreadCount;
+
+            const hasUnreadCount =
+                responseUnreadCount !== undefined &&
+                responseUnreadCount !== null &&
+                Number.isFinite(
+                    Number(responseUnreadCount)
+                );
+
+            return {
                 ...state,
                 notifications,
-                unreadCount:notifications.filter(
-                    notification=>!notification.read
-                ).length,
-                loading:false,
-                error:null
+                unreadCount: hasUnreadCount
+                    ? Math.max(
+                        Number(responseUnreadCount),
+                        0
+                    )
+                    : state.unreadCount,
+                loading: false,
+                error: null
             };
         }
 
         case FETCH_NOTIFICATIONS_FAIL:
-            return{
+            return {
                 ...state,
-                loading:false,
-                error:
-                    action.payload||
-                    'Unable to load notifications.'
+                loading: false,
+                error: action.meta?.silent
+                    ? state.error
+                    : (
+                        action.payload ||
+                        'Unable to load notifications.'
+                    )
             };
 
         case FETCH_UNREAD_COUNT_REQUEST:
-            return{
+            return {
                 ...state,
-                countLoading:true
+                countLoading: true
             };
 
         case FETCH_UNREAD_COUNT_SUCCESS:
-            return{
+            return {
                 ...state,
-                unreadCount:Math.max(
-                    Number(action.payload)||0,
+                unreadCount: Math.max(
+                    Number(action.payload) || 0,
                     0
                 ),
-                countLoading:false
+                countLoading: false
             };
 
         case FETCH_UNREAD_COUNT_FAIL:
-            return{
+            return {
                 ...state,
-                countLoading:false
+                countLoading: false
             };
 
         case MARK_NOTIFICATION_READ_REQUEST:
-            return{
+            return {
                 ...state,
-                actionLoading:true,
-                actionId:action.payload,
-                actionError:null
+                actionLoading: true,
+                actionId: action.payload,
+                actionError: null
             };
 
-        case MARK_NOTIFICATION_READ_SUCCESS:{
-            const updatedNotification=action.payload;
+        case MARK_NOTIFICATION_READ_SUCCESS: {
+            const updatedNotification =
+                action.payload;
 
-            if(!updatedNotification?._id){
-                return{
+            if (!updatedNotification?._id) {
+                return {
                     ...state,
-                    actionLoading:false,
-                    actionId:null
+                    actionLoading: false,
+                    actionId: null
                 };
             }
 
-            const existing=state.notifications.find(
-                notification=>
-                    String(notification._id)===
-                    String(updatedNotification._id)
-            );
-
-            const wasUnread=existing?.read===false;
-
-            return{
-                ...state,
-                notifications:state.notifications.map(
-                    notification=>
-                        String(notification._id)===
+            const existing =
+                state.notifications.find(
+                    notification =>
+                        String(notification._id) ===
                         String(updatedNotification._id)
-                            ?updatedNotification
-                            :notification
-                ),
-                unreadCount:wasUnread
-                    ?Math.max(
-                        state.unreadCount-1,
-                        0
-                    )
-                    :state.unreadCount,
-                actionLoading:false,
-                actionId:null,
-                actionError:null
+                );
+
+            const wasUnread =
+                existing?.read === false;
+
+            const isNowRead =
+                updatedNotification.read === true;
+
+            return {
+                ...state,
+                notifications:
+                    state.notifications.map(
+                        notification =>
+                            String(notification._id) ===
+                            String(updatedNotification._id)
+                                ? updatedNotification
+                                : notification
+                    ),
+                unreadCount:
+                    wasUnread && isNowRead
+                        ? Math.max(
+                            state.unreadCount - 1,
+                            0
+                        )
+                        : state.unreadCount,
+                actionLoading: false,
+                actionId: null,
+                actionError: null
             };
         }
 
         case MARK_NOTIFICATION_READ_FAIL:
-            return{
+            return {
                 ...state,
-                actionLoading:false,
-                actionId:null,
+                actionLoading: false,
+                actionId: null,
                 actionError:
-                    action.payload?.message||
-                    action.payload||
+                    action.payload?.message ||
+                    action.payload ||
                     'Unable to update notification.'
             };
 
         case MARK_ALL_NOTIFICATIONS_READ_REQUEST:
-            return{
+            return {
                 ...state,
-                actionLoading:true,
-                actionId:'all',
-                actionError:null
+                actionLoading: true,
+                actionId: 'all',
+                actionError: null
             };
 
         case MARK_ALL_NOTIFICATIONS_READ_SUCCESS:
-            return{
+            return {
                 ...state,
-                notifications:state.notifications.map(
-                    notification=>({
-                        ...notification,
-                        read:true
-                    })
-                ),
-                unreadCount:0,
-                actionLoading:false,
-                actionId:null,
-                actionError:null
+                notifications:
+                    state.notifications.map(
+                        notification => ({
+                            ...notification,
+                            read: true
+                        })
+                    ),
+                unreadCount: 0,
+                actionLoading: false,
+                actionId: null,
+                actionError: null
             };
 
         case MARK_ALL_NOTIFICATIONS_READ_FAIL:
-            return{
+            return {
                 ...state,
-                actionLoading:false,
-                actionId:null,
+                actionLoading: false,
+                actionId: null,
                 actionError:
-                    action.payload||
+                    action.payload ||
                     'Unable to update notifications.'
             };
 
         case DELETE_NOTIFICATION_REQUEST:
-            return{
+            return {
                 ...state,
-                actionLoading:true,
-                actionId:action.payload,
-                actionError:null
+                actionLoading: true,
+                actionId: action.payload,
+                actionError: null
             };
 
-        case DELETE_NOTIFICATION_SUCCESS:{
-            const deletedNotification=
+        case DELETE_NOTIFICATION_SUCCESS: {
+            const deletedNotification =
                 state.notifications.find(
-                    notification=>
-                        String(notification._id)===
+                    notification =>
+                        String(notification._id) ===
                         String(action.payload)
                 );
 
-            const wasUnread=Boolean(
-                deletedNotification&&
+            const wasUnread = Boolean(
+                deletedNotification &&
                 !deletedNotification.read
             );
 
-            return{
+            return {
                 ...state,
                 notifications:
                     state.notifications.filter(
-                        notification=>
-                            String(notification._id)!==
+                        notification =>
+                            String(notification._id) !==
                             String(action.payload)
                     ),
-                unreadCount:wasUnread
-                    ?Math.max(
-                        state.unreadCount-1,
+                unreadCount: wasUnread
+                    ? Math.max(
+                        state.unreadCount - 1,
                         0
                     )
-                    :state.unreadCount,
-                actionLoading:false,
-                actionId:null,
-                actionError:null
+                    : state.unreadCount,
+                actionLoading: false,
+                actionId: null,
+                actionError: null
             };
         }
 
         case DELETE_NOTIFICATION_FAIL:
-            return{
+            return {
                 ...state,
-                actionLoading:false,
-                actionId:null,
+                actionLoading: false,
+                actionId: null,
                 actionError:
-                    action.payload?.message||
-                    action.payload||
+                    action.payload?.message ||
+                    action.payload ||
                     'Unable to delete notification.'
             };
 

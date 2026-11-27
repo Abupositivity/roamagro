@@ -118,9 +118,10 @@ const validateStatus = () =>
         .isIn([
             'Draft',
             'Published',
-            'Archived',
         ])
-        .withMessage('Invalid status.');
+        .withMessage(
+            'Invalid status. Use the archive operation to archive an agricultural tip.'
+        );
 
 const validateRegion = () =>
     body('region')

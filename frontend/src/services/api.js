@@ -2,14 +2,30 @@ import axios from 'axios';
 
 const getFriendlyNetworkMessage = (error) => {
     if (error.response) {
+        const status = error.response.status;
+
+        if (status === 500) {
+            return 'Something went wrong on the server. Please try again later.';
+        }
+
+        if (status === 502 || status === 503 || status === 504) {
+            return 'The service is temporarily unavailable. Please try again shortly.';
+        }
+
         return null;
     }
 
-    if (!navigator.onLine) {
+    if (
+        typeof navigator !== 'undefined' &&
+        navigator.onLine === false
+    ) {
         return 'You are offline. Please check your internet connection.';
     }
 
-    if (error.code === 'ECONNABORTED') {
+    if (
+        error.code === 'ECONNABORTED' ||
+        error.code === 'ETIMEDOUT'
+    ) {
         return 'The request is taking too long. Please try again.';
     }
 

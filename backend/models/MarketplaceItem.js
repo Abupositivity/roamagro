@@ -1,4 +1,3 @@
-
 const mongoose = require('mongoose');
 
 const MarketplaceItemSchema = new mongoose.Schema(
@@ -75,10 +74,33 @@ const MarketplaceItemSchema = new mongoose.Schema(
     }
 );
 
+// Default chronological marketplace retrieval.
+MarketplaceItemSchema.index({
+    createdAt: -1,
+    _id: -1,
+});
+
+// Personal listings retrieval.
+MarketplaceItemSchema.index({
+    user: 1,
+    createdAt: -1,
+    _id: -1,
+});
+
+// Category filtering and chronological sorting.
+MarketplaceItemSchema.index({
+    category: 1,
+    createdAt: -1,
+    _id: -1,
+});
+
+// Combined availability and category filtering
+// with deterministic chronological sorting.
 MarketplaceItemSchema.index({
     available: 1,
     category: 1,
     createdAt: -1,
+    _id: -1,
 });
 
 module.exports = mongoose.model(
